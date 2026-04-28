@@ -2,11 +2,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string | undefined;
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is required in environment variables");
 }
+
+const JWT_SECRET_VALUE = JWT_SECRET;
 
 export interface AuthPayload {
   userId: number;
@@ -24,14 +26,14 @@ export async function verifyPassword(password: string, passwordHash: string) {
 }
 
 export function signToken(payload: AuthPayload) {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, JWT_SECRET_VALUE, {
     expiresIn: "7d",
   });
 }
 
 export function verifyToken(token: string) {
   try {
-    return jwt.verify(token, JWT_SECRET) as AuthPayload;
+    return jwt.verify(token, JWT_SECRET_VALUE) as AuthPayload;
   } catch {
     return null;
   }
