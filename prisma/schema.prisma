@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  manager
+  staff
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(staff)
+  createdAt DateTime @default(now())
+}
+
+model Shop {
+  id        Int       @id @default(autoincrement())
+  name      String
+  address   String
+  createdAt DateTime  @default(now())
+  products  Product[]
+  sales     Sale[]
+  expenses  Expense[]
+}
+
+model Product {
+  id            Int        @id @default(autoincrement())
+  shop          Shop       @relation(fields: [shopId], references: [id])
+  shopId        Int
+  name          String
+  quantity      Int        @default(0)
+  purchasePrice Decimal    @db.Decimal(10, 2)
+  salePrice     Decimal    @db.Decimal(10, 2)
+  createdAt     DateTime   @default(now())
+  saleItems     SaleItem[]
+}
+
+model Sale {
+  id          Int        @id @default(autoincrement())
+  shop        Shop       @relation(fields: [shopId], references: [id])
+  shopId      Int
+  totalAmount Decimal    @db.Decimal(12, 2)
+  createdAt   DateTime   @default(now())
+  items       SaleItem[]
+}
+
+model SaleItem {
+  id        Int      @id @default(autoincrement())
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  saleId    Int
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int
+  price     Decimal  @db.Decimal(12, 2)
+}
+
+model Expense {
+  id        Int      @id @default(autoincrement())
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  shopId    Int
+  title     String
+  amount    Decimal  @db.Decimal(12, 2)
+  createdAt DateTime @default(now())
+}
