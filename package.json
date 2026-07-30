@@ -4,17 +4,25 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run check:route-guards && next build",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:studio": "prisma studio"
+    "check:route-guards": "node scripts/check-route-guards.mjs",
+    "prisma:generate:central": "prisma generate --schema=prisma/central/schema.prisma",
+    "prisma:generate:tenant": "prisma generate --schema=prisma/tenant/schema.prisma",
+    "prisma:generate": "npm run prisma:generate:central && npm run prisma:generate:tenant",
+    "prisma:migrate:central": "prisma migrate dev --schema=prisma/central/schema.prisma",
+    "prisma:migrate:tenant": "prisma migrate dev --schema=prisma/tenant/schema.prisma",
+    "prisma:studio:central": "prisma studio --schema=prisma/central/schema.prisma",
+    "prisma:studio:tenant": "prisma studio --schema=prisma/tenant/schema.prisma",
+    "prisma:seed:central": "tsx prisma/central/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.15.0",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
+    "jose": "^6.2.5",
+    "lru-cache": "^11.5.2",
+    "mysql2": "^3.23.2",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -22,7 +30,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.2",
-    "@types/jsonwebtoken": "^9.0.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -30,6 +37,7 @@
     "eslint-config-next": "16.2.4",
     "prisma": "^5.15.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }

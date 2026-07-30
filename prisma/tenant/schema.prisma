@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/tenant"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  company_admin
+  store_manager
+  store_user
+}
+
+enum TransferStatus {
+  pending
+  completed
+  cancelled
+}
+
+enum SaleStatus {
+  completed
+  partially_refunded
+  refunded
+}
+
+enum PaymentMethod {
+  cash
+  card
+  mobile
+  other
+}
+
+// Singleton (id always 1), seeded at provisioning time.
+// The DAL cross-checks this against the session's companyId as a
+// defense-in-depth guard against a misrouted tenant database mapping.
+model TenantConfig {
+  id          Int    @id @default(1)
+  companyId   Int    @unique
+  companyName String
+}
+
+// Fixed catalog of granular capabilities (e.g. can_process_returns).
+// Role defaults live in code (src/lib/permissions.ts); rows here only
+// exist to validate permission keys and back per-user overrides.
+model Permission {
+  key         String                   @id
+  label       String
+  description String?
+  overrides   UserPermissionOverride[]
+}
+
+model UserPermissionOverride {
+  id            Int        @id @default(autoincrement())
+  user          User       @relation(fields: [userId], references: [id])
+  userId        Int
+  permission    Permission @relation(fields: [permissionKey], references: [key])
+  permissionKey String
+  allow         Boolean
+  createdAt     DateTime   @default(now())
+
+  @@unique([userId, permissionKey])
+}
+
+model User {
+  id                  Int                       @id @default(autoincrement())
+  name                String
+  email               String                    @unique
+  password            String
+  role                Role
+  store               Store?                    @relation(fields: [storeId], references: [id])
+  storeId             Int?
+  isActive            Boolean                   @default(true)
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  permissionOverrides UserPermissionOverride[]
+}
+
+model Store {
+  id         Int         @id @default(autoincrement())
+  name       String
+  address    String?
+  phone      String?
+  isActive   Boolean     @default(true)
+  warehouses Warehouse[]
+  users      User[]
+  createdAt  DateTime    @default(now())
+}
+
+model Warehouse {
+  id        Int              @id @default(autoincrement())
+  store     Store            @relation(fields: [storeId], references: [id])
+  storeId   Int
+  name      String
+  location  String?
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  stock     WarehouseStock[]
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  parentId  Int?
+  children  Category[] @relation("CategoryToCategory")
+  products  Product[]
+  createdAt DateTime   @default(now())
+}
+
+model Product {
+  id            Int              @id @default(autoincrement())
+  sku           String           @unique
+  name          String
+  category      Category?        @relation(fields: [categoryId], references: [id])
+  categoryId    Int?
+  purchasePrice Decimal          @db.Decimal(10, 2)
+  salePrice     Decimal          @db.Decimal(10, 2)
+  taxRate       Decimal          @db.Decimal(5, 2) @default(0)
+  isActive      Boolean          @default(true)
+  stock         WarehouseStock[]
+  createdAt     DateTime         @default(now())
+}
+
+model WarehouseStock {
+  id                Int       @id @default(autoincrement())
+  warehouse         Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId       Int
+  product           Product   @relation(fields: [productId], references: [id])
+  productId         Int
+  quantity          Int       @default(0)
+  lowStockThreshold Int       @default(5)
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([warehouseId, productId])
+}
+
+model StockTransfer {
+  id              Int                 @id @default(autoincrement())
+  fromWarehouseId Int
+  toWarehouseId   Int
+  status          TransferStatus      @default(pending)
+  requestedById   Int
+  completedById   Int?
+  items           StockTransferItem[]
+  createdAt       DateTime            @default(now())
+  completedAt     DateTime?
+}
+
+model StockTransferItem {
+  id         Int           @id @default(autoincrement())
+  transfer   StockTransfer @relation(fields: [transferId], references: [id])
+  transferId Int
+  productId  Int
+  quantity   Int
+}
+
+model Customer {
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String?
+  email         String?
+  loyaltyPoints Int      @default(0)
+  sales         Sale[]
+  createdAt     DateTime @default(now())
+}
+
+model Sale {
+  id             Int           @id @default(autoincrement())
+  storeId        Int
+  warehouseId    Int
+  cashierId      Int
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  customerId     Int?
+  subtotal       Decimal       @db.Decimal(12, 2)
+  discountAmount Decimal       @db.Decimal(12, 2) @default(0)
+  taxAmount      Decimal       @db.Decimal(12, 2) @default(0)
+  totalAmount    Decimal       @db.Decimal(12, 2)
+  status         SaleStatus    @default(completed)
+  items          SaleItem[]
+  payments       SalePayment[]
+  returns        Return[]
+  createdAt      DateTime      @default(now())
+}
+
+model SaleItem {
+  id             Int      @id @default(autoincrement())
+  sale           Sale     @relation(fields: [saleId], references: [id])
+  saleId         Int
+  productId      Int
+  quantity       Int
+  unitPrice      Decimal  @db.Decimal(12, 2)
+  discountAmount Decimal  @db.Decimal(12, 2) @default(0)
+  lineTotal      Decimal  @db.Decimal(12, 2)
+}
+
+model SalePayment {
+  id        Int           @id @default(autoincrement())
+  sale      Sale          @relation(fields: [saleId], references: [id])
+  saleId    Int
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(12, 2)
+  reference String?
+}
+
+model Return {
+  id            Int          @id @default(autoincrement())
+  sale          Sale         @relation(fields: [saleId], references: [id])
+  saleId        Int
+  storeId       Int
+  warehouseId   Int
+  processedById Int
+  reason        String?
+  refundAmount  Decimal      @db.Decimal(12, 2)
+  items         ReturnItem[]
+  createdAt     DateTime     @default(now())
+}
+
+model ReturnItem {
+  id         Int     @id @default(autoincrement())
+  return     Return  @relation(fields: [returnId], references: [id])
+  returnId   Int
+  saleItemId Int
+  quantity   Int
+  restocked  Boolean @default(false)
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  userEmail  String?
+  action     String
+  entityType String
+  entityId   Int?
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+}

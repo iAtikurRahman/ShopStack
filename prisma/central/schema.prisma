@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/central"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("CENTRAL_DATABASE_URL")
+}
+
+enum CompanyStatus {
+  provisioning
+  active
+  suspended
+  failed
+  archived
+}
+
+enum TenantDbStatus {
+  pending
+  creating_db
+  migrating
+  seeding
+  ready
+  failed
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+model ProjectAdmin {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Company {
+  id              Int                     @id @default(autoincrement())
+  name            String
+  slug            String                  @unique
+  status          CompanyStatus           @default(provisioning)
+  tenantDb        TenantDatabase?
+  subscription    Subscription?
+  metricsSnapshot CompanyMetricsSnapshot?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
+model TenantDatabase {
+  id        Int            @id @default(autoincrement())
+  company   Company        @relation(fields: [companyId], references: [id])
+  companyId Int            @unique
+  dbName    String         @unique
+  dbHost    String?
+  dbPort    Int?
+  status    TenantDbStatus @default(pending)
+  lastError String?        @db.Text
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Plan {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  priceMonthly  Decimal        @db.Decimal(10, 2)
+  maxStores     Int
+  maxWarehouses Int
+  maxUsers      Int
+  features      Json
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id               Int                @id @default(autoincrement())
+  company          Company            @relation(fields: [companyId], references: [id])
+  companyId        Int                @unique
+  plan             Plan               @relation(fields: [planId], references: [id])
+  planId           Int
+  status           SubscriptionStatus @default(trialing)
+  startedAt        DateTime           @default(now())
+  currentPeriodEnd DateTime?
+}
+
+// Periodic rollup of each tenant's headline metrics, refreshed by
+// POST /api/admin/reports/refresh (a stand-in for a scheduled job in
+// this MVP). The Project Admin dashboard reads only from this table -
+// it never fans out live to every tenant database on each page load.
+model CompanyMetricsSnapshot {
+  id           Int      @id @default(autoincrement())
+  company      Company  @relation(fields: [companyId], references: [id])
+  companyId    Int      @unique
+  totalSales   Decimal  @db.Decimal(14, 2)
+  totalRefunds Decimal  @db.Decimal(14, 2)
+  salesCount   Int
+  storeCount   Int
+  userCount    Int
+  refreshedAt  DateTime @default(now())
+}
+
+model CentralAuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  action     String
+  targetType String
+  targetId   Int?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}

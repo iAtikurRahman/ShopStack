@@ -1,22 +1,31 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { apiFetch, setAuthToken, setAuthUser, getAuthToken } from "@/services/api";
+import { useState } from "react";
+import { apiFetch } from "@/services/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [slug, setSlug] = useState("");
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (getAuthToken()) {
-      router.replace("/dashboard");
+  async function handleSlugBlur() {
+    if (!slug) {
+      setCompanyName(null);
+      return;
     }
-  }, [router]);
+    try {
+      const data = await apiFetch<{ companyName: string }>("/api/auth/resolve-company", "POST", { slug });
+      setCompanyName(data.companyName);
+      setError(null);
+    } catch {
+      setCompanyName(null);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,15 +33,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await apiFetch<{ token: string; user: { name: string; email: string; role: string } }>(
-        "/api/auth/login",
-        "POST",
-        { email, password }
-      );
-
-      setAuthToken(data.token);
-      setAuthUser(data.user);
-      router.push("/dashboard");
+      const data = await apiFetch<{ user: { role: string } }>("/api/auth/login", "POST", {
+        slug,
+        email,
+        password,
+      });
+      router.push(data.user.role === "company_admin" ? "/company" : "/store");
+      router.refresh();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -45,9 +52,24 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
         <div className="w-full rounded-4xl border border-slate-200 bg-white p-10 shadow-xl">
           <h1 className="text-3xl font-semibold">Sign in to ShopStack</h1>
-          <p className="mt-3 text-sm text-slate-600">Manage shops, products, sales, and expenses from one place.</p>
+          <p className="mt-3 text-sm text-slate-600">
+            {companyName ? `Welcome to ${companyName}.` : "Enter your company workspace to continue."}
+          </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Company slug</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(event) => setSlug(event.target.value)}
+                onBlur={handleSlugBlur}
+                required
+                placeholder="acme-retail"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-slate-900"
+              />
+            </label>
+
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Email</span>
               <input
@@ -80,13 +102,6 @@ export default function LoginPage() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
-
-          <p className="mt-6 text-sm text-slate-600">
-            No account yet?{' '}
-            <Link href="/register" className="font-semibold text-slate-950 underline">
-              Create one
-            </Link>
-          </p>
         </div>
       </div>
     </div>

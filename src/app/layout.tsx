@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ShopStack",
-  description: "A production-ready shop management system for inventory, sales, and expenses.",
+  description: "Multi-tenant point of sale SaaS for managing companies, stores, and warehouses.",
 };
 
 export default function RootLayout({

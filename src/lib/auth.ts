@@ -1,21 +1,36 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { NextRequest } from "next/server";
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
+import type { Role } from "@/generated/tenant";
 
-const JWT_SECRET = process.env.JWT_SECRET as string | undefined;
-
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is required in environment variables");
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  throw new Error("SESSION_SECRET is required in environment variables");
 }
+const encodedSecret = new TextEncoder().encode(SESSION_SECRET);
 
-const JWT_SECRET_VALUE = JWT_SECRET;
+export const SESSION_COOKIE = "shopstack_session";
+const SESSION_TTL = "7d";
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export interface AuthPayload {
-  userId: number;
+export type ProjectAdminSession = {
+  kind: "project_admin";
+  projectAdminId: number;
   email: string;
   name: string;
-  role: string;
-}
+};
+
+export type TenantSession = {
+  kind: "tenant";
+  userId: number;
+  companyId: number;
+  storeId: number | null;
+  role: Role;
+  email: string;
+  name: string;
+};
+
+export type SessionPayload = ProjectAdminSession | TenantSession;
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -25,48 +40,44 @@ export async function verifyPassword(password: string, passwordHash: string) {
   return bcrypt.compare(password, passwordHash);
 }
 
-export function signToken(payload: AuthPayload) {
-  return jwt.sign(payload, JWT_SECRET_VALUE, {
-    expiresIn: "7d",
-  });
+export async function signSessionToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(SESSION_TTL)
+    .sign(encodedSecret);
 }
 
-export function verifyToken(token: string) {
+/** Verifies signature + expiry only. Safe to call on the Edge runtime (proxy.ts). */
+export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
-    return jwt.verify(token, JWT_SECRET_VALUE) as AuthPayload;
+    const { payload } = await jwtVerify(token, encodedSecret, { algorithms: ["HS256"] });
+    if (payload.kind === "project_admin" || payload.kind === "tenant") {
+      return payload as unknown as SessionPayload;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
-export function getAuthToken(request: Request | NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.slice(7);
+export async function setSessionCookie(token: string) {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL_MS / 1000,
+  });
 }
 
-export function requireAuth(request: Request | NextRequest, allowedRoles: string[] = []) {
-  const token = getAuthToken(request);
-  if (!token) {
-    const error = new Error("Unauthorized");
-    (error as any).status = 401;
-    throw error;
-  }
+export async function clearSessionCookie() {
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+}
 
-  const payload = verifyToken(token);
-  if (!payload) {
-    const error = new Error("Unauthorized");
-    (error as any).status = 401;
-    throw error;
-  }
-
-  if (allowedRoles.length > 0 && !allowedRoles.includes(payload.role)) {
-    const error = new Error("Forbidden");
-    (error as any).status = 403;
-    throw error;
-  }
-
-  return payload;
+export async function readSessionCookie(): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get(SESSION_COOKIE)?.value;
 }
