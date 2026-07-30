@@ -24,13 +24,15 @@ export default function PosCheckoutPage() {
   const [stock, setStock] = useState<Stock[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
-  const [customerId, setCustomerId] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "other">("cash");
   const [discountAmount, setDiscountAmount] = useState("0");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 
   async function loadData() {
     try {
@@ -92,6 +94,15 @@ export default function PosCheckoutPage() {
     );
   }
 
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+  }, [products, productSearch]);
+
+  const trimmedPhone = customerPhone.trim();
+  const matchedCustomer = trimmedPhone ? customers.find((c) => c.phone === trimmedPhone) ?? null : null;
+
   const { subtotal, taxAmount, total } = useMemo(() => {
     const sub = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const tax = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity * (l.taxRate / 100), 0);
@@ -99,14 +110,29 @@ export default function PosCheckoutPage() {
     return { subtotal: Math.round(sub * 100) / 100, taxAmount: Math.round(tax * 100) / 100, total: Math.round(t * 100) / 100 };
   }, [cart, discountAmount]);
 
+  async function resolveCustomerId(): Promise<number | null> {
+    if (!trimmedPhone) return null;
+    if (matchedCustomer) return matchedCustomer.id;
+    if (!customerName.trim()) {
+      throw new Error("Enter a name to create a new customer for this phone number");
+    }
+    const created = await apiFetch<{ customer: Customer }>("/api/store/customers", "POST", {
+      name: customerName.trim(),
+      phone: trimmedPhone,
+    });
+    setCustomers((current) => [created.customer, ...current]);
+    return created.customer.id;
+  }
+
   async function handleCheckout() {
     if (!warehouseId || cart.length === 0) return;
     setSubmitting(true);
     setError(null);
     try {
+      const customerId = await resolveCustomerId();
       const data = await apiFetch<{ sale: { id: number } }>("/api/store/pos/checkout", "POST", {
         warehouseId,
-        customerId: customerId || null,
+        customerId,
         discountAmount: Number(discountAmount || 0),
         items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
         payments: [{ method: paymentMethod, amount: total }],
@@ -127,11 +153,20 @@ export default function PosCheckoutPage() {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Products</h2>
+          <input
+            type="text"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            placeholder="Search by name or SKU…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
+          ) : filteredProducts.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">No products match &quot;{productSearch}&quot;.</p>
           ) : (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {products.map((product) => {
+              {filteredProducts.map((product) => {
                 const qty = availableQty(product.id);
                 return (
                   <button
@@ -194,21 +229,32 @@ export default function PosCheckoutPage() {
           </div>
 
           <div className="mt-6 space-y-3 border-t border-slate-100 pt-4 text-sm">
-            <label className="flex items-center justify-between">
-              <span className="text-slate-600">Customer</span>
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="rounded-xl border border-slate-200 px-3 py-1.5 outline-none focus:border-slate-900"
-              >
-                <option value="">Walk-in</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div>
+              <label className="flex items-center justify-between">
+                <span className="text-slate-600">Customer phone</span>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Leave blank for walk-in"
+                  className="w-44 rounded-xl border border-slate-200 px-3 py-1.5 outline-none focus:border-slate-900"
+                />
+              </label>
+              {trimmedPhone && matchedCustomer ? (
+                <p className="mt-1 text-right text-xs font-medium text-emerald-600">✓ {matchedCustomer.name}</p>
+              ) : trimmedPhone ? (
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-xs text-slate-500">New customer</span>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Name"
+                    className="w-44 rounded-xl border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-slate-900"
+                  />
+                </div>
+              ) : null}
+            </div>
             <label className="flex items-center justify-between">
               <span className="text-slate-600">Discount</span>
               <input
