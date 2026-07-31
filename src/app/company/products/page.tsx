@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/services/api";
 
 type Product = {
@@ -28,6 +28,30 @@ export default function CompanyProductsPage() {
   const [purchasePrice, setPurchasePrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [taxRate, setTaxRate] = useState("0");
+
+  const [categoryQuery, setCategoryQuery] = useState("");
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const categoryFieldRef = useRef<HTMLDivElement>(null);
+
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())
+  );
+
+  function selectCategory(category: Category | null) {
+    setCategoryId(category ? String(category.id) : "");
+    setCategoryQuery(category ? category.name : "");
+    setIsCategoryOpen(false);
+  }
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoryFieldRef.current && !categoryFieldRef.current.contains(event.target as Node)) {
+        setIsCategoryOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function loadData() {
     try {
@@ -66,7 +90,7 @@ export default function CompanyProductsPage() {
       });
       setSku("");
       setName("");
-      setCategoryId("");
+      selectCategory(null);
       setPurchasePrice("");
       setSalePrice("");
       setTaxRate("0");
@@ -136,21 +160,55 @@ export default function CompanyProductsPage() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
-            <label className="block">
+            <div className="block" ref={categoryFieldRef}>
               <span className="text-sm font-medium text-slate-700">Category</span>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              >
-                <option value="">None</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="relative mt-2">
+                <input
+                  value={categoryQuery}
+                  onChange={(e) => {
+                    setCategoryQuery(e.target.value);
+                    setCategoryId("");
+                    setIsCategoryOpen(true);
+                  }}
+                  onFocus={() => setIsCategoryOpen(true)}
+                  placeholder="Search category…"
+                  autoComplete="off"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                />
+                {isCategoryOpen ? (
+                  <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-lg">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => selectCategory(null)}
+                        className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100"
+                      >
+                        None
+                      </button>
+                    </li>
+                    {filteredCategories.length === 0 ? (
+                      <li className="px-3 py-2 text-sm text-slate-400">No matching categories</li>
+                    ) : (
+                      filteredCategories.map((category) => (
+                        <li key={category.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectCategory(category)}
+                            className={`block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-100 ${
+                              String(category.id) === categoryId
+                                ? "bg-slate-100 font-medium text-slate-950"
+                                : "text-slate-700"
+                            }`}
+                          >
+                            {category.name}
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Purchase price</span>
               <input
