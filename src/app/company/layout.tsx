@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError, requireTenantSession } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
+import { AdGate } from "@/components/AdGate";
 
 export default async function CompanyLayout({ children }: { children: React.ReactNode }) {
   let name: string;
@@ -31,8 +32,17 @@ export default async function CompanyLayout({ children }: { children: React.Reac
             <Link href="/company/products" className="hover:underline">
               Products
             </Link>
+            <Link href="/company/purchases" className="hover:underline">
+              Purchases
+            </Link>
+            <Link href="/company/transfers" className="hover:underline">
+              Transfers
+            </Link>
             <Link href="/company/categories" className="hover:underline">
               Categories
+            </Link>
+            <Link href="/company/suppliers" className="hover:underline">
+              Suppliers
             </Link>
             <Link href="/company/customers" className="hover:underline">
               Customers
@@ -46,11 +56,15 @@ export default async function CompanyLayout({ children }: { children: React.Reac
             <Link href="/company/audit-log" className="hover:underline">
               Audit log
             </Link>
+            <Link href="/company/subscription" className="hover:underline">
+              Subscription
+            </Link>
             <span className="text-slate-500">{name}</span>
             <LogoutButton redirectTo="/login" />
           </nav>
         </div>
       </header>
+      <AdGate role="company_admin" />
       <main>{children}</main>
     </div>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError, requireTenantSession } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
+import { AdGate } from "@/components/AdGate";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   let name: string;
@@ -14,6 +15,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     if (err instanceof ApiError) redirect("/login");
     throw err;
   }
+  const role = isManager ? "store_manager" : "store_user";
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -45,6 +47,12 @@ export default async function StoreLayout({ children }: { children: React.ReactN
             <Link href="/store/transfers" className="hover:underline">
               Transfers
             </Link>
+            <Link href="/store/purchases" className="hover:underline">
+              Purchases
+            </Link>
+            <Link href="/store/supplier-returns" className="hover:underline">
+              Supplier returns
+            </Link>
             {isManager ? (
               <Link href="/store/reports" className="hover:underline">
                 Reports
@@ -60,6 +68,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
           </nav>
         </div>
       </header>
+      <AdGate role={role} />
       <main>{children}</main>
     </div>
   );

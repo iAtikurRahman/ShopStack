@@ -27,10 +27,29 @@ enum TenantDbStatus {
 }
 
 enum SubscriptionStatus {
-  trialing
+  pending
   active
-  past_due
-  canceled
+  expired
+  cancelled
+}
+
+enum PaymentMethodType {
+  bkash
+  nagad
+  rocket
+}
+
+enum PlanDuration {
+  monthly
+  quarterly
+  yearly
+  custom
+}
+
+enum PaymentReviewStatus {
+  pending
+  approved
+  rejected
 }
 
 model ProjectAdmin {
@@ -43,15 +62,17 @@ model ProjectAdmin {
 }
 
 model Company {
-  id              Int                     @id @default(autoincrement())
-  name            String
-  slug            String                  @unique
-  status          CompanyStatus           @default(provisioning)
-  tenantDb        TenantDatabase?
-  subscription    Subscription?
-  metricsSnapshot CompanyMetricsSnapshot?
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id                   Int                     @id @default(autoincrement())
+  name                 String
+  slug                 String                  @unique
+  status               CompanyStatus           @default(provisioning)
+  tenantDb             TenantDatabase?
+  subscription         Subscription?
+  subscriptionPayments SubscriptionPayment[]
+  notifications        Notification[]
+  metricsSnapshot      CompanyMetricsSnapshot?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 }
 
 model TenantDatabase {
@@ -67,26 +88,95 @@ model TenantDatabase {
   updatedAt DateTime       @updatedAt
 }
 
-model Plan {
-  id            Int            @id @default(autoincrement())
-  name          String         @unique
-  priceMonthly  Decimal        @db.Decimal(10, 2)
-  maxStores     Int
-  maxWarehouses Int
-  maxUsers      Int
-  features      Json
+model SubscriptionPlan {
+  id            Int                   @id @default(autoincrement())
+  name          String                @unique
+  duration      PlanDuration
+  durationDays  Int
+  price         Decimal               @db.Decimal(10, 2)
+  isActive      Boolean               @default(true)
   subscriptions Subscription[]
+  payments      SubscriptionPayment[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 }
 
+model PaymentMethodConfig {
+  id           Int               @id @default(autoincrement())
+  method       PaymentMethodType @unique
+  displayName  String
+  instructions String?           @db.Text
+  isEnabled    Boolean           @default(true)
+}
+
+// Current subscription cycle for a company - one row per company.
+// Denormalizes the latest payment's method/transactionId/amount for
+// cheap dashboard reads; SubscriptionPayment is the full history.
 model Subscription {
-  id               Int                @id @default(autoincrement())
-  company          Company            @relation(fields: [companyId], references: [id])
-  companyId        Int                @unique
-  plan             Plan               @relation(fields: [planId], references: [id])
-  planId           Int
-  status           SubscriptionStatus @default(trialing)
-  startedAt        DateTime           @default(now())
-  currentPeriodEnd DateTime?
+  id            Int                   @id @default(autoincrement())
+  company       Company               @relation(fields: [companyId], references: [id])
+  companyId     Int                   @unique
+  plan          SubscriptionPlan?     @relation(fields: [planId], references: [id])
+  planId        Int?
+  status        SubscriptionStatus    @default(pending)
+  paymentMethod PaymentMethodType?
+  transactionId String?
+  amount        Decimal?              @db.Decimal(10, 2)
+  startDate     DateTime?
+  endDate       DateTime?
+  payments      SubscriptionPayment[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([status])
+  @@index([endDate])
+}
+
+// One row per payment submission/attempt - append-only audit trail,
+// independent of Subscription's in-place fields above.
+model SubscriptionPayment {
+  id             Int                 @id @default(autoincrement())
+  subscription   Subscription        @relation(fields: [subscriptionId], references: [id])
+  subscriptionId Int
+  company        Company             @relation(fields: [companyId], references: [id])
+  companyId      Int
+  plan           SubscriptionPlan?   @relation(fields: [planId], references: [id])
+  planId         Int?
+  paymentMethod  PaymentMethodType
+  transactionId  String              @unique
+  amount         Decimal             @db.Decimal(10, 2)
+  screenshotPath String?
+  status         PaymentReviewStatus @default(pending)
+  reviewedById   Int?
+  reviewNote     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model AdvertisementSettings {
+  id               Int      @id @default(1)
+  adsenseClientId  String?
+  adUnitId         String?
+  placement        String   @default("modal")
+  countdownSeconds Int      @default(15)
+  isEnabled        Boolean  @default(true)
+  frequencyMinutes Int      @default(30)
+  updatedAt        DateTime @updatedAt
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId Int
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([companyId, isRead])
 }
 
 // Periodic rollup of each tenant's headline metrics, refreshed by

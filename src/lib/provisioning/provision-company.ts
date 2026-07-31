@@ -11,6 +11,8 @@ export interface ProvisionCompanyInput {
   adminName: string;
   adminEmail: string;
   adminPassword: string;
+  /** Optional: Project Admin can grant premium immediately instead of leaving the company on the free tier. */
+  initialPlanId?: number;
 }
 
 export interface ProvisionCompanyResult {
@@ -87,8 +89,30 @@ export async function provisionCompany(
       data: { action: "company.provisioned", targetType: "Company", targetId: company.id },
     });
 
+    if (input.initialPlanId) {
+      const plan = await centralDb.subscriptionPlan.findUnique({ where: { id: input.initialPlanId } });
+      if (!plan) {
+        throw new Error(`Plan ${input.initialPlanId} not found`);
+      }
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + plan.durationDays * 86_400_000);
+      await centralDb.subscription.upsert({
+        where: { companyId: company.id },
+        update: { status: "active", planId: plan.id, startDate, endDate },
+        create: { companyId: company.id, status: "active", planId: plan.id, startDate, endDate },
+      });
+      await centralDb.centralAuditLog.create({
+        data: { action: "subscription.granted_at_creation", targetType: "Company", targetId: company.id },
+      });
+    }
+
     return { companyId: company.id };
   } catch (err) {
+    const failedCompany = await centralDb.company.findUnique({ where: { slug: input.slug } });
+    if (failedCompany) {
+      await centralDb.subscriptionPayment.deleteMany({ where: { companyId: failedCompany.id } });
+      await centralDb.subscription.deleteMany({ where: { companyId: failedCompany.id } });
+    }
     await centralDb.tenantDatabase.deleteMany({
       where: { dbName },
     });

@@ -66,16 +66,16 @@ model UserPermissionOverride {
 }
 
 model User {
-  id                  Int                       @id @default(autoincrement())
+  id                  Int                      @id @default(autoincrement())
   name                String
-  email               String                    @unique
+  email               String                   @unique
   password            String
   role                Role
-  store               Store?                    @relation(fields: [storeId], references: [id])
+  store               Store?                   @relation(fields: [storeId], references: [id])
   storeId             Int?
-  isActive            Boolean                   @default(true)
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
+  isActive            Boolean                  @default(true)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
   permissionOverrides UserPermissionOverride[]
 }
 
@@ -91,14 +91,16 @@ model Store {
 }
 
 model Warehouse {
-  id        Int              @id @default(autoincrement())
-  store     Store            @relation(fields: [storeId], references: [id])
-  storeId   Int
-  name      String
-  location  String?
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  stock     WarehouseStock[]
+  id              Int              @id @default(autoincrement())
+  store           Store            @relation(fields: [storeId], references: [id])
+  storeId         Int
+  name            String
+  location        String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  stock           WarehouseStock[]
+  purchases       Purchase[]
+  supplierReturns SupplierReturn[]
 }
 
 model Category {
@@ -112,17 +114,21 @@ model Category {
 }
 
 model Product {
-  id            Int              @id @default(autoincrement())
-  sku           String           @unique
-  name          String
-  category      Category?        @relation(fields: [categoryId], references: [id])
-  categoryId    Int?
-  purchasePrice Decimal          @db.Decimal(10, 2)
-  salePrice     Decimal          @db.Decimal(10, 2)
-  taxRate       Decimal          @db.Decimal(5, 2) @default(0)
-  isActive      Boolean          @default(true)
-  stock         WarehouseStock[]
-  createdAt     DateTime         @default(now())
+  id              Int              @id @default(autoincrement())
+  sku             String           @unique
+  name            String
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  categoryId      Int?
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  supplierId      Int?
+  purchasePrice   Decimal          @db.Decimal(10, 2)
+  salePrice       Decimal          @db.Decimal(10, 2)
+  taxRate         Decimal          @default(0) @db.Decimal(5, 2)
+  isActive        Boolean          @default(true)
+  stock           WarehouseStock[]
+  purchaseItems   PurchaseItem[]
+  supplierReturns SupplierReturn[]
+  createdAt       DateTime         @default(now())
 }
 
 model WarehouseStock {
@@ -158,6 +164,66 @@ model StockTransferItem {
   quantity   Int
 }
 
+model Supplier {
+  id              Int              @id @default(autoincrement())
+  name            String
+  phone           String?
+  email           String?
+  address         String?
+  isActive        Boolean          @default(true)
+  products        Product[]
+  purchases       Purchase[]
+  supplierReturns SupplierReturn[]
+  createdAt       DateTime         @default(now())
+}
+
+// A stock-in event: goods received from a supplier into a warehouse.
+// Increments WarehouseStock on creation (see /api/store/purchases).
+model Purchase {
+  id           Int            @id @default(autoincrement())
+  supplier     Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId   Int
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+  warehouseId  Int
+  receivedById Int
+  reference    String?
+  totalCost    Decimal        @db.Decimal(12, 2)
+  items        PurchaseItem[]
+  // When the goods were actually received (editable - can backdate to
+  // "bought yesterday"), separate from createdAt which is the audit
+  // record-insertion timestamp.
+  purchasedAt  DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+}
+
+model PurchaseItem {
+  id         Int      @id @default(autoincrement())
+  purchase   Purchase @relation(fields: [purchaseId], references: [id])
+  purchaseId Int
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  Int
+  quantity   Int
+  unitCost   Decimal  @db.Decimal(10, 2)
+}
+
+// Stock sent back to a supplier (e.g. damaged/wrong goods). Decrements
+// WarehouseStock on creation - not linked to a specific Purchase batch,
+// since the same product may have been received from this supplier
+// across several purchases.
+model SupplierReturn {
+  id            Int       @id @default(autoincrement())
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+  supplierId    Int
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId   Int
+  product       Product   @relation(fields: [productId], references: [id])
+  productId     Int
+  quantity      Int
+  reason        String?
+  processedById Int
+  createdAt     DateTime  @default(now())
+}
+
 model Customer {
   id            Int      @id @default(autoincrement())
   name          String
@@ -176,8 +242,8 @@ model Sale {
   customer       Customer?     @relation(fields: [customerId], references: [id])
   customerId     Int?
   subtotal       Decimal       @db.Decimal(12, 2)
-  discountAmount Decimal       @db.Decimal(12, 2) @default(0)
-  taxAmount      Decimal       @db.Decimal(12, 2) @default(0)
+  discountAmount Decimal       @default(0) @db.Decimal(12, 2)
+  taxAmount      Decimal       @default(0) @db.Decimal(12, 2)
   totalAmount    Decimal       @db.Decimal(12, 2)
   status         SaleStatus    @default(completed)
   items          SaleItem[]
@@ -187,14 +253,14 @@ model Sale {
 }
 
 model SaleItem {
-  id             Int      @id @default(autoincrement())
-  sale           Sale     @relation(fields: [saleId], references: [id])
+  id             Int     @id @default(autoincrement())
+  sale           Sale    @relation(fields: [saleId], references: [id])
   saleId         Int
   productId      Int
   quantity       Int
-  unitPrice      Decimal  @db.Decimal(12, 2)
-  discountAmount Decimal  @db.Decimal(12, 2) @default(0)
-  lineTotal      Decimal  @db.Decimal(12, 2)
+  unitPrice      Decimal @db.Decimal(12, 2)
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+  lineTotal      Decimal @db.Decimal(12, 2)
 }
 
 model SalePayment {
