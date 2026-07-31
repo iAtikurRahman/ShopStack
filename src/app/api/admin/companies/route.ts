@@ -33,11 +33,6 @@ export const POST = withAuth(async (request) => {
     return NextResponse.json({ message: passwordError }, { status: 400 });
   }
 
-  const existing = await centralDb.company.findUnique({ where: { slug } });
-  if (existing) {
-    return NextResponse.json({ message: "A company with this slug already exists" }, { status: 409 });
-  }
-
   try {
     const result = await provisionCompany({ companyName, slug, adminName, adminEmail, adminPassword });
     return NextResponse.json({ companyId: result.companyId }, { status: 201 });

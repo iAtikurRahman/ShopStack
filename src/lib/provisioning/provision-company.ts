@@ -17,43 +17,50 @@ export interface ProvisionCompanyResult {
   companyId: number;
 }
 
+function tenantDbNameForSlug(slug: string): string {
+  return `sornagro_tenant_${slug.replace(/-/g, "_")}`;
+}
+
 /**
- * End-to-end company provisioning saga. Spans two databases (central +
- * the new tenant database), so it cannot be one atomic transaction -
- * instead it advances an explicit status state machine on TenantDatabase
- * (pending -> creating_db -> migrating -> seeding -> ready, or failed)
- * so a partial failure is inspectable and resumable rather than requiring
- * manual SQL cleanup.
+ * End-to-end company provisioning. Nothing is written to the central DB
+ * until the tenant database is confirmed reachable (this host's DB user
+ * has no CREATE privilege, so createTenantDatabase() either creates it,
+ * when possible, or verifies one was already created manually and throws
+ * a "create this database" error otherwise). Any failure - including
+ * after central rows exist - rolls everything back completely (drops the
+ * tenant db best-effort, deletes the Company/TenantDatabase rows), so a
+ * failed attempt leaves no trace and the exact same request can just be
+ * resubmitted once the underlying problem is fixed.
  */
 export async function provisionCompany(
   input: ProvisionCompanyInput
 ): Promise<ProvisionCompanyResult> {
-  const { company, tenantDatabase } = await centralDb.$transaction(async (tx) => {
-    const company = await tx.company.create({
-      data: { name: input.companyName, slug: input.slug, status: "provisioning" },
-    });
-    const tenantDatabase = await tx.tenantDatabase.create({
-      data: {
-        companyId: company.id,
-        dbName: `sornagro_tenant_${company.id}`,
-        status: "pending",
-      },
-    });
-    return { company, tenantDatabase };
-  });
+  const existing = await centralDb.company.findUnique({ where: { slug: input.slug } });
+  if (existing) {
+    if (existing.status === "active") {
+      throw new Error("A company with this slug already exists");
+    }
+    // Leftover row from a previous failed attempt (e.g. from before this
+    // rollback behavior existed) - clear it so this is a clean retry.
+    await centralDb.tenantDatabase.deleteMany({ where: { companyId: existing.id } });
+    await centralDb.company.delete({ where: { id: existing.id } });
+  }
+
+  const dbName = tenantDbNameForSlug(input.slug);
+  await createTenantDatabase(dbName);
 
   try {
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "creating_db" },
+    const { company, tenantDatabase } = await centralDb.$transaction(async (tx) => {
+      const company = await tx.company.create({
+        data: { name: input.companyName, slug: input.slug, status: "provisioning" },
+      });
+      const tenantDatabase = await tx.tenantDatabase.create({
+        data: { companyId: company.id, dbName, status: "migrating" },
+      });
+      return { company, tenantDatabase };
     });
-    await createTenantDatabase(tenantDatabase.dbName);
 
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "migrating" },
-    });
-    const tenantUrl = buildTenantDbUrl(tenantDatabase.dbName);
+    const tenantUrl = buildTenantDbUrl(dbName);
     await runTenantMigrations(tenantUrl);
 
     await centralDb.tenantDatabase.update({
@@ -77,98 +84,16 @@ export async function provisionCompany(
       data: { status: "active" },
     });
     await centralDb.centralAuditLog.create({
-      data: {
-        action: "company.provisioned",
-        targetType: "Company",
-        targetId: company.id,
-      },
+      data: { action: "company.provisioned", targetType: "Company", targetId: company.id },
     });
 
     return { companyId: company.id };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "failed", lastError: message },
+    await centralDb.tenantDatabase.deleteMany({
+      where: { dbName },
     });
-    await centralDb.company.update({
-      where: { id: company.id },
-      data: { status: "failed" },
-    });
-    // Best-effort cleanup; provisioning can be retried from a clean slate.
-    await dropTenantDatabase(tenantDatabase.dbName).catch(() => undefined);
-    throw err;
-  }
-}
-
-/**
- * Retries a failed provisioning attempt for an existing Company row.
- * Simplified MVP resumption: rather than resuming from the exact failed
- * step, it drops any partially-created tenant database for a clean slate
- * and re-runs creation/migration/seeding. Requires the original admin
- * credentials again since they aren't persisted anywhere before the
- * tenant User row is created.
- */
-export async function retryCompanyProvisioning(
-  companyId: number,
-  adminInput: { adminName: string; adminEmail: string; adminPassword: string }
-): Promise<ProvisionCompanyResult> {
-  const company = await centralDb.company.findUnique({
-    where: { id: companyId },
-    include: { tenantDb: true },
-  });
-  if (!company || !company.tenantDb) {
-    throw new Error(`Company ${companyId} has no provisioning record to retry`);
-  }
-  if (company.tenantDb.status === "ready") {
-    throw new Error(`Company ${companyId} is already provisioned`);
-  }
-
-  const tenantDatabase = company.tenantDb;
-  await dropTenantDatabase(tenantDatabase.dbName).catch(() => undefined);
-
-  try {
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "creating_db", lastError: null },
-    });
-    await createTenantDatabase(tenantDatabase.dbName);
-
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "migrating" },
-    });
-    const tenantUrl = buildTenantDbUrl(tenantDatabase.dbName);
-    await runTenantMigrations(tenantUrl);
-
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "seeding" },
-    });
-    await seedTenantDatabase(tenantUrl, {
-      companyId: company.id,
-      companyName: company.name,
-      ...adminInput,
-    });
-
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "ready" },
-    });
-    await centralDb.company.update({ where: { id: company.id }, data: { status: "active" } });
-    await centralDb.centralAuditLog.create({
-      data: { action: "company.provisioning_retried", targetType: "Company", targetId: company.id },
-    });
-
-    return { companyId: company.id };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await centralDb.tenantDatabase.update({
-      where: { id: tenantDatabase.id },
-      data: { status: "failed", lastError: message },
-    });
-    await centralDb.company.update({ where: { id: company.id }, data: { status: "failed" } });
-    await dropTenantDatabase(tenantDatabase.dbName).catch(() => undefined);
+    await centralDb.company.deleteMany({ where: { slug: input.slug } });
+    await dropTenantDatabase(dbName).catch(() => undefined);
     throw err;
   }
 }
