@@ -7,6 +7,7 @@
     "build": "npm run check:route-guards && next build --webpack",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
+    "postinstall": "npm run prisma:generate",
     "check:route-guards": "node scripts/check-route-guards.mjs",
     "prisma:generate:central": "prisma generate --schema=prisma/central/schema.prisma",
     "prisma:generate:tenant": "prisma generate --schema=prisma/tenant/schema.prisma",
