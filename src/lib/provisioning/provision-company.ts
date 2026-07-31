@@ -35,7 +35,7 @@ export async function provisionCompany(
     const tenantDatabase = await tx.tenantDatabase.create({
       data: {
         companyId: company.id,
-        dbName: `shopstack_tenant_${company.id}`,
+        dbName: `sornagro_tenant_${company.id}`,
         status: "pending",
       },
     });
