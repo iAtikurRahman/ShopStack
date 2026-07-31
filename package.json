@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run check:route-guards && next build",
+    "build": "npm run check:route-guards && next build --webpack",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx",
     "check:route-guards": "node scripts/check-route-guards.mjs",
@@ -13,6 +13,9 @@
     "prisma:generate": "npm run prisma:generate:central && npm run prisma:generate:tenant",
     "prisma:migrate:central": "prisma migrate dev --schema=prisma/central/schema.prisma",
     "prisma:migrate:tenant": "prisma migrate dev --schema=prisma/tenant/schema.prisma",
+    "prisma:deploy:central": "prisma migrate deploy --schema=prisma/central/schema.prisma",
+    "prisma:deploy:tenant": "prisma migrate deploy --schema=prisma/tenant/schema.prisma",
+    "prisma:deploy": "npm run prisma:deploy:central && npm run prisma:deploy:tenant",
     "prisma:studio:central": "prisma studio --schema=prisma/central/schema.prisma",
     "prisma:studio:tenant": "prisma studio --schema=prisma/tenant/schema.prisma",
     "prisma:seed:central": "tsx prisma/central/seed.ts"

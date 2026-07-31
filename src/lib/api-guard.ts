@@ -15,7 +15,7 @@ export type GuardedContext<P> = ProjectAdminHandlerContext<P> | TenantHandlerCon
 type RouteContext<P> = { params: Promise<P> };
 
 type GuardedHandler<P> = (request: NextRequest, ctx: GuardedContext<P>) => Promise<Response>;
-type WrappedHandler<P> = (request: NextRequest, routeContext?: RouteContext<P>) => Promise<Response>;
+type WrappedHandler<P> = (request: NextRequest, routeContext: RouteContext<P>) => Promise<Response>;
 
 /**
  * Wraps a route handler so it can ONLY ever run with an already-verified,
@@ -43,9 +43,9 @@ export function withAuth<P = Record<string, never>>(
   options: GuardOptions
 ): WrappedHandler<P> {
   const guardedHandler = handler as unknown as GuardedHandler<P>;
-  return async (request: NextRequest, routeContext?: RouteContext<P>): Promise<Response> => {
+  return async (request: NextRequest, routeContext: RouteContext<P>): Promise<Response> => {
     try {
-      const params = routeContext ? await routeContext.params : ({} as P);
+      const params = await routeContext.params;
 
       if (options.scope === "project_admin") {
         const session = await requireProjectAdmin();
