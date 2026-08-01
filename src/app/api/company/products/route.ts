@@ -6,7 +6,6 @@ export const GET = withAuth(async (_request, { db }) => {
   const products = await db.product.findMany({
     include: {
       category: { select: { id: true, name: true } },
-      supplier: { select: { id: true, name: true } },
       stock: {
         where: { quantity: { gt: 0 } },
         select: {
@@ -33,18 +32,15 @@ export const GET = withAuth(async (_request, { db }) => {
   return NextResponse.json({ products: withTotals });
 }, { scope: "tenant", roles: ["company_admin"] });
 
+// Catalog-only creation: name/SKU/category/unit. Price is set later per
+// store via /store/warehouses/[id]/products (defaults to 0 here), and
+// initial stock is recorded via /company/purchases or /store/purchases.
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { sku, name, categoryId, supplierId, purchasePrice, salePrice, taxRate, warehouseId, quantity } = body ?? {};
+  const { sku, name, categoryId, taxRate, unitValue, unit } = body ?? {};
 
-  if (!sku || !name || purchasePrice === undefined || salePrice === undefined) {
-    return NextResponse.json(
-      { message: "sku, name, purchasePrice, and salePrice are required" },
-      { status: 400 }
-    );
-  }
-  if (quantity !== undefined && quantity !== null && quantity !== "" && !warehouseId) {
-    return NextResponse.json({ message: "warehouseId is required when setting an initial quantity" }, { status: 400 });
+  if (!sku || !name) {
+    return NextResponse.json({ message: "sku and name are required" }, { status: 400 });
   }
 
   const existing = await db.product.findUnique({ where: { sku } });
@@ -52,32 +48,17 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "A product with this SKU already exists" }, { status: 409 });
   }
 
-  const parsedQuantity =
-    quantity !== undefined && quantity !== null && quantity !== "" ? Number(quantity) : null;
-  if (parsedQuantity !== null && (!Number.isInteger(parsedQuantity) || parsedQuantity < 0)) {
-    return NextResponse.json({ message: "quantity must be a non-negative whole number" }, { status: 400 });
-  }
-
-  const product = await db.$transaction(async (tx) => {
-    const created = await tx.product.create({
-      data: {
-        sku,
-        name,
-        categoryId: categoryId ? Number(categoryId) : null,
-        supplierId: supplierId ? Number(supplierId) : null,
-        purchasePrice,
-        salePrice,
-        taxRate: taxRate ?? 0,
-      },
-    });
-
-    if (parsedQuantity !== null) {
-      await tx.warehouseStock.create({
-        data: { warehouseId: Number(warehouseId), productId: created.id, quantity: parsedQuantity },
-      });
-    }
-
-    return created;
+  const product = await db.product.create({
+    data: {
+      sku,
+      name,
+      categoryId: categoryId ? Number(categoryId) : null,
+      purchasePrice: 0,
+      salePrice: 0,
+      taxRate: taxRate ?? 0,
+      unitValue: unitValue !== undefined && unitValue !== null && unitValue !== "" ? Number(unitValue) : null,
+      unit: unit || null,
+    },
   });
 
   await writeAuditLog(db, session, {

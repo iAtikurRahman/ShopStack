@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Product` ADD COLUMN `unitValue` DECIMAL(10, 2) NULL, ADD COLUMN `unit` VARCHAR(191) NULL;

@@ -10,50 +10,35 @@ type Product = {
   sku: string;
   name: string;
   category: { id: number; name: string } | null;
-  supplier: { id: number; name: string } | null;
-  purchasePrice: string;
-  salePrice: string;
-  taxRate: string;
+  unitValue: string | null;
+  unit: string | null;
   totalStock: number;
   stockByStore: StockByStore[];
 };
 
 type Category = { id: number; name: string };
-type Supplier = { id: number; name: string };
-type Warehouse = { id: number; name: string; store: { id: number; name: string } };
+
+const UNIT_OPTIONS = ["piece", "kg", "g", "liter", "ml", "box", "pack", "dozen"];
 
 export default function CompanyProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [supplierId, setSupplierId] = useState("");
-  const [purchasePrice, setPurchasePrice] = useState("");
-  const [salePrice, setSalePrice] = useState("");
   const [taxRate, setTaxRate] = useState("0");
-  const [warehouseId, setWarehouseId] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [unitValue, setUnitValue] = useState("");
+  const [unit, setUnit] = useState("piece");
 
   const [categoryQuery, setCategoryQuery] = useState("");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryFieldRef = useRef<HTMLDivElement>(null);
 
-  const [supplierQuery, setSupplierQuery] = useState("");
-  const [isSupplierOpen, setIsSupplierOpen] = useState(false);
-  const [addingSupplier, setAddingSupplier] = useState(false);
-  const supplierFieldRef = useRef<HTMLDivElement>(null);
-
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())
-  );
-  const filteredSuppliers = suppliers.filter((supplier) =>
-    supplier.name.toLowerCase().includes(supplierQuery.trim().toLowerCase())
   );
 
   function selectCategory(category: Category | null) {
@@ -62,37 +47,10 @@ export default function CompanyProductsPage() {
     setIsCategoryOpen(false);
   }
 
-  function selectSupplier(supplier: Supplier | null) {
-    setSupplierId(supplier ? String(supplier.id) : "");
-    setSupplierQuery(supplier ? supplier.name : "");
-    setIsSupplierOpen(false);
-  }
-
-  async function handleAddSupplier() {
-    const trimmed = supplierQuery.trim();
-    if (!trimmed) return;
-    setAddingSupplier(true);
-    setError(null);
-    try {
-      const { supplier } = await apiFetch<{ supplier: Supplier }>("/api/company/suppliers", "POST", {
-        name: trimmed,
-      });
-      setSuppliers((current) => [...current, supplier]);
-      selectSupplier(supplier);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setAddingSupplier(false);
-    }
-  }
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (categoryFieldRef.current && !categoryFieldRef.current.contains(event.target as Node)) {
         setIsCategoryOpen(false);
-      }
-      if (supplierFieldRef.current && !supplierFieldRef.current.contains(event.target as Node)) {
-        setIsSupplierOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -100,22 +58,15 @@ export default function CompanyProductsPage() {
   }, []);
 
   async function loadData() {
-    // Independent requests (not Promise.all) - one endpoint failing (e.g.
-    // warehouses, if that migration hasn't been deployed yet) shouldn't
-    // blank out the others, like categories, which loaded fine on their own.
-    const [productsResult, categoriesResult, suppliersResult, warehousesResult] = await Promise.allSettled([
+    const [productsResult, categoriesResult] = await Promise.allSettled([
       apiFetch<{ products: Product[] }>("/api/company/products"),
       apiFetch<{ categories: Category[] }>("/api/company/categories"),
-      apiFetch<{ suppliers: Supplier[] }>("/api/company/suppliers"),
-      apiFetch<{ warehouses: Warehouse[] }>("/api/company/warehouses"),
     ]);
 
     if (productsResult.status === "fulfilled") setProducts(productsResult.value.products);
     if (categoriesResult.status === "fulfilled") setCategories(categoriesResult.value.categories);
-    if (suppliersResult.status === "fulfilled") setSuppliers(suppliersResult.value.suppliers);
-    if (warehousesResult.status === "fulfilled") setWarehouses(warehousesResult.value.warehouses);
 
-    const failures = [productsResult, categoriesResult, suppliersResult, warehousesResult]
+    const failures = [productsResult, categoriesResult]
       .filter((r): r is PromiseRejectedResult => r.status === "rejected")
       .map((r) => (r.reason as Error).message);
     setError(failures.length > 0 ? failures.join("; ") : null);
@@ -138,22 +89,16 @@ export default function CompanyProductsPage() {
         sku,
         name,
         categoryId: categoryId || null,
-        supplierId: supplierId || null,
-        purchasePrice: Number(purchasePrice),
-        salePrice: Number(salePrice),
         taxRate: Number(taxRate),
-        warehouseId: warehouseId || undefined,
-        quantity: quantity === "" ? undefined : Number(quantity),
+        unitValue: unitValue === "" ? null : Number(unitValue),
+        unit,
       });
       setSku("");
       setName("");
       selectCategory(null);
-      selectSupplier(null);
-      setPurchasePrice("");
-      setSalePrice("");
       setTaxRate("0");
-      setWarehouseId("");
-      setQuantity("");
+      setUnitValue("");
+      setUnit("piece");
       await loadData();
     } catch (err) {
       setError((err as Error).message);
@@ -163,6 +108,9 @@ export default function CompanyProductsPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">Products</h1>
+      <p className="text-sm text-slate-600">
+        Price is set per-store from Warehouse Products; purchases (with cost and supplier) are recorded from Purchases.
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -179,8 +127,7 @@ export default function CompanyProductsPage() {
                     <th className="pb-2">SKU</th>
                     <th className="pb-2">Name</th>
                     <th className="pb-2">Category</th>
-                    <th className="pb-2">Supplier</th>
-                    <th className="pb-2">Sale price</th>
+                    <th className="pb-2">Unit</th>
                     <th className="pb-2">Total stock</th>
                     <th className="pb-2">By store</th>
                   </tr>
@@ -191,8 +138,9 @@ export default function CompanyProductsPage() {
                       <td className="py-2 text-slate-600">{product.sku}</td>
                       <td className="py-2 font-medium text-slate-950">{product.name}</td>
                       <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
-                      <td className="py-2 text-slate-600">{product.supplier?.name ?? "—"}</td>
-                      <td className="py-2 text-slate-600">{product.salePrice}</td>
+                      <td className="py-2 text-slate-600">
+                        {product.unitValue ? `${product.unitValue} ${product.unit ?? ""}`.trim() : product.unit ?? "—"}
+                      </td>
                       <td className="py-2 text-slate-600">{product.totalStock}</td>
                       <td className="py-2 text-xs text-slate-500">
                         {product.stockByStore.length === 0
@@ -279,87 +227,34 @@ export default function CompanyProductsPage() {
                 ) : null}
               </div>
             </div>
-            <div className="block" ref={supplierFieldRef}>
-              <span className="text-sm font-medium text-slate-700">Supplier</span>
-              <div className="relative mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Unit value</span>
                 <input
-                  value={supplierQuery}
-                  onChange={(e) => {
-                    setSupplierQuery(e.target.value);
-                    setSupplierId("");
-                    setIsSupplierOpen(true);
-                  }}
-                  onFocus={() => setIsSupplierOpen(true)}
-                  placeholder="Search supplier…"
-                  autoComplete="off"
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={unitValue}
+                  onChange={(e) => setUnitValue(e.target.value)}
+                  placeholder="e.g. 250"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
                 />
-                {isSupplierOpen ? (
-                  <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-lg">
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => selectSupplier(null)}
-                        className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100"
-                      >
-                        None
-                      </button>
-                    </li>
-                    {filteredSuppliers.map((supplier) => (
-                      <li key={supplier.id}>
-                        <button
-                          type="button"
-                          onClick={() => selectSupplier(supplier)}
-                          className={`block w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-100 ${
-                            String(supplier.id) === supplierId
-                              ? "bg-slate-100 font-medium text-slate-950"
-                              : "text-slate-700"
-                          }`}
-                        >
-                          {supplier.name}
-                        </button>
-                      </li>
-                    ))}
-                    {filteredSuppliers.length === 0 && supplierQuery.trim() ? (
-                      <li>
-                        <button
-                          type="button"
-                          onClick={handleAddSupplier}
-                          disabled={addingSupplier}
-                          className="block w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                        >
-                          {addingSupplier ? "Adding…" : `+ Add "${supplierQuery.trim()}" as new supplier`}
-                        </button>
-                      </li>
-                    ) : filteredSuppliers.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-slate-400">Type to search or add a supplier</li>
-                    ) : null}
-                  </ul>
-                ) : null}
-              </div>
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Unit</span>
+                <select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                >
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Purchase price</span>
-              <input
-                required
-                type="number"
-                step="0.01"
-                value={purchasePrice}
-                onChange={(e) => setPurchasePrice(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Sale price</span>
-              <input
-                required
-                type="number"
-                step="0.01"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              />
-            </label>
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Tax rate (%)</span>
               <input
@@ -370,34 +265,6 @@ export default function CompanyProductsPage() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
-            <div className="grid grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Warehouse (optional)</span>
-                <select
-                  value={warehouseId}
-                  onChange={(e) => setWarehouseId(e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-                >
-                  <option value="">None</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} ({w.store.name})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">Initial quantity</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  placeholder="0"
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-                />
-              </label>
-            </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <button
               type="submit"

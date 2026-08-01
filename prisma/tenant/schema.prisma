@@ -124,6 +124,12 @@ model Product {
   purchasePrice   Decimal          @db.Decimal(10, 2)
   salePrice       Decimal          @db.Decimal(10, 2)
   taxRate         Decimal          @default(0) @db.Decimal(5, 2)
+  // Package/measurement size, e.g. unitValue=250, unit="ml" for a 250ml
+  // Coca-Cola bottle - set at the company catalog level (see
+  // /company/products); price stays editable per-store via
+  // /store/warehouses/[id]/products.
+  unitValue       Decimal?         @db.Decimal(10, 2)
+  unit            String?
   isActive        Boolean          @default(true)
   stock           WarehouseStock[]
   purchaseItems   PurchaseItem[]
