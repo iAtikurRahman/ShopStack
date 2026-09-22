@@ -19,7 +19,7 @@ export const GET = withAuth(async (_request, { session }) => {
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ payments });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth(async (request, { session }) => {
   const body = await request.json().catch(() => null);
@@ -93,4 +93,4 @@ export const POST = withAuth(async (request, { session }) => {
     }
     throw err;
   }
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

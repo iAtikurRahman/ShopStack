@@ -7,7 +7,10 @@ async function assertAccessibleFromMyStore(
   storeId: number | null,
   productId: number
 ) {
-  const myWarehouses = await db.warehouse.findMany({ where: { storeId: storeId ?? -1 }, select: { id: true } });
+  const myWarehouses = await db.warehouse.findMany({
+    where: storeId !== null ? { storeId } : {},
+    select: { id: true },
+  });
   const stock = await db.warehouseStock.findFirst({
     where: { productId, warehouseId: { in: myWarehouses.map((w) => w.id) } },
   });
@@ -49,7 +52,7 @@ export const PUT = withAuth<{ productId: string }>(async (request, { session, db
   });
 
   return NextResponse.json({ product });
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "product.update" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "product.update" });
 
 // De-stocks the product from the caller's own store's warehouse(s) rather
 // than deleting the global catalog Product outright - the same product
@@ -65,7 +68,7 @@ export const DELETE = withAuth<{ productId: string }>(async (_request, { session
   }
 
   const myWarehouses = await db.warehouse.findMany({
-    where: { storeId: session.storeId ?? -1 },
+    where: session.storeId !== null ? { storeId: session.storeId } : {},
     select: { id: true },
   });
   const myWarehouseIds = myWarehouses.map((w) => w.id);
@@ -94,4 +97,4 @@ export const DELETE = withAuth<{ productId: string }>(async (_request, { session
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "product.delete" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "product.delete" });

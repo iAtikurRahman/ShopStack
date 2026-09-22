@@ -8,4 +8,4 @@ export const GET = withAuth(async () => {
     orderBy: { method: "asc" },
   });
   return NextResponse.json({ paymentMethods });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

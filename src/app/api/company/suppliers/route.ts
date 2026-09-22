@@ -7,7 +7,7 @@ export const GET = withAuth(async (_request, { db }) => {
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ suppliers });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -26,4 +26,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     after: { name: supplier.name },
   });
   return NextResponse.json({ supplier }, { status: 201 });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

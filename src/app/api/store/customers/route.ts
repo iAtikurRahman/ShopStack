@@ -7,7 +7,7 @@ import { withAuth } from "@/lib/api-guard";
 export const GET = withAuth(async (_request, { db }) => {
   const customers = await db.customer.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json({ customers });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 export const POST = withAuth(async (request, { db }) => {
   const body = await request.json().catch(() => null);
@@ -18,4 +18,4 @@ export const POST = withAuth(async (request, { db }) => {
 
   const customer = await db.customer.create({ data: { name, phone, email } });
   return NextResponse.json({ customer }, { status: 201 });
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "can_manage_customers" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "can_manage_customers" });

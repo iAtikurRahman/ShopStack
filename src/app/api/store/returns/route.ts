@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 
 type ReturnItemInput = { saleItemId: number; quantity: number };
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const returns = await db.return.findMany({
-    where: { storeId: session.storeId ?? -1 },
+    where: storeScopeWhere(session),
     include: { items: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ returns });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -22,7 +23,7 @@ export const POST = withAuth(async (request, { session, db }) => {
   }
 
   const sale = await db.sale.findUnique({ where: { id: Number(saleId) }, include: { items: true } });
-  if (!sale || sale.storeId !== session.storeId) {
+  if (!sale || !canAccessStore(session, sale.storeId)) {
     return NextResponse.json({ message: "Sale not found" }, { status: 404 });
   }
 
@@ -66,7 +67,7 @@ export const POST = withAuth(async (request, { session, db }) => {
       const createdReturn = await tx.return.create({
         data: {
           saleId: sale.id,
-          storeId: session.storeId!,
+          storeId: sale.storeId,
           warehouseId: sale.warehouseId,
           processedById: session.userId,
           reason,
@@ -105,4 +106,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     const message = err instanceof Error ? err.message : "Return failed";
     return NextResponse.json({ message }, { status: 400 });
   }
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "can_process_returns" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "can_process_returns" });

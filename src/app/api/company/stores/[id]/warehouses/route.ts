@@ -13,7 +13,7 @@ export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => 
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ warehouses });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth<{ id: string }>(async (request, { session, db, params }) => {
   const storeId = Number(params.id);
@@ -40,4 +40,4 @@ export const POST = withAuth<{ id: string }>(async (request, { session, db, para
     after: { name: warehouse.name, storeId },
   });
   return NextResponse.json({ warehouse }, { status: 201 });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

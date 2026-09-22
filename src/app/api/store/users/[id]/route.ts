@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { canAccessStore } from "@/lib/tenant-access";
 
 export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const userId = Number(params.id);
@@ -12,7 +13,7 @@ export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, p
   // 404 (not 403) for both "doesn't exist" and "not in my store / not a
   // store_user" - a Store Manager should not be able to distinguish
   // "no such user" from "that user exists but isn't mine to manage".
-  if (!target || target.storeId !== session.storeId || target.role !== "store_user") {
+  if (!target || !canAccessStore(session, target.storeId) || target.role !== "store_user") {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
@@ -25,4 +26,4 @@ export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, p
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["store_manager"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

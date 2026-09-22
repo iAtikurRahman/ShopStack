@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 
 export const GET = withAuth(async (_request, { session, db }) => {
-  const warehouses = await db.warehouse.findMany({ where: { storeId: session.storeId ?? -1 } });
+  const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
   const warehouseIds = warehouses.map((w) => w.id);
 
   const transfers = await db.stockTransfer.findMany({
@@ -14,7 +15,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
   });
 
   return NextResponse.json({ transfers });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -31,7 +32,7 @@ export const POST = withAuth(async (request, { session, db }) => {
   }
 
   const fromWarehouse = await db.warehouse.findUnique({ where: { id: Number(fromWarehouseId) } });
-  if (!fromWarehouse || fromWarehouse.storeId !== session.storeId) {
+  if (!fromWarehouse || !canAccessStore(session, fromWarehouse.storeId)) {
     return NextResponse.json({ message: "Source warehouse not found in your store" }, { status: 404 });
   }
   const toWarehouse = await db.warehouse.findUnique({ where: { id: Number(toWarehouseId) } });
@@ -90,4 +91,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     const message = err instanceof Error ? err.message : "Transfer failed";
     return NextResponse.json({ message }, { status: 400 });
   }
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "can_manage_inventory" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "can_manage_inventory" });

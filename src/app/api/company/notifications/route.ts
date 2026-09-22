@@ -9,7 +9,7 @@ export const GET = withAuth(async (_request, { session }) => {
     take: 50,
   });
   return NextResponse.json({ notifications });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const PATCH = withAuth(async (request, { session }) => {
   const body = await request.json().catch(() => null);
@@ -28,4 +28,4 @@ export const PATCH = withAuth(async (request, { session }) => {
     data: { isRead: true },
   });
   return NextResponse.json({ notification: updated });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({
-    where: { storeId: session.storeId ?? -1 },
+    where: storeScopeWhere(session),
     orderBy: { createdAt: "asc" },
   });
   const warehouseIds = warehouses.map((w) => w.id);
@@ -18,7 +19,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
   ]);
 
   return NextResponse.json({ warehouses, products, stock });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 export const PATCH = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -32,7 +33,7 @@ export const PATCH = withAuth(async (request, { session, db }) => {
   }
 
   const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
-  if (!warehouse || warehouse.storeId !== session.storeId) {
+  if (!warehouse || !canAccessStore(session, warehouse.storeId)) {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
   }
 
@@ -51,4 +52,4 @@ export const PATCH = withAuth(async (request, { session, db }) => {
   });
 
   return NextResponse.json({ stock });
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "can_manage_inventory" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "can_manage_inventory" });

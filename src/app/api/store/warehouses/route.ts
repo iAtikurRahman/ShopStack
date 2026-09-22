@@ -12,31 +12,33 @@ export const GET = withAuth(async (_request, { db }) => {
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ warehouses });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 // A Store Manager may create warehouses under their OWN store only -
 // storeId always comes from the session, never a client-supplied value,
-// so a manager can't provision a warehouse into another store.
+// so a manager can't provision a warehouse into another store. Company-wide
+// roles may pass an explicit storeId.
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { name, location } = body ?? {};
+  const { name, location, storeId: suppliedStoreId } = body ?? {};
   if (!name) {
     return NextResponse.json({ message: "name is required" }, { status: 400 });
   }
-  if (!session.storeId) {
-    return NextResponse.json({ message: "No store assigned to this account" }, { status: 400 });
+  const storeId = session.storeId ?? (suppliedStoreId ? Number(suppliedStoreId) : null);
+  if (!storeId) {
+    return NextResponse.json({ message: "storeId is required for company-wide roles" }, { status: 400 });
   }
 
   const warehouse = await db.warehouse.create({
-    data: { name, location, storeId: session.storeId },
+    data: { name, location, storeId },
   });
 
   await writeAuditLog(db, session, {
     action: "warehouse.created",
     entityType: "Warehouse",
     entityId: warehouse.id,
-    after: { name: warehouse.name, storeId: session.storeId },
+    after: { name: warehouse.name, storeId },
   });
 
   return NextResponse.json({ warehouse }, { status: 201 });
-}, { scope: "tenant", roles: ["store_manager"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

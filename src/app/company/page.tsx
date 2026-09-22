@@ -1,7 +1,7 @@
 import { requireTenantSession } from "@/lib/session";
 
 export default async function CompanyDashboardPage() {
-  const { session, db } = await requireTenantSession({ roles: ["company_admin"] });
+  const { session, db } = await requireTenantSession({ roles: ["company_admin", "store_manager"] });
   const [storeCount, userCount] = await Promise.all([
     db.store.count(),
     db.user.count(),

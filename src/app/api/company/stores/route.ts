@@ -10,7 +10,7 @@ export const GET = withAuth(async (_request, { db }) => {
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ stores });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -75,4 +75,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     { store: result.store, storeManager: result.manager },
     { status: 201 }
   );
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

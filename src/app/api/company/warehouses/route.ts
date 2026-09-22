@@ -11,4 +11,4 @@ export const GET = withAuth(async (_request, { db }) => {
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ warehouses });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

@@ -14,7 +14,7 @@ export const GET = withAuth(async (_request, { db }) => {
   });
 
   return NextResponse.json({ purchases });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
@@ -89,4 +89,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     const message = err instanceof Error ? err.message : "Purchase failed";
     return NextResponse.json({ message }, { status: 400 });
   }
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

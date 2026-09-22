@@ -52,7 +52,7 @@ export const PATCH = withAuth<{ id: string }>(async (request, { session, db, par
   });
 
   return NextResponse.json({ user });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const userId = Number(params.id);
@@ -79,4 +79,4 @@ export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, p
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

@@ -30,7 +30,7 @@ export const GET = withAuth(async (_request, { db }) => {
   }));
 
   return NextResponse.json({ products: withTotals });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 // Catalog-only creation: name/SKU/category/unit. Price is set later per
 // store via /store/warehouses/[id]/products (defaults to 0 here), and
@@ -68,4 +68,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     after: { sku: product.sku, name: product.name },
   });
   return NextResponse.json({ product }, { status: 201 });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

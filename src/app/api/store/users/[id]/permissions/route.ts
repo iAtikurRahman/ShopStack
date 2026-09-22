@@ -6,7 +6,8 @@ import { writeAuditLog } from "@/lib/audit";
 
 async function loadTargetStoreUser(db: import("@/generated/tenant").PrismaClient, storeId: number | null, userId: number) {
   const target = await db.user.findUnique({ where: { id: userId } });
-  if (!target || target.storeId !== storeId || target.role !== "store_user") return null;
+  if (!target || target.role !== "store_user") return null;
+  if (storeId !== null && target.storeId !== storeId) return null;
   return target;
 }
 
@@ -34,7 +35,7 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
       override: overrideMap.has(p.key) ? overrideMap.get(p.key) : null,
     })),
   });
-}, { scope: "tenant", roles: ["store_manager"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const PUT = withAuth<{ id: string }>(async (request, { session, db, params }) => {
   const userId = Number(params.id);
@@ -74,4 +75,4 @@ export const PUT = withAuth<{ id: string }>(async (request, { session, db, param
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["store_manager"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

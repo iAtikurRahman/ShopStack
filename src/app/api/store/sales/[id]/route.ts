@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { canAccessStore } from "@/lib/tenant-access";
 
 export const GET = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const saleId = Number(params.id);
@@ -17,12 +18,13 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
     },
   });
 
-  // storeId is always compared against the caller's own session.storeId,
-  // never trusting the URL param alone - this is what stops a store_user
-  // from reaching another store's sale by guessing an id.
-  if (!sale || sale.storeId !== session.storeId) {
+  // storeId is always compared against the caller's own session.storeId
+  // (or skipped for company-wide roles) - never trusting the URL param
+  // alone - this is what stops a store_user from reaching another store's
+  // sale by guessing an id.
+  if (!sale || !canAccessStore(session, sale.storeId)) {
     return NextResponse.json({ message: "Sale not found" }, { status: 404 });
   }
 
   return NextResponse.json({ sale });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });

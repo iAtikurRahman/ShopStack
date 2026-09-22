@@ -7,4 +7,4 @@ export const GET = withAuth(async (_request, { db }) => {
     take: 100,
   });
   return NextResponse.json({ entries });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

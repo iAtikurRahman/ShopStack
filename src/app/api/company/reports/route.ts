@@ -53,4 +53,4 @@ export const GET = withAuth(async (_request, { db }) => {
       revenue: p._sum.lineTotal ?? 0,
     })),
   });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

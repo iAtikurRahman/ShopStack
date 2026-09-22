@@ -1,7 +1,7 @@
 import { requireTenantSession } from "@/lib/session";
 
 export default async function StoreDashboardPage() {
-  const { session, db } = await requireTenantSession({ roles: ["store_manager", "store_user"] });
+  const { session, db } = await requireTenantSession({ roles: ["company_admin", "store_manager", "store_user"] });
   const store = session.storeId
     ? await db.store.findUnique({ where: { id: session.storeId } })
     : null;

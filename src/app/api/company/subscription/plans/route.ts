@@ -8,4 +8,4 @@ export const GET = withAuth(async () => {
     orderBy: { price: "asc" },
   });
   return NextResponse.json({ plans });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

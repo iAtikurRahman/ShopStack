@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { storeScopeWhere } from "@/lib/tenant-access";
 
 export const GET = withAuth(async (_request, { session, db }) => {
-  const storeId = session.storeId ?? -1;
+  const storeFilter = storeScopeWhere(session);
 
   const [salesAgg, refundsAgg, topProducts, warehouses] = await Promise.all([
-    db.sale.aggregate({ where: { storeId }, _sum: { totalAmount: true }, _count: true }),
-    db.return.aggregate({ where: { storeId }, _sum: { refundAmount: true } }),
+    db.sale.aggregate({ where: storeFilter, _sum: { totalAmount: true }, _count: true }),
+    db.return.aggregate({ where: storeFilter, _sum: { refundAmount: true } }),
     db.saleItem.groupBy({
       by: ["productId"],
-      where: { sale: { storeId } },
+      where: { sale: storeFilter },
       _sum: { quantity: true, lineTotal: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 5,
     }),
-    db.warehouse.findMany({ where: { storeId }, select: { id: true } }),
+    db.warehouse.findMany({ where: storeFilter, select: { id: true } }),
   ]);
 
   const warehouseIds = warehouses.map((w) => w.id);
@@ -47,4 +48,4 @@ export const GET = withAuth(async (_request, { session, db }) => {
       lowStockThreshold: s.lowStockThreshold,
     })),
   });
-}, { scope: "tenant", roles: ["store_manager"], permission: "can_view_reports" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"], permission: "can_view_reports" });

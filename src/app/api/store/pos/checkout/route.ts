@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { canAccessStore } from "@/lib/tenant-access";
 
 type CheckoutItem = { productId: number; quantity: number; discountAmount?: number };
 type CheckoutPayment = { method: "cash" | "card" | "mobile" | "other"; amount: number; reference?: string };
@@ -33,7 +34,7 @@ export const POST = withAuth(async (request, { session, db }) => {
   }
 
   const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
-  if (!warehouse || warehouse.storeId !== session.storeId) {
+  if (!warehouse || !canAccessStore(session, warehouse.storeId)) {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
   }
 
@@ -97,7 +98,7 @@ export const POST = withAuth(async (request, { session, db }) => {
 
       const created = await tx.sale.create({
         data: {
-          storeId: session.storeId!,
+          storeId: warehouse.storeId,
           warehouseId: Number(warehouseId),
           cashierId: session.userId,
           customerId: customerId ? Number(customerId) : null,
@@ -135,4 +136,4 @@ export const POST = withAuth(async (request, { session, db }) => {
     const message = err instanceof Error ? err.message : "Checkout failed";
     return NextResponse.json({ message }, { status: 400 });
   }
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "can_process_sales" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "can_process_sales" });

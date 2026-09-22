@@ -10,4 +10,4 @@ export const GET = withAuth(async (_request, { db }) => {
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ suppliers });
-}, { scope: "tenant", roles: ["store_manager", "store_user"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });

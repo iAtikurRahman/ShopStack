@@ -28,7 +28,7 @@ export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => 
       override: overrideMap.has(p.key) ? overrideMap.get(p.key) : null,
     })),
   });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const PUT = withAuth<{ id: string }>(async (request, { session, db, params }) => {
   const userId = Number(params.id);
@@ -68,4 +68,4 @@ export const PUT = withAuth<{ id: string }>(async (request, { session, db, param
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

@@ -8,7 +8,8 @@ async function loadOwnWarehouse(
   warehouseId: number
 ) {
   const warehouse = await db.warehouse.findUnique({ where: { id: warehouseId } });
-  if (!warehouse || warehouse.storeId !== storeId) return null;
+  if (!warehouse) return null;
+  if (storeId !== null && warehouse.storeId !== storeId) return null;
   return warehouse;
 }
 
@@ -43,7 +44,7 @@ export const GET = withAuth<{ warehouseId: string }>(async (_request, { session,
       lowStockThreshold: s.lowStockThreshold,
     })),
   });
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "product.view" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "product.view" });
 
 // Creates a catalog Product (or reuses one by SKU) and stocks it into this
 // warehouse. The Product itself is a tenant-wide catalog entry (see
@@ -110,4 +111,4 @@ export const POST = withAuth<{ warehouseId: string }>(async (request, { session,
     { product: result.product, quantity: result.stock.quantity },
     { status: 201 }
   );
-}, { scope: "tenant", roles: ["store_manager", "store_user"], permission: "product.create" });
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"], permission: "product.create" });
