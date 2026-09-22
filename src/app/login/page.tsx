@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -83,13 +84,22 @@ export default function LoginPage() {
 
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-slate-900"
-              />
+              <span className="relative mt-2 block">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-12 outline-none transition focus:border-slate-900"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-1 text-xs font-semibold text-slate-500 hover:text-slate-900"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </span>
             </label>
 
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
