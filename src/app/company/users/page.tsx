@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PasswordField from "@/components/PasswordField";
 import { apiFetch } from "@/services/api";
 
 type Role = "company_admin" | "store_manager" | "store_user";
@@ -13,6 +14,7 @@ export default function CompanyUsersPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,6 +24,11 @@ export default function CompanyUsersPage() {
 
   const [permissionsForUser, setPermissionsForUser] = useState<number | null>(null);
   const [permissions, setPermissions] = useState<PermissionRow[]>([]);
+
+  const [passwordForUser, setPasswordForUser] = useState<number | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   async function loadData() {
     try {
@@ -49,6 +56,7 @@ export default function CompanyUsersPage() {
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
     try {
       await apiFetch("/api/company/users", "POST", {
         name,
@@ -80,6 +88,7 @@ export default function CompanyUsersPage() {
 
   async function openPermissions(userId: number) {
     setError(null);
+    setPasswordForUser(null);
     if (permissionsForUser === userId) {
       setPermissionsForUser(null);
       return;
@@ -90,6 +99,31 @@ export default function CompanyUsersPage() {
       setPermissionsForUser(userId);
     } catch (err) {
       setError((err as Error).message);
+    }
+  }
+
+  function openPassword(userId: number) {
+    setError(null);
+    setPasswordError(null);
+    setSuccess(null);
+    setNewPassword("");
+    setPermissionsForUser(null);
+    setPasswordForUser((current) => (current === userId ? null : userId));
+  }
+
+  async function handleResetPassword(userId: number) {
+    setError(null);
+    setPasswordError(null);
+    setSavingPassword(true);
+    try {
+      await apiFetch(`/api/company/users/${userId}/password`, "PUT", { password: newPassword });
+      setNewPassword("");
+      setPasswordForUser(null);
+      setSuccess("Password reset. Share it with the user over a trusted channel.");
+    } catch (err) {
+      setPasswordError((err as Error).message);
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -109,6 +143,7 @@ export default function CompanyUsersPage() {
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">Users</h1>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -136,6 +171,13 @@ export default function CompanyUsersPage() {
                       >
                         Permissions
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => openPassword(user.id)}
+                        className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
+                      >
+                        Password
+                      </button>
                       {user.isActive ? (
                         <button
                           type="button"
@@ -147,6 +189,39 @@ export default function CompanyUsersPage() {
                       ) : null}
                     </div>
                   </div>
+
+                  {passwordForUser === user.id ? (
+                    <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                      <p className="text-xs text-slate-500">
+                        Passwords are stored as one-way hashes, so the current one cannot be shown. Set a new
+                        password to hand over instead.
+                      </p>
+                      <PasswordField
+                        label="New password"
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        hint="At least 8 characters, including a letter and a number."
+                      />
+                      {passwordError ? <p className="text-sm text-red-600">{passwordError}</p> : null}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(user.id)}
+                          disabled={savingPassword || newPassword.length < 8}
+                          className="rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {savingPassword ? "Saving…" : "Set password"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openPassword(user.id)}
+                          className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   {permissionsForUser === user.id ? (
                     <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
@@ -219,17 +294,12 @@ export default function CompanyUsersPage() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Password</span>
-              <input
-                required
-                type="password"
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              />
-            </label>
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              hint="At least 8 characters, including a letter and a number."
+            />
             <label className="block">
               <span className="text-sm font-medium text-slate-700">Role</span>
               <select
