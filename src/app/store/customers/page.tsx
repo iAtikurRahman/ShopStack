@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/services/api";
 
 type Customer = { id: number; name: string; phone: string | null; email: string | null; loyaltyPoints: number };
@@ -84,7 +85,11 @@ export default function StoreCustomersPage() {
           ) : (
             <div className="mt-4 space-y-3">
               {filteredCustomers.map((customer) => (
-                <div key={customer.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <Link
+                  key={customer.id}
+                  href={`/store/customers/${customer.id}`}
+                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-950">{customer.name}</p>
                     <span className="text-xs text-slate-500">{customer.loyaltyPoints} pts</span>
@@ -94,7 +99,8 @@ export default function StoreCustomersPage() {
                   </p>
                   <p className="text-sm text-slate-600">{customer.email ? `Email: ${customer.email}` : null}</p>
                   {!customer.phone && !customer.email ? <p className="mt-1 text-sm text-slate-600">—</p> : null}
-                </div>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">View purchases →</p>
+                </Link>
               ))}
             </div>
           )}

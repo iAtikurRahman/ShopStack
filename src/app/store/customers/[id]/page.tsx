@@ -1,0 +1,212 @@
+"use client";
+
+import Link from "next/link";
+import { use, useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/services/api";
+
+type Customer = {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  loyaltyPoints: number;
+  createdAt: string;
+};
+type SaleItem = { id: number; productId: number; quantity: number; unitPrice: string; lineTotal: string };
+type Sale = {
+  id: number;
+  status: string;
+  subtotal: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  createdAt: string;
+  items: SaleItem[];
+  returns: { id: number; refundAmount: string }[];
+};
+type Product = { id: number; name: string };
+
+type Detail = { customer: Customer; sales: Sale[]; products: Product[] };
+
+export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const [data, setData] = useState<Detail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch<Detail>(`/api/store/customers/${id}`);
+        setData(res);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
+
+  const productNames = useMemo(() => {
+    const map = new Map<number, string>();
+    (data?.products ?? []).forEach((p) => map.set(p.id, p.name));
+    return map;
+  }, [data]);
+
+  const stats = useMemo(() => {
+    const sales = data?.sales ?? [];
+    const totalSpent = sales.reduce((sum, sale) => sum + Number(sale.totalAmount), 0);
+    const totalRefunded = sales.reduce(
+      (sum, sale) => sum + sale.returns.reduce((s, r) => s + Number(r.refundAmount), 0),
+      0
+    );
+    const units = sales.reduce((sum, sale) => sum + sale.items.reduce((s, i) => s + i.quantity, 0), 0);
+
+    return {
+      saleCount: sales.length,
+      totalSpent,
+      totalRefunded,
+      units,
+      averageBasket: sales.length > 0 ? totalSpent / sales.length : 0,
+      lastPurchaseAt: sales.length > 0 ? sales[0].createdAt : null,
+    };
+  }, [data]);
+
+  const filteredSales = useMemo(() => {
+    const sales = data?.sales ?? [];
+    const q = search.trim().toLowerCase();
+    if (!q) return sales;
+    const digits = q.replace(/\D/g, "");
+    return sales.filter((sale) => {
+      const searchable = sale.items.map((i) => productNames.get(i.productId) ?? `product ${i.productId}`);
+      return (
+        String(sale.id).includes(q) ||
+        sale.status.toLowerCase().includes(q) ||
+        sale.createdAt.slice(0, 10).includes(q) ||
+        sale.totalAmount.includes(q) ||
+        searchable.some((name) => name.toLowerCase().includes(q)) ||
+        (digits.length > 0 && sale.totalAmount.replace(/\D/g, "").includes(digits))
+      );
+    });
+  }, [data, search, productNames]);
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-6 p-8">
+      <Link href="/store/customers" className="text-sm text-slate-600 hover:underline">
+        ← Back to customers
+      </Link>
+
+      {loading ? (
+        <p className="text-sm text-slate-600">Loading…</p>
+      ) : error || !data ? (
+        <p className="text-sm text-red-600">{error ?? "Customer not found"}</p>
+      ) : (
+        <>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-semibold text-slate-950">{data.customer.name}</h1>
+                <p className="mt-1 text-sm text-slate-600">
+                  {data.customer.phone ? `Phone: ${data.customer.phone}` : "No phone"}
+                  {data.customer.email ? ` · ${data.customer.email}` : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Customer since {new Date(data.customer.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {data.customer.loyaltyPoints} pts
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm text-slate-600">Purchases</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{stats.saleCount}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {stats.lastPurchaseAt
+                  ? `Last on ${new Date(stats.lastPurchaseAt).toLocaleDateString()}`
+                  : "No purchases yet"}
+              </p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm text-slate-600">Total spent</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalSpent.toFixed(2)}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Avg basket ৳{stats.averageBasket.toFixed(2)} · {stats.units} unit
+                {stats.units === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-sm text-slate-600">Refunded</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalRefunded.toFixed(2)}</p>
+              <p className="mt-1 text-xs text-slate-500">Net spent ৳{(stats.totalSpent - stats.totalRefunded).toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-950">Purchase history</h2>
+              <p className="text-sm text-slate-500">
+                {filteredSales.length} sale{filteredSales.length === 1 ? "" : "s"}
+              </p>
+            </div>
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by sale #, product, amount, status or date…"
+              className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+            />
+
+            {filteredSales.length === 0 ? (
+              <p className="mt-6 text-sm text-slate-600">
+                {search.trim() ? `No sales match "${search.trim()}".` : "This customer has no purchases yet."}
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {filteredSales.map((sale) => {
+                  const units = sale.items.reduce((sum, item) => sum + item.quantity, 0);
+                  const refunded = sale.returns.reduce((sum, r) => sum + Number(r.refundAmount), 0);
+                  return (
+                    <Link
+                      key={sale.id}
+                      href={`/store/sales/${sale.id}`}
+                      className="flex items-start justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-950">Sale #{sale.id}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(sale.createdAt).toLocaleString()} · {units} unit{units === 1 ? "" : "s"} ·{" "}
+                          {sale.status}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {sale.items
+                            .map((item) => `${productNames.get(item.productId) ?? `Product ${item.productId}`} ×${item.quantity}`)
+                            .join(", ")}
+                        </p>
+                        {refunded > 0 ? (
+                          <p className="mt-1 text-xs text-red-600">Refunded ৳{refunded.toFixed(2)}</p>
+                        ) : null}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="font-medium text-slate-950">৳{sale.totalAmount}</p>
+                        <p className="text-xs text-slate-500">subtotal ৳{sale.subtotal}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </main>
+  );
+}
