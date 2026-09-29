@@ -40,7 +40,7 @@ export const PATCH = withAuth<{ id: string }>(async (request, { session, db, par
   const saleTotal = Number(existing.sale.totalAmount);
   if (amount > saleTotal) {
     return NextResponse.json(
-      { message: `Refund cannot exceed the sale total of $${saleTotal.toFixed(2)}` },
+      { message: `Refund cannot exceed the sale total of ৳${saleTotal.toFixed(2)}` },
       { status: 400 }
     );
   }

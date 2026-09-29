@@ -83,7 +83,7 @@ export default function StoreSalesPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-slate-950">${sale.totalAmount}</p>
+                  <p className="font-medium text-slate-950">৳{sale.totalAmount}</p>
                   <p className="text-xs text-slate-500">{sale.status}</p>
                 </div>
               </Link>

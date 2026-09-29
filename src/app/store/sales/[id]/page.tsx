@@ -75,8 +75,8 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
                 <tr key={item.id} className="border-t border-slate-100">
                   <td className="py-2 text-slate-600">Product {item.productId}</td>
                   <td className="py-2 text-slate-600">{item.quantity}</td>
-                  <td className="py-2 text-slate-600">${item.unitPrice}</td>
-                  <td className="py-2 text-slate-950">${item.lineTotal}</td>
+                  <td className="py-2 text-slate-600">৳{item.unitPrice}</td>
+                  <td className="py-2 text-slate-950">৳{item.lineTotal}</td>
                 </tr>
               ))}
             </tbody>
@@ -85,24 +85,24 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
           <div className="mt-6 space-y-1 border-t border-slate-100 pt-4 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>Subtotal</span>
-              <span>${sale.subtotal}</span>
+              <span>৳{sale.subtotal}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Discount</span>
-              <span>-${sale.discountAmount}</span>
+              <span>-৳{sale.discountAmount}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Tax</span>
-              <span>${sale.taxAmount}</span>
+              <span>৳{sale.taxAmount}</span>
             </div>
             <div className="flex justify-between text-base font-semibold text-slate-950">
               <span>Total</span>
-              <span>${sale.totalAmount}</span>
+              <span>৳{sale.totalAmount}</span>
             </div>
           </div>
 
           <div className="mt-4 text-sm text-slate-500">
-            Paid via {sale.payments.map((p) => `${p.method} ($${p.amount})`).join(", ")}
+            Paid via {sale.payments.map((p) => `${p.method} (৳${p.amount})`).join(", ")}
           </div>
 
           {sale.returns.length > 0 ? (
@@ -110,7 +110,7 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
               <p className="text-sm font-semibold text-slate-950">Returns</p>
               {sale.returns.map((r) => (
                 <p key={r.id} className="mt-1 text-sm text-slate-600">
-                  Refunded ${r.refundAmount} on {new Date(r.createdAt).toLocaleDateString()}
+                  Refunded ৳{r.refundAmount} on {new Date(r.createdAt).toLocaleDateString()}
                 </p>
               ))}
             </div>

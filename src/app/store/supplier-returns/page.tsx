@@ -125,7 +125,7 @@ export default function StoreSupplierReturnsPage() {
             <h2 className="text-lg font-semibold text-slate-950">Recent returns</h2>
             {supplierReturns.length > 0 ? (
               <p className="text-sm text-slate-500">
-                {supplierReturns.length} return{supplierReturns.length === 1 ? "" : "s"} · $
+                {supplierReturns.length} return{supplierReturns.length === 1 ? "" : "s"} · ৳
                 {totalCredited.toFixed(2)} credited
               </p>
             ) : null}
@@ -159,7 +159,7 @@ export default function StoreSupplierReturnsPage() {
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-medium text-emerald-700">
-                        {Number(ret.amount) > 0 ? `$${Number(ret.amount).toFixed(2)}` : "Not recorded"}
+                        {Number(ret.amount) > 0 ? `৳${Number(ret.amount).toFixed(2)}` : "Not recorded"}
                       </p>
                       <p className="text-xs text-slate-500">credit</p>
                     </div>
@@ -252,7 +252,7 @@ export default function StoreSupplierReturnsPage() {
                 {amountTouched
                   ? "Using your amount."
                   : selectedProduct
-                    ? `Purchase price $${Number(selectedProduct.purchasePrice).toFixed(2)} × ${quantity} — adjust if the supplier credits less.`
+                    ? `Purchase price ৳${Number(selectedProduct.purchasePrice).toFixed(2)} × ${quantity} — adjust if the supplier credits less.`
                     : "Pick a product to suggest an amount."}
               </span>
             </label>
@@ -270,7 +270,7 @@ export default function StoreSupplierReturnsPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Return to supplier · ${displayedAmount || "0.00"} credit
+              Return to supplier · ৳{displayedAmount || "0.00"} credit
             </button>
           </form>
         </div>

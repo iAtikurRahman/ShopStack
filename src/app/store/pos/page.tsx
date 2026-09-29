@@ -209,7 +209,7 @@ export default function PosCheckoutPage() {
                   >
                     <p className="text-sm font-semibold text-slate-950">{product.name}</p>
                     <p className="mt-1 text-xs text-slate-500">{product.sku}</p>
-                    <p className="mt-2 text-sm font-medium text-slate-700">${product.salePrice}</p>
+                    <p className="mt-2 text-sm font-medium text-slate-700">৳{product.salePrice}</p>
                     <p className="text-xs text-slate-400">{soldOut ? "out of stock" : `${qty} in stock`}</p>
                     {inCart > 0 ? (
                       <p className="mt-1 text-xs font-semibold text-slate-900">in cart: {inCart}</p>
@@ -274,12 +274,12 @@ export default function PosCheckoutPage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-950">{line.name}</p>
                       <p className="text-xs text-slate-500">
-                        ${line.unitPrice.toFixed(2)} each · {maxQty} in stock
+                        ৳{line.unitPrice.toFixed(2)} each · {maxQty} in stock
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="tabular-nums text-slate-700">
-                        ${round2(line.unitPrice * line.quantity).toFixed(2)}
+                        ৳{round2(line.unitPrice * line.quantity).toFixed(2)}
                       </span>
                       <input
                         type="number"
@@ -372,15 +372,15 @@ export default function PosCheckoutPage() {
             <div className="space-y-1 border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>৳{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>Tax</span>
-                <span>${taxAmount.toFixed(2)}</span>
+                <span>৳{taxAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-base font-semibold text-slate-950">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>৳{total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -395,7 +395,7 @@ export default function PosCheckoutPage() {
               ? "Processing…"
               : cart.length === 0
                 ? "Add products to charge"
-                : `Charge $${total.toFixed(2)} · ${itemCount} item${itemCount === 1 ? "" : "s"}`}
+                : `Charge ৳${total.toFixed(2)} · ${itemCount} item${itemCount === 1 ? "" : "s"}`}
           </button>
         </div>
       </div>

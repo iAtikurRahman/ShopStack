@@ -173,7 +173,7 @@ function ReturnsForm() {
     }
     const saleTotal = Number(sale.totalAmount);
     if (finalAmount > saleTotal) {
-      setError(`Refund cannot exceed the sale total of $${saleTotal.toFixed(2)}`);
+      setError(`Refund cannot exceed the sale total of ৳${saleTotal.toFixed(2)}`);
       return;
     }
 
@@ -184,7 +184,7 @@ function ReturnsForm() {
         reason,
         refundAmount: finalAmount,
       });
-      setSuccess(`Return processed — $${finalAmount.toFixed(2)} refunded.`);
+      setSuccess(`Return processed — ৳${finalAmount.toFixed(2)} refunded.`);
       await loadSale(String(sale.id));
       await loadReturns();
     } catch (err) {
@@ -239,23 +239,23 @@ function ReturnsForm() {
           <div className="mt-4 space-y-1 rounded-2xl bg-slate-50 p-4 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>Subtotal</span>
-              <span>${sale.subtotal}</span>
+              <span>৳{sale.subtotal}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Line discounts</span>
-              <span>-${lineDiscountTotal.toFixed(2)}</span>
+              <span>-৳{lineDiscountTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Order discount</span>
-              <span>-${Number(sale.discountAmount).toFixed(2)}</span>
+              <span>-৳{Number(sale.discountAmount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Tax</span>
-              <span>${Number(sale.taxAmount).toFixed(2)}</span>
+              <span>৳{Number(sale.taxAmount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-950">
               <span>Total paid</span>
-              <span>${Number(sale.totalAmount).toFixed(2)}</span>
+              <span>৳{Number(sale.totalAmount).toFixed(2)}</span>
             </div>
           </div>
 
@@ -267,11 +267,11 @@ function ReturnsForm() {
                   <div>
                     <p className="font-medium text-slate-950">Product {item.productId}</p>
                     <p className="text-xs text-slate-500">
-                      ${item.unitPrice} each · {item.quantity} sold · {remaining} returnable
+                      ৳{item.unitPrice} each · {item.quantity} sold · {remaining} returnable
                     </p>
                     {Number(item.discountAmount) > 0 ? (
                       <p className="text-xs text-amber-700">
-                        Line discount -${Number(item.discountAmount).toFixed(2)} (line total $
+                        Line discount -৳{Number(item.discountAmount).toFixed(2)} (line total ৳
                         {Number(item.lineTotal).toFixed(2)})
                       </p>
                     ) : null}
@@ -321,7 +321,7 @@ function ReturnsForm() {
                 }}
                 className="mt-2 text-xs font-semibold text-slate-600 underline hover:text-slate-900"
               >
-                Reset to calculated ${suggestedRefund.toFixed(2)}
+                Reset to calculated ৳{suggestedRefund.toFixed(2)}
               </button>
             ) : null}
           </div>
@@ -339,7 +339,7 @@ function ReturnsForm() {
             type="submit"
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Process return · ${displayedRefund || "0.00"}
+            Process return · ৳{displayedRefund || "0.00"}
           </button>
         </form>
       ) : null}
@@ -349,7 +349,7 @@ function ReturnsForm() {
           <h2 className="text-lg font-semibold text-slate-950">Refunded returns</h2>
           {filteredReturns.length > 0 ? (
             <p className="text-sm text-slate-500">
-              {filteredReturns.length} return{filteredReturns.length === 1 ? "" : "s"} · ${totalRefunded.toFixed(2)}{" "}
+              {filteredReturns.length} return{filteredReturns.length === 1 ? "" : "s"} · ৳{totalRefunded.toFixed(2)}{" "}
               refunded
             </p>
           ) : null}
@@ -390,8 +390,8 @@ function ReturnsForm() {
                 .reduce((sum, si) => sum + Number(si.discountAmount), 0);
               const orderDiscount = Number(r.sale.discountAmount);
               const discountNotes = [
-                lineDiscount > 0 ? `line -$${lineDiscount.toFixed(2)}` : null,
-                orderDiscount > 0 ? `order -$${orderDiscount.toFixed(2)}` : null,
+                lineDiscount > 0 ? `line -৳${lineDiscount.toFixed(2)}` : null,
+                orderDiscount > 0 ? `order -৳${orderDiscount.toFixed(2)}` : null,
               ].filter(Boolean);
 
               return (
@@ -417,7 +417,7 @@ function ReturnsForm() {
                       <p className="mt-0.5 text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-medium text-red-600">-${r.refundAmount}</p>
+                      <p className="font-medium text-red-600">-৳{r.refundAmount}</p>
                       <p className="text-xs text-slate-500">refunded</p>
                     </div>
                   </div>
@@ -447,7 +447,7 @@ function ReturnsForm() {
                         </label>
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
-                        Sale total was ${r.sale.totalAmount}. Every change is recorded in the audit log.
+                        Sale total was ৳{r.sale.totalAmount}. Every change is recorded in the audit log.
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button

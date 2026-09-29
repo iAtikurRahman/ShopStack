@@ -43,11 +43,11 @@ export default function CompanyReportsPage() {
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">Total sales</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">${report.totalSales}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalSales}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">Total refunds</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">${report.totalRefunds}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalRefunds}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">Sales count</p>
@@ -66,7 +66,7 @@ export default function CompanyReportsPage() {
             {report.byStore.map((row) => (
               <div key={row.storeId} className="flex justify-between text-sm">
                 <span className="text-slate-950">{row.storeName}</span>
-                <span className="text-slate-600">${row.totalSales} · {row.salesCount}</span>
+                <span className="text-slate-600">৳{row.totalSales} · {row.salesCount}</span>
               </div>
             ))}
           </div>
@@ -78,7 +78,7 @@ export default function CompanyReportsPage() {
             {report.staffPerformance.map((row) => (
               <div key={row.cashierId} className="flex justify-between text-sm">
                 <span className="text-slate-950">{row.cashierName}</span>
-                <span className="text-slate-600">${row.totalSales} · {row.salesCount}</span>
+                <span className="text-slate-600">৳{row.totalSales} · {row.salesCount}</span>
               </div>
             ))}
           </div>
@@ -90,7 +90,7 @@ export default function CompanyReportsPage() {
             {report.topProducts.map((p, i) => (
               <div key={i} className="flex justify-between text-sm">
                 <span className="text-slate-950">{p.product?.name ?? "Unknown"}</span>
-                <span className="text-slate-600">{p.quantitySold} · ${p.revenue}</span>
+                <span className="text-slate-600">{p.quantitySold} · ৳{p.revenue}</span>
               </div>
             ))}
           </div>

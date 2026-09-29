@@ -94,7 +94,7 @@ export default function AdminReportsPage() {
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">Total revenue</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">${report.totals.totalSales.toFixed(2)}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totals.totalSales.toFixed(2)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">Total sales</p>
@@ -122,8 +122,8 @@ export default function AdminReportsPage() {
                 <tr key={company.id} className="border-t border-slate-100">
                   <td className="py-2 font-medium text-slate-950">{company.name}</td>
                   <td className="py-2 text-slate-600">{company.status}</td>
-                  <td className="py-2 text-slate-600">${company.metrics?.totalSales ?? "0.00"}</td>
-                  <td className="py-2 text-slate-600">${company.metrics?.totalRefunds ?? "0.00"}</td>
+                  <td className="py-2 text-slate-600">৳{company.metrics?.totalSales ?? "0.00"}</td>
+                  <td className="py-2 text-slate-600">৳{company.metrics?.totalRefunds ?? "0.00"}</td>
                   <td className="py-2 text-slate-600">{company.metrics?.storeCount ?? "—"}</td>
                   <td className="py-2 text-slate-600">{company.metrics?.userCount ?? "—"}</td>
                   <td className="py-2 text-slate-500">

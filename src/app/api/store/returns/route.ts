@@ -64,7 +64,7 @@ export const POST = withAuth(async (request, { session, db }) => {
     const saleTotal = Number(sale.totalAmount);
     if (amount > saleTotal) {
       return NextResponse.json(
-        { message: `Refund cannot exceed the sale total of $${saleTotal.toFixed(2)}` },
+        { message: `Refund cannot exceed the sale total of ৳${saleTotal.toFixed(2)}` },
         { status: 400 }
       );
     }
