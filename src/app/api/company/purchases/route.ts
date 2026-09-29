@@ -8,7 +8,7 @@ export const GET = withAuth(async (_request, { db }) => {
     include: {
       supplier: { select: { id: true, name: true } },
       warehouse: { select: { id: true, name: true, store: { select: { id: true, name: true } } } },
-      items: true,
+      items: { include: { product: { select: { id: true, sku: true, name: true } } } },
     },
     orderBy: { purchasedAt: "desc" },
   });
@@ -80,7 +80,10 @@ export const POST = withAuth(async (request, { session, db }) => {
           purchasedAt: parsedPurchasedAt,
           items: { create: lineItems },
         },
-        include: { items: true, supplier: { select: { id: true, name: true } } },
+        include: {
+          items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+          supplier: { select: { id: true, name: true } },
+        },
       });
     });
 

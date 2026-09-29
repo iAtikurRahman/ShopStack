@@ -72,6 +72,11 @@ export default function StoreTransfersPage() {
     }
   }
 
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const warehouseById = new Map(
+    [...myWarehouses, ...allWarehouses].map((w) => [w.id, w.name] as const)
+  );
+
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">Stock transfers</h1>
@@ -89,15 +94,31 @@ export default function StoreTransfersPage() {
                 <div key={transfer.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">
-                      Warehouse {transfer.fromWarehouseId} → {transfer.toWarehouseId}
+                      {warehouseById.get(transfer.fromWarehouseId) ?? `Warehouse ${transfer.fromWarehouseId}`} →{" "}
+                      {warehouseById.get(transfer.toWarehouseId) ?? `Warehouse ${transfer.toWarehouseId}`}
                     </p>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
                       {transfer.status}
                     </span>
                   </div>
-                  <p className="mt-1 text-slate-600">
-                    {transfer.items.map((item) => `product ${item.productId} × ${item.quantity}`).join(", ")}
-                  </p>
+                  <p className="mt-1 text-slate-600">{new Date(transfer.createdAt).toLocaleDateString()}</p>
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr_3.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <span>Product</span>
+                      <span className="text-right">Qty</span>
+                    </div>
+                    {transfer.items.map((item) => (
+                      <div key={item.id} className="grid grid-cols-[1fr_3.5rem] gap-3 py-1 text-slate-600">
+                        <span className="truncate">
+                          {productById.get(item.productId)?.name ?? `Product #${item.productId}`}{" "}
+                          <span className="text-xs text-slate-500">
+                            ({productById.get(item.productId)?.sku ?? "—"})
+                          </span>
+                        </span>
+                        <span className="text-right tabular-nums">{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

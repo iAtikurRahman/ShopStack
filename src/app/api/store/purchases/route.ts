@@ -8,7 +8,10 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
   const purchases = await db.purchase.findMany({
     where: { warehouseId: { in: warehouseIds } },
-    include: { supplier: { select: { id: true, name: true } }, items: true },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+    },
     orderBy: { purchasedAt: "desc" },
   });
 
@@ -79,7 +82,10 @@ export const POST = withAuth(async (request, { session, db }) => {
           purchasedAt: parsedPurchasedAt,
           items: { create: lineItems },
         },
-        include: { items: true, supplier: { select: { id: true, name: true } } },
+        include: {
+          items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+          supplier: { select: { id: true, name: true } },
+        },
       });
     });
 

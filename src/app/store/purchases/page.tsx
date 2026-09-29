@@ -6,7 +6,13 @@ import { apiFetch } from "@/services/api";
 type Warehouse = { id: number; name: string };
 type Product = { id: number; sku: string; name: string };
 type Supplier = { id: number; name: string };
-type PurchaseItem = { id: number; productId: number; quantity: number; unitCost: string };
+type PurchaseItem = {
+  id: number;
+  productId: number;
+  quantity: number;
+  unitCost: string;
+  product: { id: number; sku: string; name: string };
+};
 type Purchase = {
   id: number;
   warehouseId: number;
@@ -19,6 +25,14 @@ type Purchase = {
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function lineTotal(item: PurchaseItem): string {
+  return (item.quantity * Number(item.unitCost)).toFixed(2);
+}
+
+function subtotalOf(items: PurchaseItem[]): string {
+  return items.reduce((sum, item) => sum + item.quantity * Number(item.unitCost), 0).toFixed(2);
 }
 
 export default function StorePurchasesPage() {
@@ -106,9 +120,32 @@ export default function StorePurchasesPage() {
                     <span className="text-slate-600">৳{purchase.totalCost}</span>
                   </div>
                   <p className="mt-1 text-slate-600">{new Date(purchase.purchasedAt).toLocaleDateString()}</p>
-                  <p className="mt-1 text-slate-600">
-                    {purchase.items.map((item) => `product ${item.productId} × ${item.quantity}`).join(", ")}
-                  </p>
+                  <div className="mt-3">
+                    <div className="grid grid-cols-[1fr_3.5rem_5.5rem_5.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <span>Product</span>
+                      <span className="text-right">Qty</span>
+                      <span className="text-right">Unit price</span>
+                      <span className="text-right">Total</span>
+                    </div>
+                    {purchase.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-[1fr_3.5rem_5.5rem_5.5rem] gap-3 py-1 text-slate-600"
+                      >
+                        <span className="truncate">
+                          {item.product.name}{" "}
+                          <span className="text-xs text-slate-500">({item.product.sku})</span>
+                        </span>
+                        <span className="text-right tabular-nums">{item.quantity}</span>
+                        <span className="text-right tabular-nums">৳{item.unitCost}</span>
+                        <span className="text-right tabular-nums">৳{lineTotal(item)}</span>
+                      </div>
+                    ))}
+                    <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-1.5 font-medium text-slate-950">
+                      <span>Subtotal</span>
+                      <span className="tabular-nums">৳{subtotalOf(purchase.items)}</span>
+                    </div>
+                  </div>
                   {purchase.reference ? (
                     <p className="mt-1 text-xs text-slate-500">Ref: {purchase.reference}</p>
                   ) : null}

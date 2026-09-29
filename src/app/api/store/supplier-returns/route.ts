@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
+import { round2 } from "@/lib/returns";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -8,7 +9,10 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
   const supplierReturns = await db.supplierReturn.findMany({
     where: { warehouseId: { in: warehouseIds } },
-    include: { supplier: { select: { id: true, name: true } } },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      product: { select: { id: true, sku: true, name: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -17,7 +21,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { supplierId, warehouseId, productId, quantity, reason } = body ?? {};
+  const { supplierId, warehouseId, productId, quantity, reason, amount } = body ?? {};
 
   if (!supplierId || !warehouseId || !productId || !quantity) {
     return NextResponse.json(
@@ -37,6 +41,22 @@ export const POST = withAuth(async (request, { session, db }) => {
   const supplier = await db.supplier.findUnique({ where: { id: Number(supplierId) } });
   if (!supplier) {
     return NextResponse.json({ message: "Supplier not found" }, { status: 404 });
+  }
+  const product = await db.product.findUnique({ where: { id: Number(productId) } });
+  if (!product) {
+    return NextResponse.json({ message: "Product not found" }, { status: 404 });
+  }
+
+  // Credit expected back from the supplier. Defaults to what the stock cost us
+  // (purchasePrice x quantity) so a return is never recorded without a value,
+  // but the supplier may only credit part of it, so it stays overridable.
+  let creditAmount = round2(Number(product.purchasePrice) * parsedQuantity);
+  if (amount !== undefined && amount !== null && amount !== "") {
+    const supplied = Number(amount);
+    if (!Number.isFinite(supplied) || supplied < 0) {
+      return NextResponse.json({ message: "amount must be zero or greater" }, { status: 400 });
+    }
+    creditAmount = round2(supplied);
   }
 
   try {
@@ -59,10 +79,14 @@ export const POST = withAuth(async (request, { session, db }) => {
           warehouseId: Number(warehouseId),
           productId: Number(productId),
           quantity: parsedQuantity,
+          amount: creditAmount,
           reason: reason || null,
           processedById: session.userId,
         },
-        include: { supplier: { select: { id: true, name: true } } },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          product: { select: { id: true, sku: true, name: true } },
+        },
       });
     });
 

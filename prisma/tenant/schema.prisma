@@ -225,6 +225,11 @@ model SupplierReturn {
   product       Product   @relation(fields: [productId], references: [id])
   productId     Int
   quantity      Int
+  // Credit value expected back from the supplier. Defaults to the product's
+  // purchasePrice x quantity at the time the return is recorded, but stays
+  // editable because the supplier may only credit part of it. 0 means the
+  // amount was never captured (rows predating this column).
+  amount        Decimal   @default(0) @db.Decimal(12, 2)
   reason        String?
   processedById Int
   createdAt     DateTime  @default(now())

@@ -1,0 +1,18 @@
+
+> shopstack@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.103:3000
+- Environments: .env
+✓ Ready in 762ms
+- Experiments (use with caution):
+  · cpus: 1
+  ✓ workerThreads
+
+ GET /store/purchases 200 in 6.9s (next.js: 402ms, proxy.ts: 594ms, application-code: 5.9s)
+ GET /api/store/suppliers 200 in 324ms (next.js: 216ms, application-code: 109ms)
+ GET /api/store/inventory 200 in 339ms (next.js: 129ms, application-code: 210ms)
+ GET /api/store/purchases 200 in 338ms (next.js: 295ms, application-code: 44ms)
+[?25h
