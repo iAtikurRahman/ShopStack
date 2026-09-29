@@ -190,7 +190,7 @@ export default function PosCheckoutPage() {
           ) : filteredProducts.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">No products match &quot;{productSearch}&quot;.</p>
           ) : (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {filteredProducts.map((product) => {
                 const qty = availableQty(product.id);
                 const inCart = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
@@ -201,19 +201,36 @@ export default function PosCheckoutPage() {
                     type="button"
                     disabled={soldOut}
                     onClick={() => addToCart(product)}
-                    className={`rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                      inCart > 0
-                        ? "border-slate-900 bg-slate-100"
-                        : "border-slate-200 bg-slate-50 hover:border-slate-400"
+                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      inCart > 0 ? "bg-slate-100" : "bg-white hover:bg-slate-50"
                     }`}
                   >
-                    <p className="text-sm font-semibold text-slate-950">{product.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{product.sku}</p>
-                    <p className="mt-2 text-sm font-medium text-slate-700">৳{product.salePrice}</p>
-                    <p className="text-xs text-slate-400">{soldOut ? "out of stock" : `${qty} in stock`}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-950">{product.name}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {product.sku}
+                        {product.category ? ` · ${product.category.name}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-slate-900">
+                      ৳{product.salePrice}
+                    </span>
+                    <span
+                      className={`w-20 shrink-0 text-right text-xs tabular-nums ${
+                        soldOut ? "text-red-500" : qty <= 5 ? "text-amber-600" : "text-slate-500"
+                      }`}
+                    >
+                      {soldOut ? "out of stock" : `${qty} in stock`}
+                    </span>
                     {inCart > 0 ? (
-                      <p className="mt-1 text-xs font-semibold text-slate-900">in cart: {inCart}</p>
-                    ) : null}
+                      <span className="w-16 shrink-0 rounded-full bg-slate-900 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-white">
+                        ×{inCart}
+                      </span>
+                    ) : (
+                      <span className="w-16 shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-center text-xs font-semibold text-slate-500">
+                        add
+                      </span>
+                    )}
                   </button>
                 );
               })}
