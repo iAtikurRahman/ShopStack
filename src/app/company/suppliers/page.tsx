@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/services/api";
 
 type Supplier = {
@@ -100,13 +101,18 @@ export default function CompanySuppliersPage() {
           ) : (
             <div className="mt-4 space-y-3">
               {filteredSuppliers.map((supplier) => (
-                <div key={supplier.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <Link
+                  key={supplier.id}
+                  href={`/company/suppliers/${supplier.id}`}
+                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                >
                   <p className="font-semibold text-slate-950">{supplier.name}</p>
                   <p className="mt-1 text-sm text-slate-600">
                     {[supplier.phone, supplier.email].filter(Boolean).join(" · ") || "No contact info"}
                   </p>
                   {supplier.address ? <p className="mt-1 text-xs text-slate-500">{supplier.address}</p> : null}
-                </div>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">View purchases →</p>
+                </Link>
               ))}
             </div>
           )}
