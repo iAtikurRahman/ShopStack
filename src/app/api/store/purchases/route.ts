@@ -6,11 +6,23 @@ export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
   const warehouseIds = warehouses.map((w) => w.id);
 
+  // A purchase can be spread across warehouses, so show it if any of its
+  // lines landed in one of this store's warehouses.
   const purchases = await db.purchase.findMany({
-    where: { warehouseId: { in: warehouseIds } },
+    where: {
+      OR: [
+        { warehouseId: { in: warehouseIds } },
+        { items: { some: { warehouseId: { in: warehouseIds } } } },
+      ],
+    },
     include: {
       supplier: { select: { id: true, name: true } },
-      items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+      items: {
+        include: {
+          product: { select: { id: true, sku: true, name: true } },
+          warehouse: { select: { id: true, name: true } },
+        },
+      },
     },
     orderBy: { purchasedAt: "desc" },
   });
@@ -22,20 +34,41 @@ export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
   const { supplierId, warehouseId, reference, items, purchasedAt } = body ?? {};
 
-  if (!supplierId || !warehouseId || !Array.isArray(items) || items.length === 0) {
+  if (!supplierId || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
-      { message: "supplierId, warehouseId, and a non-empty items array are required" },
+      { message: "supplierId and a non-empty items array are required" },
       { status: 400 }
     );
   }
 
-  const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
-  if (!warehouse || !canAccessStore(session, warehouse.storeId)) {
-    return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
-  }
   const supplier = await db.supplier.findUnique({ where: { id: Number(supplierId) } });
   if (!supplier) {
     return NextResponse.json({ message: "Supplier not found" }, { status: 404 });
+  }
+
+  // Each line carries its own warehouse so one delivery from a supplier can be
+  // split across warehouses. A single top-level warehouseId is still accepted
+  // and applied to every line.
+  const requestedWarehouseIds = [
+    ...new Set(
+      items
+        .map((item: { warehouseId?: number }) => Number(item.warehouseId ?? warehouseId))
+        .map((id: number) => (Number.isInteger(id) && id > 0 ? id : 0))
+    ),
+  ];
+  if (requestedWarehouseIds.some((id) => id === 0)) {
+    return NextResponse.json({ message: "Each item requires a warehouseId" }, { status: 400 });
+  }
+
+  const warehouses = await db.warehouse.findMany({
+    where: { id: { in: requestedWarehouseIds } },
+    select: { id: true, storeId: true },
+  });
+  if (warehouses.length !== requestedWarehouseIds.length) {
+    return NextResponse.json({ message: "Warehouse not found" }, { status: 404 });
+  }
+  if (warehouses.some((w) => !canAccessStore(session, w.storeId))) {
+    return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
   }
 
   let parsedPurchasedAt = new Date();
@@ -52,30 +85,35 @@ export const POST = withAuth(async (request, { session, db }) => {
   try {
     const purchase = await db.$transaction(async (tx) => {
       let totalCost = 0;
-      const lineItems: { productId: number; quantity: number; unitCost: number }[] = [];
+      const lineItems: { productId: number; quantity: number; unitCost: number; warehouseId: number }[] = [];
 
       for (const item of items) {
         const productId = Number(item.productId);
         const quantity = Number(item.quantity);
         const unitCost = Number(item.unitCost);
+        const lineWarehouseId = Number(item.warehouseId ?? warehouseId);
         if (!productId || !quantity || quantity <= 0 || Number.isNaN(unitCost) || unitCost < 0) {
           throw new Error("Each item requires a valid productId, positive quantity, and non-negative unitCost");
         }
 
         await tx.warehouseStock.upsert({
-          where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
+          where: { warehouseId_productId: { warehouseId: lineWarehouseId, productId } },
           update: { quantity: { increment: quantity } },
-          create: { warehouseId: Number(warehouseId), productId, quantity },
+          create: { warehouseId: lineWarehouseId, productId, quantity },
         });
 
         totalCost += quantity * unitCost;
-        lineItems.push({ productId, quantity, unitCost });
+        lineItems.push({ productId, quantity, unitCost, warehouseId: lineWarehouseId });
       }
+
+      // Only pin the purchase to a single warehouse when every line agrees.
+      const warehouseIdsUsed = [...new Set(lineItems.map((i) => i.warehouseId))];
+      const primaryWarehouseId = warehouseIdsUsed.length === 1 ? warehouseIdsUsed[0] : null;
 
       return tx.purchase.create({
         data: {
           supplierId: Number(supplierId),
-          warehouseId: Number(warehouseId),
+          warehouseId: primaryWarehouseId,
           receivedById: session.userId,
           reference: reference || null,
           totalCost,
@@ -83,7 +121,12 @@ export const POST = withAuth(async (request, { session, db }) => {
           items: { create: lineItems },
         },
         include: {
-          items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+          items: {
+            include: {
+              product: { select: { id: true, sku: true, name: true } },
+              warehouse: { select: { id: true, name: true } },
+            },
+          },
           supplier: { select: { id: true, name: true } },
         },
       });

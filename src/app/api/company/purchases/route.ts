@@ -8,7 +8,12 @@ export const GET = withAuth(async (_request, { db }) => {
     include: {
       supplier: { select: { id: true, name: true } },
       warehouse: { select: { id: true, name: true, store: { select: { id: true, name: true } } } },
-      items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+      items: {
+        include: {
+          product: { select: { id: true, sku: true, name: true } },
+          warehouse: { select: { id: true, name: true, store: { select: { id: true, name: true } } } },
+        },
+      },
     },
     orderBy: { purchasedAt: "desc" },
   });
@@ -20,17 +25,31 @@ export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
   const { supplierId, warehouseId, reference, items, purchasedAt } = body ?? {};
 
-  if (!supplierId || !warehouseId || !Array.isArray(items) || items.length === 0) {
+  if (!supplierId || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
-      { message: "supplierId, warehouseId, and a non-empty items array are required" },
+      { message: "supplierId and a non-empty items array are required" },
       { status: 400 }
     );
   }
 
-  const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
-  if (!warehouse) {
+  // Every line picks its own warehouse so one supplier delivery can be split
+  // across warehouses; a single top-level warehouseId is still accepted.
+  const requestedWarehouseIds = [
+    ...new Set(
+      items
+        .map((item: { warehouseId?: number }) => Number(item.warehouseId ?? warehouseId))
+        .map((id: number) => (Number.isInteger(id) && id > 0 ? id : 0))
+    ),
+  ];
+  if (requestedWarehouseIds.some((id) => id === 0)) {
+    return NextResponse.json({ message: "Each item requires a warehouseId" }, { status: 400 });
+  }
+
+  const warehouseCount = await db.warehouse.count({ where: { id: { in: requestedWarehouseIds } } });
+  if (warehouseCount !== requestedWarehouseIds.length) {
     return NextResponse.json({ message: "Warehouse not found" }, { status: 404 });
   }
+
   const supplier = await db.supplier.findUnique({ where: { id: Number(supplierId) } });
   if (!supplier) {
     return NextResponse.json({ message: "Supplier not found" }, { status: 404 });
@@ -50,30 +69,34 @@ export const POST = withAuth(async (request, { session, db }) => {
   try {
     const purchase = await db.$transaction(async (tx) => {
       let totalCost = 0;
-      const lineItems: { productId: number; quantity: number; unitCost: number }[] = [];
+      const lineItems: { productId: number; quantity: number; unitCost: number; warehouseId: number }[] = [];
 
       for (const item of items) {
         const productId = Number(item.productId);
         const quantity = Number(item.quantity);
         const unitCost = Number(item.unitCost);
+        const lineWarehouseId = Number(item.warehouseId ?? warehouseId);
         if (!productId || !quantity || quantity <= 0 || Number.isNaN(unitCost) || unitCost < 0) {
           throw new Error("Each item requires a valid productId, positive quantity, and non-negative unitCost");
         }
 
         await tx.warehouseStock.upsert({
-          where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
+          where: { warehouseId_productId: { warehouseId: lineWarehouseId, productId } },
           update: { quantity: { increment: quantity } },
-          create: { warehouseId: Number(warehouseId), productId, quantity },
+          create: { warehouseId: lineWarehouseId, productId, quantity },
         });
 
         totalCost += quantity * unitCost;
-        lineItems.push({ productId, quantity, unitCost });
+        lineItems.push({ productId, quantity, unitCost, warehouseId: lineWarehouseId });
       }
+
+      const warehouseIdsUsed = [...new Set(lineItems.map((i) => i.warehouseId))];
+      const primaryWarehouseId = warehouseIdsUsed.length === 1 ? warehouseIdsUsed[0] : null;
 
       return tx.purchase.create({
         data: {
           supplierId: Number(supplierId),
-          warehouseId: Number(warehouseId),
+          warehouseId: primaryWarehouseId,
           receivedById: session.userId,
           reference: reference || null,
           totalCost,
@@ -81,7 +104,12 @@ export const POST = withAuth(async (request, { session, db }) => {
           items: { create: lineItems },
         },
         include: {
-          items: { include: { product: { select: { id: true, sku: true, name: true } } } },
+          items: {
+            include: {
+              product: { select: { id: true, sku: true, name: true } },
+              warehouse: { select: { id: true, name: true, store: { select: { id: true, name: true } } } },
+            },
+          },
           supplier: { select: { id: true, name: true } },
         },
       });

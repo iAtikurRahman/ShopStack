@@ -100,6 +100,7 @@ model Warehouse {
   createdAt       DateTime         @default(now())
   stock           WarehouseStock[]
   purchases       Purchase[]
+  purchaseItems   PurchaseItem[]
   supplierReturns SupplierReturn[]
 }
 
@@ -183,14 +184,17 @@ model Supplier {
   createdAt       DateTime         @default(now())
 }
 
-// A stock-in event: goods received from a supplier into a warehouse.
-// Increments WarehouseStock on creation (see /api/store/purchases).
+// A stock-in event: goods received from a supplier. Increments
+// WarehouseStock on creation (see /api/store/purchases). One purchase can
+// span several warehouses, so each PurchaseItem carries its own warehouseId;
+// Purchase.warehouseId is only the primary one (the first line) and is null
+// when the lines are spread across different warehouses.
 model Purchase {
   id           Int            @id @default(autoincrement())
   supplier     Supplier       @relation(fields: [supplierId], references: [id])
   supplierId   Int
-  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
-  warehouseId  Int
+  warehouse    Warehouse?     @relation(fields: [warehouseId], references: [id])
+  warehouseId  Int?
   receivedById Int
   reference    String?
   totalCost    Decimal        @db.Decimal(12, 2)
@@ -203,13 +207,17 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id         Int      @id @default(autoincrement())
-  purchase   Purchase @relation(fields: [purchaseId], references: [id])
-  purchaseId Int
-  product    Product  @relation(fields: [productId], references: [id])
-  productId  Int
-  quantity   Int
-  unitCost   Decimal  @db.Decimal(10, 2)
+  id          Int       @id @default(autoincrement())
+  purchase    Purchase  @relation(fields: [purchaseId], references: [id])
+  purchaseId  Int
+  product     Product   @relation(fields: [productId], references: [id])
+  productId   Int
+  // Where this line's goods were put away - one purchase can feed several
+  // warehouses from the same supplier delivery.
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  warehouseId Int
+  quantity    Int
+  unitCost    Decimal   @db.Decimal(10, 2)
 }
 
 // Stock sent back to a supplier (e.g. damaged/wrong goods). Decrements
