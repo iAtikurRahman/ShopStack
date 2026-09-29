@@ -9,22 +9,12 @@ type Company = {
   status: string;
   createdAt: string;
   tenantDb: { status: string; dbName: string; lastError: string | null } | null;
-  subscription: { status: string; endDate: string | null } | null;
 };
-
-type Plan = { id: number; name: string; price: string; durationDays: number; isActive: boolean };
 
 const STATUS_STYLES: Record<string, string> = {
   ready: "bg-emerald-100 text-emerald-700",
   active: "bg-emerald-100 text-emerald-700",
   failed: "bg-red-100 text-red-700",
-};
-
-const SUBSCRIPTION_BADGE: Record<string, string> = {
-  active: "🟢 Premium",
-  pending: "🟡 Pending payment",
-  expired: "⚫ Expired",
-  cancelled: "🔴 Cancelled",
 };
 
 export default function AdminCompaniesPage() {
@@ -38,8 +28,6 @@ export default function AdminCompaniesPage() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [initialPlanId, setInitialPlanId] = useState("");
-  const [plans, setPlans] = useState<Plan[]>([]);
 
   async function loadCompanies() {
     try {
@@ -53,20 +41,10 @@ export default function AdminCompaniesPage() {
     }
   }
 
-  async function loadPlans() {
-    try {
-      const res = await fetch("/api/admin/subscriptions/plans");
-      const data = await res.json();
-      setPlans((data.plans ?? []).filter((p: Plan) => p.isActive));
-    } catch {
-      // Plan picker is optional - a load failure just leaves it empty.
-    }
-  }
-
   useEffect(() => {
     async function load() {
       setLoading(true);
-      await Promise.all([loadCompanies(), loadPlans()]);
+      await loadCompanies();
     }
     load();
   }, []);
@@ -85,7 +63,6 @@ export default function AdminCompaniesPage() {
           adminName,
           adminEmail,
           adminPassword,
-          initialPlanId: initialPlanId || undefined,
         }),
       });
       const data = await res.json();
@@ -96,8 +73,8 @@ export default function AdminCompaniesPage() {
       setAdminName("");
       setAdminEmail("");
       setAdminPassword("");
-      setInitialPlanId("");
       await loadCompanies();
+
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -136,9 +113,6 @@ export default function AdminCompaniesPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">/{company.slug}</p>
-                  <p className="mt-1 text-xs font-medium text-slate-700">
-                    {company.subscription ? SUBSCRIPTION_BADGE[company.subscription.status] ?? company.subscription.status : "🔴 Free"}
-                  </p>
                   {company.tenantDb ? (
                     <p className="mt-1 text-xs text-slate-500">
                       db: {company.tenantDb.dbName} · {company.tenantDb.status}
@@ -203,21 +177,6 @@ export default function AdminCompaniesPage() {
                 onChange={(e) => setAdminPassword(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
-            </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Grant premium immediately (optional)</span>
-              <select
-                value={initialPlanId}
-                onChange={(e) => setInitialPlanId(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              >
-                <option value="">None - start on the free tier</option>
-                {plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} — ৳{plan.price} / {plan.durationDays}d
-                  </option>
-                ))}
-              </select>
             </label>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <button

@@ -12,6 +12,9 @@ type Product = {
   category: { id: number; name: string } | null;
   unitValue: string | null;
   unit: string | null;
+  purchasePrice: string;
+  salePrice: string;
+  taxRate: string;
   totalStock: number;
   stockByStore: StockByStore[];
 };
@@ -19,6 +22,9 @@ type Product = {
 type Category = { id: number; name: string };
 
 const UNIT_OPTIONS = ["piece", "kg", "g", "liter", "ml", "box", "pack", "dozen"];
+
+const PRICE_INPUT_CLASS =
+  "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900";
 
 export default function CompanyProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -29,9 +35,17 @@ export default function CompanyProductsPage() {
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState("");
+  const [salePrice, setSalePrice] = useState("");
   const [taxRate, setTaxRate] = useState("0");
   const [unitValue, setUnitValue] = useState("");
   const [unit, setUnit] = useState("piece");
+
+  const [markupPercent, setMarkupPercent] = useState("25");
+  const [bulkTaxRate, setBulkTaxRate] = useState("");
+  const [includePriced, setIncludePriced] = useState(false);
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [categoryQuery, setCategoryQuery] = useState("");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -89,6 +103,8 @@ export default function CompanyProductsPage() {
         sku,
         name,
         categoryId: categoryId || null,
+        purchasePrice: purchasePrice === "" ? 0 : Number(purchasePrice),
+        salePrice: salePrice === "" ? 0 : Number(salePrice),
         taxRate: Number(taxRate),
         unitValue: unitValue === "" ? null : Number(unitValue),
         unit,
@@ -96,6 +112,8 @@ export default function CompanyProductsPage() {
       setSku("");
       setName("");
       selectCategory(null);
+      setPurchasePrice("");
+      setSalePrice("");
       setTaxRate("0");
       setUnitValue("");
       setUnit("piece");
@@ -105,12 +123,54 @@ export default function CompanyProductsPage() {
     }
   }
 
+  async function savePrice(productId: number, field: "purchasePrice" | "salePrice", value: string) {
+    setError(null);
+    const product = products.find((p) => p.id === productId);
+    if (!product || value === product[field]) return;
+
+    // Optimistic: keep the typing responsive, the reload below is the real check.
+    setProducts((current) => current.map((p) => (p.id === productId ? { ...p, [field]: value } : p)));
+    try {
+      await apiFetch(`/api/company/products/${productId}`, "PATCH", { [field]: Number(value) });
+      await loadData();
+    } catch (err) {
+      setError((err as Error).message);
+      await loadData();
+    }
+  }
+
+  async function handleBulkPricing(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setNotice(null);
+    setBulkApplying(true);
+    try {
+      const result = await apiFetch<{
+        updated: number;
+        skipped: { sku: string; name: string; reason: string }[];
+      }>("/api/company/products/pricing", "PUT", {
+        markupPercent: Number(markupPercent),
+        taxRate: bulkTaxRate === "" ? null : Number(bulkTaxRate),
+        includePriced,
+      });
+      const skippedNote =
+        result.skipped.length > 0 ? ` ${result.skipped.length} skipped (no purchase cost recorded).` : "";
+      setNotice(`Priced ${result.updated} product${result.updated === 1 ? "" : "s"}.${skippedNote}`);
+      await loadData();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBulkApplying(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">Products</h1>
       <p className="text-sm text-slate-600">
-        Price is set per-store from Warehouse Products; purchases (with cost and supplier) are recorded from Purchases.
+        Cost and sale price are set here and apply to every store. Edit a cell and it saves when you click away.
       </p>
+      {notice ? <p className="text-sm text-emerald-600">{notice}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -128,6 +188,8 @@ export default function CompanyProductsPage() {
                     <th className="pb-2">Name</th>
                     <th className="pb-2">Category</th>
                     <th className="pb-2">Unit</th>
+                    <th className="pb-2">Cost</th>
+                    <th className="pb-2">Sale price</th>
                     <th className="pb-2">Total stock</th>
                     <th className="pb-2">By store</th>
                   </tr>
@@ -140,6 +202,26 @@ export default function CompanyProductsPage() {
                       <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
                       <td className="py-2 text-slate-600">
                         {product.unitValue ? `${product.unitValue} ${product.unit ?? ""}`.trim() : product.unit ?? "—"}
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          defaultValue={product.purchasePrice}
+                          onBlur={(e) => savePrice(product.id, "purchasePrice", e.target.value)}
+                          className={PRICE_INPUT_CLASS}
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          defaultValue={product.salePrice}
+                          onBlur={(e) => savePrice(product.id, "salePrice", e.target.value)}
+                          className={PRICE_INPUT_CLASS}
+                        />
                       </td>
                       <td className="py-2 text-slate-600">{product.totalStock}</td>
                       <td className="py-2 text-xs text-slate-500">
@@ -155,6 +237,57 @@ export default function CompanyProductsPage() {
               </table>
             </div>
           )}
+        </div>
+
+        <div className="space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-950">Set prices in bulk</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Marks up the recorded purchase cost to fill in every missing sale price at once.
+          </p>
+          <form onSubmit={handleBulkPricing} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Markup on cost (%)</span>
+              <input
+                required
+                type="number"
+                step="0.01"
+                min={0}
+                value={markupPercent}
+                onChange={(e) => setMarkupPercent(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">Set tax rate to (%)</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                value={bulkTaxRate}
+                onChange={(e) => setBulkTaxRate(e.target.value)}
+                placeholder="Leave blank to keep current"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={includePriced}
+                onChange={(e) => setIncludePriced(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Also reprice products that already have a sale price
+            </label>
+            <button
+              type="submit"
+              disabled={bulkApplying}
+              className="w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {bulkApplying ? "Applying…" : "Apply to catalog"}
+            </button>
+          </form>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -178,6 +311,30 @@ export default function CompanyProductsPage() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Cost</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={purchasePrice}
+                  onChange={(e) => setPurchasePrice(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">Sale price</span>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                />
+              </label>
+            </div>
             <div className="block" ref={categoryFieldRef}>
               <span className="text-sm font-medium text-slate-700">Category</span>
               <div className="relative mt-2">
@@ -273,6 +430,7 @@ export default function CompanyProductsPage() {
               Create product
             </button>
           </form>
+        </div>
         </div>
       </div>
     </main>

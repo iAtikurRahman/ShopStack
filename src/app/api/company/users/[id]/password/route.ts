@@ -50,4 +50,4 @@ export const PUT = withAuth<{ id: string }>(async (request, { session, db, param
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["company_admin"] });
+}, { scope: "tenant", roles: ["company_admin", "store_manager"] });

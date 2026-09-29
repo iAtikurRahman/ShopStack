@@ -23,7 +23,6 @@ const COMPANY_LINKS: NavLink[] = [
   { href: "/company/categories", label: "Categories" },
   { href: "/company/suppliers", label: "Suppliers" },
   { href: "/company/users", label: "Users" },
-  { href: "/company/subscription", label: "Subscription" },
   { href: "/company/audit-log", label: "Audit log" },
 ];
 

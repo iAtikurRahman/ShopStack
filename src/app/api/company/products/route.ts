@@ -32,15 +32,26 @@ export const GET = withAuth(async (_request, { db }) => {
   return NextResponse.json({ products: withTotals });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
-// Catalog-only creation: name/SKU/category/unit. Price is set later per
-// store via /store/warehouses/[id]/products (defaults to 0 here), and
-// initial stock is recorded via /company/purchases or /store/purchases.
+// Catalog creation. Cost and sale price are optional so a catalog can be
+// entered before any cost is known, but anything supplied is validated - the
+// old behaviour hardcoded 0 here and left every product unsellable in POS.
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
   const { sku, name, categoryId, taxRate, unitValue, unit } = body ?? {};
 
   if (!sku || !name) {
     return NextResponse.json({ message: "sku and name are required" }, { status: 400 });
+  }
+
+  const pricing: Record<string, number> = {};
+  for (const key of ["purchasePrice", "salePrice"] as const) {
+    const raw = body?.[key];
+    if (raw === undefined || raw === null || raw === "") continue;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      return NextResponse.json({ message: `${key} must be zero or greater` }, { status: 400 });
+    }
+    pricing[key] = value;
   }
 
   const existing = await db.product.findUnique({ where: { sku } });
@@ -53,8 +64,8 @@ export const POST = withAuth(async (request, { session, db }) => {
       sku,
       name,
       categoryId: categoryId ? Number(categoryId) : null,
-      purchasePrice: 0,
-      salePrice: 0,
+      purchasePrice: pricing.purchasePrice ?? 0,
+      salePrice: pricing.salePrice ?? 0,
       taxRate: taxRate ?? 0,
       unitValue: unitValue !== undefined && unitValue !== null && unitValue !== "" ? Number(unitValue) : null,
       unit: unit || null,
@@ -65,7 +76,11 @@ export const POST = withAuth(async (request, { session, db }) => {
     action: "product.created",
     entityType: "Product",
     entityId: product.id,
-    after: { sku: product.sku, name: product.name },
+    after: {
+      sku: product.sku,
+      name: product.name,
+      salePrice: product.salePrice.toString(),
+    },
   });
   return NextResponse.json({ product }, { status: 201 });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });

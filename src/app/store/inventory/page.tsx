@@ -23,7 +23,7 @@ export default function StoreInventoryPage() {
 
   useEffect(() => {
     apiFetch<{ role?: string }>("/api/auth/me")
-      .then((me) => setIsManager(me.role === "store_manager"))
+      .then((me) => setIsManager(me.role === "store_manager" || me.role === "company_admin"))
       .catch(() => undefined);
   }, []);
 

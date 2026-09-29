@@ -11,7 +11,9 @@ export default async function StoreDashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold text-slate-950">Welcome, {session.name}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          {store ? `You are working from ${store.name}.` : "No store assigned yet."}
+          {store
+            ? `You are working from ${store.name}.`
+            : "You have company-wide access to every store."}
         </p>
         <p className="mt-1 text-sm text-slate-600">POS checkout lands in a later phase.</p>
       </div>

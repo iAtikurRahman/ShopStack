@@ -30,12 +30,6 @@ export async function proxy(request: NextRequest) {
     if (!session || session.kind !== "tenant") {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    if (pathname.startsWith("/company") && session.role !== "company_admin") {
-      return NextResponse.redirect(new URL("/store", request.url));
-    }
-    if (pathname.startsWith("/store") && session.role === "company_admin") {
-      return NextResponse.redirect(new URL("/company", request.url));
-    }
     return NextResponse.next();
   }
 

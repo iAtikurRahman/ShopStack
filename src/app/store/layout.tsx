@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError, requireTenantSession } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
-import { AdGate } from "@/components/AdGate";
 import { WorkspaceNav } from "@/components/WorkspaceNav";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
@@ -34,7 +33,6 @@ export default async function StoreLayout({ children }: { children: React.ReactN
           <WorkspaceNav role={role} />
         </div>
       </header>
-      <AdGate role={role} />
       <main>{children}</main>
     </div>
   );

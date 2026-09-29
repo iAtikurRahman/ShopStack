@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { verifySession } from "@/lib/session";
-import { getSubscriptionStatus } from "@/lib/subscription";
 
 export async function GET() {
   const session = await verifySession();
@@ -16,8 +15,6 @@ export async function GET() {
     });
   }
 
-  const subscription = await getSubscriptionStatus(session.companyId);
-
   return NextResponse.json({
     kind: "tenant",
     name: session.name,
@@ -25,6 +22,5 @@ export async function GET() {
     role: session.role,
     storeId: session.storeId,
     companyId: session.companyId,
-    subscription,
   });
 }

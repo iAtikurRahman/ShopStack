@@ -6,7 +6,7 @@ import { validatePassword } from "@/lib/validate-password";
 
 export const GET = withAuth(async () => {
   const companies = await centralDb.company.findMany({
-    include: { tenantDb: true, subscription: true },
+    include: { tenantDb: true },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ companies });
@@ -14,7 +14,7 @@ export const GET = withAuth(async () => {
 
 export const POST = withAuth(async (request) => {
   const body = await request.json();
-  const { companyName, slug, adminName, adminEmail, adminPassword, initialPlanId } = body ?? {};
+  const { companyName, slug, adminName, adminEmail, adminPassword } = body ?? {};
 
   if (!companyName || !slug || !adminName || !adminEmail || !adminPassword) {
     return NextResponse.json(
@@ -40,7 +40,6 @@ export const POST = withAuth(async (request) => {
       adminName,
       adminEmail,
       adminPassword,
-      initialPlanId: initialPlanId ? Number(initialPlanId) : undefined,
     });
     return NextResponse.json({ companyId: result.companyId }, { status: 201 });
   } catch (err) {
