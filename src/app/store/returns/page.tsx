@@ -385,14 +385,6 @@ function ReturnsForm() {
           <div className="mt-4 space-y-3">
             {filteredReturns.map((r) => {
               const units = r.items.reduce((sum, i) => sum + i.quantity, 0);
-              const lineDiscount = r.sale.items
-                .filter((si) => r.items.some((ri) => ri.saleItemId === si.id))
-                .reduce((sum, si) => sum + Number(si.discountAmount), 0);
-              const orderDiscount = Number(r.sale.discountAmount);
-              const discountNotes = [
-                lineDiscount > 0 ? `line -৳${lineDiscount.toFixed(2)}` : null,
-                orderDiscount > 0 ? `order -৳${orderDiscount.toFixed(2)}` : null,
-              ].filter(Boolean);
 
               return (
                 <div key={r.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -408,12 +400,6 @@ function ReturnsForm() {
                         {units} unit{units === 1 ? "" : "s"} restocked
                         {r.reason ? ` · ${r.reason}` : ""}
                       </p>
-                      {discountNotes.length > 0 ? (
-                        <p className="mt-1 text-xs text-amber-700">
-                          Discounts on this sale: {discountNotes.join(", ")} — the refund above already accounts
-                          for them
-                        </p>
-                      ) : null}
                       <p className="mt-0.5 text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 text-right">
