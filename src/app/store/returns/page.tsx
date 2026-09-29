@@ -425,7 +425,7 @@ function ReturnsForm() {
                   {editingId === r.id ? (
                     <div className="mt-4 border-t border-slate-200 pt-4">
                       {editError ? <p className="mb-2 text-sm text-red-600">{editError}</p> : null}
-                      <div className="flex flex-wrap gap-3">
+                      <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-end">
                         <label className="block">
                           <span className="text-xs font-medium text-slate-700">Refund amount</span>
                           <input
@@ -434,15 +434,15 @@ function ReturnsForm() {
                             step="0.01"
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
-                            className="mt-1 w-32 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-slate-900"
+                            className="mt-1 block h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-900"
                           />
                         </label>
-                        <label className="block flex-1">
+                        <label className="block">
                           <span className="text-xs font-medium text-slate-700">Reason</span>
                           <input
                             value={editReason}
                             onChange={(e) => setEditReason(e.target.value)}
-                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-slate-900"
+                            className="mt-1 block h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-900"
                           />
                         </label>
                       </div>
