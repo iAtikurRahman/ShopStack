@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ApiError, requireTenantSession } from "@/lib/session";
-import { LogoutButton } from "@/components/LogoutButton";
-import { WorkspaceNav } from "@/components/WorkspaceNav";
+import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 
 export default async function CompanyLayout({ children }: { children: React.ReactNode }) {
   let name: string;
@@ -18,21 +16,7 @@ export default async function CompanyLayout({ children }: { children: React.Reac
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/company">
-              <p className="text-xs uppercase tracking-[0.28em] text-slate-500">ShopStack</p>
-              <p className="text-lg font-semibold text-slate-950">Company Admin</p>
-            </Link>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-500">{name}</span>
-              <LogoutButton redirectTo="/login" />
-            </div>
-          </div>
-          <WorkspaceNav role={role} />
-        </div>
-      </header>
+      <WorkspaceHeader role={role} title="Company Admin" name={name} homeHref="/company" />
       <main>{children}</main>
     </div>
   );
