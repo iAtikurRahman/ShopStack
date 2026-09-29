@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string };
@@ -50,6 +50,24 @@ export default function StorePurchasesPage() {
   const [quantity, setQuantity] = useState("1");
   const [unitCost, setUnitCost] = useState("");
   const [purchasedAt, setPurchasedAt] = useState(today());
+  const [search, setSearch] = useState("");
+
+  const filteredPurchases = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return purchases;
+    return purchases.filter((purchase) => {
+      const matchesItem = purchase.items.some((item) =>
+        `${item.product.name} ${item.product.sku}`.toLowerCase().includes(q)
+      );
+      return (
+        purchase.supplier.name.toLowerCase().includes(q) ||
+        matchesItem ||
+        (purchase.reference ?? "").toLowerCase().includes(q) ||
+        purchase.totalCost.includes(q) ||
+        purchase.purchasedAt.slice(0, 10).includes(q)
+      );
+    });
+  }, [purchases, search]);
 
   async function loadAll() {
     try {
@@ -107,13 +125,22 @@ export default function StorePurchasesPage() {
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Recent purchases</h2>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by supplier, product, reference, amount or date…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
-          ) : purchases.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No purchases yet.</p>
+          ) : filteredPurchases.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim() ? `No purchases match "${search.trim()}".` : "No purchases yet."}
+            </p>
           ) : (
-            <div className="mt-6 space-y-3">
-              {purchases.map((purchase) => (
+            <div className="mt-4 space-y-3">
+              {filteredPurchases.map((purchase) => (
                 <div key={purchase.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">{purchase.supplier.name}</p>

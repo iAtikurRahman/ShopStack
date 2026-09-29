@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string };
@@ -20,6 +20,31 @@ export default function StoreInventoryPage() {
   const [newWarehouseName, setNewWarehouseName] = useState("");
   const [newWarehouseLocation, setNewWarehouseLocation] = useState("");
   const [isManager, setIsManager] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const stockByProduct = useMemo(() => {
+    const map = new Map<number, Stock>();
+    for (const s of stock) {
+      if (s.warehouseId === selectedWarehouseId) map.set(s.productId, s);
+    }
+    return map;
+  }, [stock, selectedWarehouseId]);
+
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter((p) => {
+      const current = stockByProduct.get(p.id);
+      const quantity = current?.quantity ?? 0;
+      return (
+        p.sku.toLowerCase().includes(q) ||
+        p.name.toLowerCase().includes(q) ||
+        (p.category?.name ?? "").toLowerCase().includes(q) ||
+        String(quantity).includes(q) ||
+        (quantity <= (current?.lowStockThreshold ?? 5) && "low stock".includes(q))
+      );
+    });
+  }, [products, search, stockByProduct]);
 
   useEffect(() => {
     apiFetch<{ role?: string }>("/api/auth/me")
@@ -52,7 +77,7 @@ export default function StoreInventoryPage() {
   }, []);
 
   function stockFor(productId: number) {
-    return stock.find((s) => s.warehouseId === selectedWarehouseId && s.productId === productId);
+    return stockByProduct.get(productId);
   }
 
   async function handleQuantityChange(productId: number, quantity: number) {
@@ -154,14 +179,23 @@ export default function StoreInventoryPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by SKU, name, category or quantity…"
+          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+        />
         {loading ? (
-          <p className="text-sm text-slate-600">Loading…</p>
+          <p className="mt-6 text-sm text-slate-600">Loading…</p>
         ) : !selectedWarehouseId ? (
-          <p className="text-sm text-slate-600">No warehouse assigned to your store yet.</p>
-        ) : products.length === 0 ? (
-          <p className="text-sm text-slate-600">No products in the catalog yet.</p>
+          <p className="mt-6 text-sm text-slate-600">No warehouse assigned to your store yet.</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="mt-6 text-sm text-slate-600">
+            {search.trim() ? `No products match "${search.trim()}".` : "No products in the catalog yet."}
+          </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-slate-500">
                 <tr>
@@ -172,7 +206,7 @@ export default function StoreInventoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => {
+                {filteredProducts.map((product) => {
                   const current = stockFor(product.id);
                   const quantity = current?.quantity ?? 0;
                   const isLow = quantity <= (current?.lowStockThreshold ?? 5);

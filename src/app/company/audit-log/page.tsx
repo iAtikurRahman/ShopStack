@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/services/api";
 
 type Entry = {
@@ -16,6 +16,20 @@ export default function CompanyAuditLogPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredEntries = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(
+      (entry) =>
+        (entry.userEmail ?? "system").toLowerCase().includes(q) ||
+        entry.action.toLowerCase().includes(q) ||
+        entry.entityType.toLowerCase().includes(q) ||
+        (entry.entityId !== null && String(entry.entityId).includes(q)) ||
+        entry.createdAt.slice(0, 10).includes(q)
+    );
+  }, [entries, search]);
 
   useEffect(() => {
     async function load() {
@@ -38,12 +52,21 @@ export default function CompanyAuditLogPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by actor, action, entity or date…"
+          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+        />
         {loading ? (
-          <p className="text-sm text-slate-600">Loading…</p>
-        ) : entries.length === 0 ? (
-          <p className="text-sm text-slate-600">No activity recorded yet.</p>
+          <p className="mt-6 text-sm text-slate-600">Loading…</p>
+        ) : filteredEntries.length === 0 ? (
+          <p className="mt-6 text-sm text-slate-600">
+            {search.trim() ? `No entries match "${search.trim()}".` : "No activity recorded yet."}
+          </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-slate-500">
                 <tr>
@@ -54,7 +77,7 @@ export default function CompanyAuditLogPage() {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((entry) => (
+                {filteredEntries.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
                     <td className="py-2 text-slate-500">{new Date(entry.createdAt).toLocaleString()}</td>
                     <td className="py-2 text-slate-600">{entry.userEmail ?? "system"}</td>

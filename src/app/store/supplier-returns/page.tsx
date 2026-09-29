@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/services/api";
 import { round2 } from "@/lib/returns";
 
@@ -34,6 +34,23 @@ export default function StoreSupplierReturnsPage() {
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
   const [amountTouched, setAmountTouched] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredReturns = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return supplierReturns;
+    return supplierReturns.filter((ret) => {
+      const warehouse = warehouses.find((w) => w.id === ret.warehouseId);
+      return (
+        ret.supplier.name.toLowerCase().includes(q) ||
+        `${ret.product?.name ?? ""} ${ret.product?.sku ?? ""}`.toLowerCase().includes(q) ||
+        (ret.reason ?? "").toLowerCase().includes(q) ||
+        (warehouse?.name ?? "").toLowerCase().includes(q) ||
+        ret.amount.includes(q) ||
+        ret.createdAt.slice(0, 10).includes(q)
+      );
+    });
+  }, [supplierReturns, warehouses, search]);
 
   async function loadAll() {
     try {
@@ -113,13 +130,22 @@ export default function StoreSupplierReturnsPage() {
               </p>
             ) : null}
           </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by supplier, product, warehouse, reason or date…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
-          ) : supplierReturns.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No supplier returns yet.</p>
+          ) : filteredReturns.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim() ? `No returns match "${search.trim()}".` : "No supplier returns yet."}
+            </p>
           ) : (
-            <div className="mt-6 space-y-3">
-              {supplierReturns.map((ret) => (
+            <div className="mt-4 space-y-3">
+              {filteredReturns.map((ret) => (
                 <div key={ret.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>

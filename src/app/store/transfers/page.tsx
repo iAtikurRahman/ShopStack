@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string; store?: { id: number; name: string } };
@@ -27,6 +27,7 @@ export default function StoreTransfersPage() {
   const [toWarehouseId, setToWarehouseId] = useState("");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [search, setSearch] = useState("");
 
   async function loadAll() {
     try {
@@ -72,10 +73,31 @@ export default function StoreTransfersPage() {
     }
   }
 
-  const productById = new Map(products.map((p) => [p.id, p]));
-  const warehouseById = new Map(
-    [...myWarehouses, ...allWarehouses].map((w) => [w.id, w.name] as const)
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p] as const)), [products]);
+  const warehouseById = useMemo(
+    () => new Map([...myWarehouses, ...allWarehouses].map((w) => [w.id, w.name] as const)),
+    [myWarehouses, allWarehouses]
   );
+
+  const filteredTransfers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return transfers;
+    return transfers.filter((transfer) => {
+      const matchesItem = transfer.items.some((item) => {
+        const product = productById.get(item.productId);
+        return `${product?.name ?? ""} ${product?.sku ?? ""}`.toLowerCase().includes(q);
+      });
+      const warehouses = `${warehouseById.get(transfer.fromWarehouseId) ?? ""} ${
+        warehouseById.get(transfer.toWarehouseId) ?? ""
+      }`.toLowerCase();
+      return (
+        matchesItem ||
+        warehouses.includes(q) ||
+        transfer.status.toLowerCase().includes(q) ||
+        transfer.createdAt.slice(0, 10).includes(q)
+      );
+    });
+  }, [transfers, search, productById, warehouseById]);
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
@@ -84,13 +106,22 @@ export default function StoreTransfersPage() {
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">Recent transfers</h2>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by warehouse, product, status or date…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
-          ) : transfers.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No transfers yet.</p>
+          ) : filteredTransfers.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim() ? `No transfers match "${search.trim()}".` : "No transfers yet."}
+            </p>
           ) : (
-            <div className="mt-6 space-y-3">
-              {transfers.map((transfer) => (
+            <div className="mt-4 space-y-3">
+              {filteredTransfers.map((transfer) => (
                 <div key={transfer.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">
