@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PasswordField from "@/components/PasswordField";
 import { apiFetch } from "@/services/api";
 
@@ -29,6 +29,7 @@ export default function CompanyUsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [search, setSearch] = useState("");
 
   async function loadData() {
     try {
@@ -139,6 +140,23 @@ export default function CompanyUsersPage() {
     }
   }
 
+  const storeNameById = useMemo(() => new Map(stores.map((s) => [s.id, s.name] as const)), [stores]);
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => {
+      const storeName = u.storeId ? (storeNameById.get(u.storeId) ?? "") : "";
+      return (
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q) ||
+        storeName.toLowerCase().includes(q) ||
+        (u.isActive ? "active" : "inactive").includes(q)
+      );
+    });
+  }, [users, search, storeNameById]);
+
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">Users</h1>
@@ -148,18 +166,29 @@ export default function CompanyUsersPage() {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">All users</h2>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, role or store…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim() ? `No users match "${search.trim()}".` : "No users yet."}
+            </p>
           ) : (
-            <div className="mt-6 space-y-3">
-              {users.map((user) => (
+            <div className="mt-4 space-y-3">
+              {filteredUsers.map((user) => (
                 <div key={user.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold text-slate-950">{user.name}</p>
                       <p className="text-xs text-slate-500">
                         {user.email} · {user.role}
-                        {user.storeId ? ` · store ${user.storeId}` : ""}
+                        {user.storeId ? ` · ${storeNameById.get(user.storeId) ?? `store ${user.storeId}`}` : ""}
                         {!user.isActive ? " · inactive" : ""}
                       </p>
                     </div>

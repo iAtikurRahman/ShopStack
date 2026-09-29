@@ -48,12 +48,25 @@ export default function CompanyProductsPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryFieldRef = useRef<HTMLDivElement>(null);
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())
   );
+
+  const filteredProducts = products.filter((product) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      product.sku.toLowerCase().includes(q) ||
+      product.name.toLowerCase().includes(q) ||
+      (product.category?.name ?? "").toLowerCase().includes(q) ||
+      (product.unit ?? "").toLowerCase().includes(q) ||
+      product.stockByStore.some((s) => `${s.storeName} ${s.warehouseName}`.toLowerCase().includes(q))
+    );
+  });
 
   function selectCategory(category: Category | null) {
     setCategoryId(category ? String(category.id) : "");
@@ -175,12 +188,21 @@ export default function CompanyProductsPage() {
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">All products</h2>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by SKU, name, category, unit or store…"
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">Loading…</p>
-          ) : products.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No products yet.</p>
+          ) : filteredProducts.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim() ? `No products match "${search.trim()}".` : "No products yet."}
+            </p>
           ) : (
-            <div className="mt-6 overflow-x-auto">
+            <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-slate-500">
                   <tr>
@@ -195,7 +217,7 @@ export default function CompanyProductsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <tr key={product.id} className="border-t border-slate-100">
                       <td className="py-2 text-slate-600">{product.sku}</td>
                       <td className="py-2 font-medium text-slate-950">{product.name}</td>
