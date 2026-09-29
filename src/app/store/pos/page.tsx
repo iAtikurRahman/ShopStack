@@ -17,6 +17,10 @@ type Stock = { warehouseId: number; productId: number; quantity: number };
 type Customer = { id: number; name: string; phone: string | null };
 type CartLine = { productId: number; name: string; unitPrice: number; taxRate: number; quantity: number };
 
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export default function PosCheckoutPage() {
   const router = useRouter();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -33,6 +37,9 @@ export default function PosCheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  // While a quantity box is being edited we keep the raw text, so backspacing
+  // it down to empty doesn't drop the line - the real quantity snaps back on blur.
+  const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
 
   async function loadData() {
     try {
@@ -86,12 +93,21 @@ export default function PosCheckoutPage() {
     });
   }
 
+  // Only the ✕ button removes a line - editing the number (even clearing it
+  // mid-edit) just changes the quantity.
   function updateQty(productId: number, quantity: number) {
-    setCart((current) =>
-      quantity <= 0
-        ? current.filter((l) => l.productId !== productId)
-        : current.map((l) => (l.productId === productId ? { ...l, quantity } : l))
-    );
+    const maxQty = availableQty(productId);
+    const next = Math.min(Math.max(Math.floor(quantity), 1), Math.max(maxQty, 1));
+    setCart((current) => current.map((l) => (l.productId === productId ? { ...l, quantity: next } : l)));
+  }
+
+  function removeFromCart(productId: number) {
+    setCart((current) => current.filter((l) => l.productId !== productId));
+    setQtyDrafts((current) => {
+      const next = { ...current };
+      delete next[productId];
+      return next;
+    });
   }
 
   const filteredProducts = useMemo(() => {
@@ -103,12 +119,21 @@ export default function PosCheckoutPage() {
   const trimmedPhone = customerPhone.trim();
   const matchedCustomer = trimmedPhone ? customers.find((c) => c.phone === trimmedPhone) ?? null : null;
 
+  // Mirrors the server's per-line rounding in /api/store/pos/checkout, so a
+  // multi-line cart can never be rejected for a payment mismatch.
   const { subtotal, taxAmount, total } = useMemo(() => {
-    const sub = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
-    const tax = cart.reduce((sum, l) => sum + l.unitPrice * l.quantity * (l.taxRate / 100), 0);
-    const t = Math.max(0, sub - Number(discountAmount || 0)) + tax;
-    return { subtotal: Math.round(sub * 100) / 100, taxAmount: Math.round(tax * 100) / 100, total: Math.round(t * 100) / 100 };
+    let sub = 0;
+    let tax = 0;
+    for (const l of cart) {
+      const lineSubtotal = round2(l.unitPrice * l.quantity);
+      sub = round2(sub + lineSubtotal);
+      tax = round2(tax + round2(lineSubtotal * (l.taxRate / 100)));
+    }
+    const discount = Number(discountAmount || 0);
+    return { subtotal: sub, taxAmount: tax, total: round2(Math.max(0, sub - discount) + tax) };
   }, [cart, discountAmount]);
+
+  const itemCount = cart.reduce((sum, l) => sum + l.quantity, 0);
 
   async function resolveCustomerId(): Promise<number | null> {
     if (!trimmedPhone) return null;
@@ -168,18 +193,27 @@ export default function PosCheckoutPage() {
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {filteredProducts.map((product) => {
                 const qty = availableQty(product.id);
+                const inCart = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
+                const soldOut = qty <= 0;
                 return (
                   <button
                     key={product.id}
                     type="button"
-                    disabled={qty <= 0}
+                    disabled={soldOut}
                     onClick={() => addToCart(product)}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    className={`rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      inCart > 0
+                        ? "border-slate-900 bg-slate-100"
+                        : "border-slate-200 bg-slate-50 hover:border-slate-400"
+                    }`}
                   >
                     <p className="text-sm font-semibold text-slate-950">{product.name}</p>
                     <p className="mt-1 text-xs text-slate-500">{product.sku}</p>
                     <p className="mt-2 text-sm font-medium text-slate-700">${product.salePrice}</p>
-                    <p className="text-xs text-slate-400">{qty} in stock</p>
+                    <p className="text-xs text-slate-400">{soldOut ? "out of stock" : `${qty} in stock`}</p>
+                    {inCart > 0 ? (
+                      <p className="mt-1 text-xs font-semibold text-slate-900">in cart: {inCart}</p>
+                    ) : null}
                   </button>
                 );
               })}
@@ -188,7 +222,27 @@ export default function PosCheckoutPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Cart</h2>
+          <div className="mt-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-950">Cart</h2>
+            {cart.length > 0 ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">
+                  {cart.length} product{cart.length === 1 ? "" : "s"} · {itemCount} item
+                  {itemCount === 1 ? "" : "s"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCart([]);
+                    setQtyDrafts({});
+                  }}
+                  className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
+          </div>
 
           {warehouses.length > 1 ? (
             <select
@@ -206,25 +260,61 @@ export default function PosCheckoutPage() {
 
           <div className="mt-4 space-y-2">
             {cart.length === 0 ? (
-              <p className="text-sm text-slate-500">Cart is empty.</p>
+              <p className="text-sm text-slate-500">
+                Cart is empty. Tap a product to add it, then tap it again for more.
+              </p>
             ) : (
-              cart.map((line) => (
-                <div key={line.productId} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                  <div>
-                    <p className="font-medium text-slate-950">{line.name}</p>
-                    <p className="text-xs text-slate-500">${line.unitPrice.toFixed(2)} each</p>
+              cart.map((line) => {
+                const maxQty = availableQty(line.productId);
+                return (
+                  <div
+                    key={line.productId}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-950">{line.name}</p>
+                      <p className="text-xs text-slate-500">
+                        ${line.unitPrice.toFixed(2)} each · {maxQty} in stock
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="tabular-nums text-slate-700">
+                        ${round2(line.unitPrice * line.quantity).toFixed(2)}
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={maxQty}
+                        value={qtyDrafts[line.productId] ?? String(line.quantity)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setQtyDrafts((current) => ({ ...current, [line.productId]: raw }));
+                          const parsed = Number(raw);
+                          if (Number.isInteger(parsed) && parsed > 0) {
+                            updateQty(line.productId, parsed);
+                          }
+                        }}
+                        onBlur={() =>
+                          setQtyDrafts((current) => {
+                            const next = { ...current };
+                            delete next[line.productId];
+                            return next;
+                          })
+                        }
+                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center outline-none focus:border-slate-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(line.productId)}
+                        aria-label={`Remove ${line.name}`}
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      value={line.quantity}
-                      onChange={(e) => updateQty(line.productId, Number(e.target.value))}
-                      className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center outline-none focus:border-slate-900"
-                    />
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -301,7 +391,11 @@ export default function PosCheckoutPage() {
             onClick={handleCheckout}
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {submitting ? "Processing…" : `Charge $${total.toFixed(2)}`}
+            {submitting
+              ? "Processing…"
+              : cart.length === 0
+                ? "Add products to charge"
+                : `Charge $${total.toFixed(2)} · ${itemCount} item${itemCount === 1 ? "" : "s"}`}
           </button>
         </div>
       </div>

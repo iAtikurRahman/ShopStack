@@ -90,7 +90,9 @@ export const POST = withAuth(async (request, { session, db }) => {
         });
       }
 
-      const totalAmount = round2(subtotal - Number(discountAmount) + taxAmount);
+      // Clamp so an oversized discount can never make the sale total negative
+      // and disagree with the amount the cashier collected.
+      const totalAmount = round2(Math.max(0, subtotal - Number(discountAmount)) + taxAmount);
       const paymentsTotal = round2(payments.reduce((sum, p) => sum + Number(p.amount), 0));
       if (paymentsTotal !== totalAmount) {
         throw new Error(`Payments total ${paymentsTotal} does not match sale total ${totalAmount}`);
