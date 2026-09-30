@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string; store?: { id: number; name: string } };
@@ -16,6 +17,7 @@ type Transfer = {
 };
 
 export default function StoreTransfersPage() {
+  const { t, tEnum } = useI18n();
   const [myWarehouses, setMyWarehouses] = useState<Warehouse[]>([]);
   const [allWarehouses, setAllWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -101,23 +103,29 @@ export default function StoreTransfersPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Stock transfers</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">
+        {t("storeCommerce.transfers.title")}
+      </h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Recent transfers</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.transfers.recent")}
+          </h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by warehouse, product, status or date…"
+            placeholder={t("storeCommerce.transfers.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredTransfers.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No transfers match "${search.trim()}".` : "No transfers yet."}
+              {search.trim()
+                ? t("storeCommerce.transfers.noMatch", { search: search.trim() })
+                : t("storeCommerce.transfers.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -125,23 +133,27 @@ export default function StoreTransfersPage() {
                 <div key={transfer.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">
-                      {warehouseById.get(transfer.fromWarehouseId) ?? `Warehouse ${transfer.fromWarehouseId}`} →{" "}
-                      {warehouseById.get(transfer.toWarehouseId) ?? `Warehouse ${transfer.toWarehouseId}`}
+                      {warehouseById.get(transfer.fromWarehouseId) ??
+                        t("storeCommerce.transfers.warehouseFallback", { id: transfer.fromWarehouseId })}{" "}
+                      →{" "}
+                      {warehouseById.get(transfer.toWarehouseId) ??
+                        t("storeCommerce.transfers.warehouseFallback", { id: transfer.toWarehouseId })}
                     </p>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                      {transfer.status}
+                      {tEnum(transfer.status)}
                     </span>
                   </div>
                   <p className="mt-1 text-slate-600">{new Date(transfer.createdAt).toLocaleDateString()}</p>
                   <div className="mt-3">
                     <div className="grid grid-cols-[1fr_3.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      <span>Product</span>
-                      <span className="text-right">Qty</span>
+                      <span>{t("storeCommerce.transfers.product")}</span>
+                      <span className="text-right">{t("storeCommerce.transfers.qty")}</span>
                     </div>
                     {transfer.items.map((item) => (
                       <div key={item.id} className="grid grid-cols-[1fr_3.5rem] gap-3 py-1 text-slate-600">
                         <span className="truncate">
-                          {productById.get(item.productId)?.name ?? `Product #${item.productId}`}{" "}
+                          {productById.get(item.productId)?.name ??
+                            t("storeCommerce.transfers.productFallback", { id: item.productId })}{" "}
                           <span className="text-xs text-slate-500">
                             ({productById.get(item.productId)?.sku ?? "—"})
                           </span>
@@ -157,10 +169,14 @@ export default function StoreTransfersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">New transfer</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.transfers.newTitle")}
+          </h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">From (your warehouse)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.transfers.fromLabel")}
+              </span>
               <select
                 required
                 value={fromWarehouseId}
@@ -175,14 +191,16 @@ export default function StoreTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">To</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.transfers.toLabel")}
+              </span>
               <select
                 required
                 value={toWarehouseId}
                 onChange={(e) => setToWarehouseId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select destination</option>
+                <option value="">{t("storeCommerce.transfers.selectDestination")}</option>
                 {allWarehouses
                   .filter((w) => String(w.id) !== fromWarehouseId)
                   .map((w) => (
@@ -193,14 +211,16 @@ export default function StoreTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Product</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.transfers.product")}
+              </span>
               <select
                 required
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select product</option>
+                <option value="">{t("storeCommerce.transfers.selectProduct")}</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.sku} — {p.name}
@@ -209,7 +229,7 @@ export default function StoreTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Quantity</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
               <input
                 required
                 type="number"
@@ -224,7 +244,7 @@ export default function StoreTransfersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Transfer stock
+              {t("storeCommerce.transfers.submit")}
             </button>
           </form>
         </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Sale = {
@@ -13,6 +14,7 @@ type Sale = {
 };
 
 export default function StoreSalesPage() {
+  const { t, tEnum } = useI18n();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +53,7 @@ export default function StoreSalesPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Sales</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.sales")}</h1>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -59,14 +61,16 @@ export default function StoreSalesPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by sale #, customer, amount, status or date…"
+          placeholder={t("storeOps.sales.searchPlaceholder")}
           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
         />
         {loading ? (
-          <p className="mt-6 text-sm text-slate-600">Loading…</p>
+          <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
         ) : filteredSales.length === 0 ? (
           <p className="mt-6 text-sm text-slate-600">
-            {search.trim() ? `No sales match "${search.trim()}".` : "No sales yet."}
+            {search.trim()
+              ? t("storeOps.sales.noMatch", { search: search.trim() })
+              : t("storeOps.sales.noneYet")}
           </p>
         ) : (
           <div className="mt-4 space-y-3">
@@ -77,14 +81,17 @@ export default function StoreSalesPage() {
                 className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
               >
                 <div>
-                  <p className="font-semibold text-slate-950">Sale #{sale.id}</p>
+                  <p className="font-semibold text-slate-950">
+                    {t("storeOps.sales.saleLabel", { id: sale.id })}
+                  </p>
                   <p className="text-xs text-slate-500">
-                    {sale.customer?.name ?? "Walk-in"} · {new Date(sale.createdAt).toLocaleDateString()}
+                    {sale.customer?.name ?? t("storeOps.sales.walkIn")} ·{" "}
+                    {new Date(sale.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="font-medium text-slate-950">৳{sale.totalAmount}</p>
-                  <p className="text-xs text-slate-500">{sale.status}</p>
+                  <p className="text-xs text-slate-500">{tEnum(sale.status)}</p>
                 </div>
               </Link>
             ))}

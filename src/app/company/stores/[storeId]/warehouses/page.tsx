@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = {
@@ -12,6 +13,7 @@ type Warehouse = {
 
 export default function StoreWarehousesPage({ params }: { params: Promise<{ storeId: string }> }) {
   const { storeId } = use(params);
+  const { t } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,18 +55,18 @@ export default function StoreWarehousesPage({ params }: { params: Promise<{ stor
     <main className="mx-auto max-w-5xl space-y-8 p-8">
       <div>
         <Link href="/company/stores" className="text-sm text-slate-600 hover:underline">
-          ← Back to stores
+          {t("company.warehouses.backToStores")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Warehouses</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">{t("nav.warehouses")}</h1>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Warehouses for this store</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.warehouses.forThisStore")}</h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : warehouses.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No warehouses yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("company.warehouses.noneYet")}</p>
           ) : (
             <div className="mt-6 space-y-3">
               {warehouses.map((warehouse) => (
@@ -77,10 +79,10 @@ export default function StoreWarehousesPage({ params }: { params: Promise<{ stor
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a warehouse</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.warehouses.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -93,7 +95,7 @@ export default function StoreWarehousesPage({ params }: { params: Promise<{ stor
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create warehouse
+              {t("company.warehouses.create")}
             </button>
           </form>
         </div>

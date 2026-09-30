@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 import { round2 } from "@/lib/returns";
 
@@ -20,6 +21,7 @@ type SupplierReturn = {
 };
 
 export default function StoreSupplierReturnsPage() {
+  const { t } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -92,7 +94,7 @@ export default function StoreSupplierReturnsPage() {
     setError(null);
     const credit = round2(Number(displayedAmount));
     if (!Number.isFinite(credit) || credit < 0) {
-      setError("Enter a valid credit amount of zero or more");
+      setError(t("storeCommerce.supplierReturns.validationError"));
       return;
     }
     try {
@@ -117,16 +119,24 @@ export default function StoreSupplierReturnsPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Supplier returns</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">
+        {t("nav.supplierReturns")}
+      </h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Recent returns</h2>
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t("storeCommerce.supplierReturns.recent")}
+            </h2>
             {supplierReturns.length > 0 ? (
               <p className="text-sm text-slate-500">
-                {supplierReturns.length} return{supplierReturns.length === 1 ? "" : "s"} · ৳
-                {totalCredited.toFixed(2)} credited
+                {supplierReturns.length === 1
+                  ? t("storeCommerce.supplierReturns.summaryOne", { total: totalCredited.toFixed(2) })
+                  : t("storeCommerce.supplierReturns.summaryMany", {
+                      count: supplierReturns.length,
+                      total: totalCredited.toFixed(2),
+                    })}
               </p>
             ) : null}
           </div>
@@ -134,14 +144,16 @@ export default function StoreSupplierReturnsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by supplier, product, warehouse, reason or date…"
+            placeholder={t("storeCommerce.supplierReturns.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredReturns.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No returns match "${search.trim()}".` : "No supplier returns yet."}
+              {search.trim()
+                ? t("storeCommerce.supplierReturns.noMatch", { search: search.trim() })
+                : t("storeCommerce.supplierReturns.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -151,17 +163,23 @@ export default function StoreSupplierReturnsPage() {
                     <div>
                       <p className="font-medium text-slate-950">{ret.supplier.name}</p>
                       <p className="text-xs text-slate-500">
-                        {ret.product ? `${ret.product.sku} — ${ret.product.name}` : `Product ${ret.productId}`} ×{" "}
-                        {ret.quantity}
+                        {ret.product
+                          ? `${ret.product.sku} — ${ret.product.name}`
+                          : t("storeCommerce.supplierReturns.productFallback", { id: ret.productId })}{" "}
+                        × {ret.quantity}
                       </p>
                       {ret.reason ? <p className="mt-1 text-slate-600">{ret.reason}</p> : null}
                       <p className="mt-0.5 text-xs text-slate-400">{new Date(ret.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-medium text-emerald-700">
-                        {Number(ret.amount) > 0 ? `৳${Number(ret.amount).toFixed(2)}` : "Not recorded"}
+                        {Number(ret.amount) > 0
+                          ? `৳${Number(ret.amount).toFixed(2)}`
+                          : t("storeCommerce.supplierReturns.notRecorded")}
                       </p>
-                      <p className="text-xs text-slate-500">credit</p>
+                      <p className="text-xs text-slate-500">
+                        {t("storeCommerce.supplierReturns.creditLabel")}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -171,10 +189,14 @@ export default function StoreSupplierReturnsPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Return stock to a supplier</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.supplierReturns.returnTitle")}
+          </h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Warehouse</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.supplierReturns.warehouse")}
+              </span>
               <select
                 required
                 value={warehouseId}
@@ -189,14 +211,16 @@ export default function StoreSupplierReturnsPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Supplier</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.supplierReturns.supplier")}
+              </span>
               <select
                 required
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select supplier</option>
+                <option value="">{t("storeCommerce.supplierReturns.selectSupplier")}</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -205,7 +229,9 @@ export default function StoreSupplierReturnsPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Product</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.supplierReturns.product")}
+              </span>
               <select
                 required
                 value={productId}
@@ -216,7 +242,7 @@ export default function StoreSupplierReturnsPage() {
                 }}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select product</option>
+                <option value="">{t("storeCommerce.supplierReturns.selectProduct")}</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.sku} — {p.name}
@@ -225,7 +251,7 @@ export default function StoreSupplierReturnsPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Quantity</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
               <input
                 required
                 type="number"
@@ -236,7 +262,9 @@ export default function StoreSupplierReturnsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Credit amount</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.supplierReturns.creditAmount")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -250,18 +278,23 @@ export default function StoreSupplierReturnsPage() {
               />
               <span className="mt-1 block text-xs text-slate-500">
                 {amountTouched
-                  ? "Using your amount."
+                  ? t("storeCommerce.supplierReturns.amountHintTouched")
                   : selectedProduct
-                    ? `Purchase price ৳${Number(selectedProduct.purchasePrice).toFixed(2)} × ${quantity} — adjust if the supplier credits less.`
-                    : "Pick a product to suggest an amount."}
+                    ? t("storeCommerce.supplierReturns.amountHintProduct", {
+                        price: Number(selectedProduct.purchasePrice).toFixed(2),
+                        qty: quantity,
+                      })
+                    : t("storeCommerce.supplierReturns.amountHintEmpty")}
               </span>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Reason (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.supplierReturns.reasonOptional")}
+              </span>
               <input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Damaged, wrong item, etc."
+                placeholder={t("storeCommerce.supplierReturns.reasonPlaceholder")}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
@@ -270,7 +303,7 @@ export default function StoreSupplierReturnsPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Return to supplier · ৳{displayedAmount || "0.00"} credit
+              {t("storeCommerce.supplierReturns.submit", { amount: displayedAmount || "0.00" })}
             </button>
           </form>
         </div>

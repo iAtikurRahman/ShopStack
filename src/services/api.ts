@@ -1,3 +1,5 @@
+import { localizeServerMessage } from "@/lib/i18n/active-dictionary";
+
 /**
  * Thin fetch wrapper for client components. Session is an httpOnly cookie
  * set by the server on login, so there is no client-readable token to
@@ -12,7 +14,9 @@ export async function apiFetch<T>(path: string, method = "GET", body?: unknown):
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    // The routes answer in English; the active dictionary translates it so an
+    // error reads in the same language as the rest of the page.
+    throw new Error(localizeServerMessage(data?.message || "Request failed"));
   }
 
   return data as T;

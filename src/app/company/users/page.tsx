@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PasswordField from "@/components/PasswordField";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Role = "company_admin" | "store_manager" | "store_user";
@@ -10,6 +11,7 @@ type Store = { id: number; name: string };
 type PermissionRow = { key: string; label: string; description: string | null; roleDefault: boolean; override: boolean | null };
 
 export default function CompanyUsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ export default function CompanyUsersPage() {
       await apiFetch(`/api/company/users/${userId}/password`, "PUT", { password: newPassword });
       setNewPassword("");
       setPasswordForUser(null);
-      setSuccess("Password reset. Share it with the user over a trusted channel.");
+      setSuccess(t("company.users.passwordResetSuccess"));
     } catch (err) {
       setPasswordError((err as Error).message);
     } finally {
@@ -159,25 +161,27 @@ export default function CompanyUsersPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Users</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.users")}</h1>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All users</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.users.allTitle")}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, role or store…"
+            placeholder={t("company.users.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredUsers.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No users match "${search.trim()}".` : "No users yet."}
+              {search.trim()
+                ? t("company.users.noMatch", { search: search.trim() })
+                : t("company.users.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -187,9 +191,11 @@ export default function CompanyUsersPage() {
                     <div>
                       <p className="font-semibold text-slate-950">{user.name}</p>
                       <p className="text-xs text-slate-500">
-                        {user.email} · {user.role}
-                        {user.storeId ? ` · ${storeNameById.get(user.storeId) ?? `store ${user.storeId}`}` : ""}
-                        {!user.isActive ? " · inactive" : ""}
+                        {t("company.users.meta", { email: user.email, role: user.role })}
+                        {user.storeId
+                          ? ` · ${storeNameById.get(user.storeId) ?? t("company.users.storeFallback", { id: user.storeId })}`
+                          : ""}
+                        {!user.isActive ? ` · ${t("company.users.inactiveLabel")}` : ""}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -198,14 +204,14 @@ export default function CompanyUsersPage() {
                         onClick={() => openPermissions(user.id)}
                         className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                       >
-                        Permissions
+                        {t("company.users.permissions")}
                       </button>
                       <button
                         type="button"
                         onClick={() => openPassword(user.id)}
                         className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                       >
-                        Password
+                        {t("company.users.passwordButton")}
                       </button>
                       {user.isActive ? (
                         <button
@@ -213,7 +219,7 @@ export default function CompanyUsersPage() {
                           onClick={() => handleDeactivate(user.id)}
                           className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                         >
-                          Deactivate
+                          {t("company.users.deactivate")}
                         </button>
                       ) : null}
                     </div>
@@ -221,15 +227,12 @@ export default function CompanyUsersPage() {
 
                   {passwordForUser === user.id ? (
                     <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
-                      <p className="text-xs text-slate-500">
-                        Passwords are stored as one-way hashes, so the current one cannot be shown. Set a new
-                        password to hand over instead.
-                      </p>
+                      <p className="text-xs text-slate-500">{t("company.users.passwordHelper")}</p>
                       <PasswordField
-                        label="New password"
+                        label={t("company.users.newPassword")}
                         value={newPassword}
                         onChange={setNewPassword}
-                        hint="At least 8 characters, including a letter and a number."
+                        hint={t("company.users.passwordHint")}
                       />
                       {passwordError ? <p className="text-sm text-red-600">{passwordError}</p> : null}
                       <div className="flex gap-2">
@@ -239,14 +242,14 @@ export default function CompanyUsersPage() {
                           disabled={savingPassword || newPassword.length < 8}
                           className="rounded-xl bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                          {savingPassword ? "Saving…" : "Set password"}
+                          {savingPassword ? t("common.saving") : t("company.users.setPassword")}
                         </button>
                         <button
                           type="button"
                           onClick={() => openPassword(user.id)}
                           className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                         >
-                          Cancel
+                          {t("common.cancel")}
                         </button>
                       </div>
                     </div>
@@ -259,7 +262,11 @@ export default function CompanyUsersPage() {
                           <div>
                             <p className="text-slate-950">{p.label}</p>
                             <p className="text-xs text-slate-500">
-                              role default: {p.roleDefault ? "allowed" : "not allowed"}
+                              {t("company.users.roleDefault", {
+                                value: p.roleDefault
+                                  ? t("company.users.allowed")
+                                  : t("company.users.notAllowed"),
+                              })}
                             </p>
                           </div>
                           <div className="flex gap-1">
@@ -270,7 +277,7 @@ export default function CompanyUsersPage() {
                                 p.override === true ? "bg-emerald-600 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Allow
+                              {t("company.users.allow")}
                             </button>
                             <button
                               type="button"
@@ -279,7 +286,7 @@ export default function CompanyUsersPage() {
                                 p.override === false ? "bg-red-600 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Deny
+                              {t("company.users.deny")}
                             </button>
                             <button
                               type="button"
@@ -288,7 +295,7 @@ export default function CompanyUsersPage() {
                                 p.override === null ? "bg-slate-900 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Default
+                              {t("company.users.defaultOverride")}
                             </button>
                           </div>
                         </div>
@@ -302,10 +309,10 @@ export default function CompanyUsersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a user</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.users.addTitle")}</h2>
           <form onSubmit={handleCreate} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -314,7 +321,7 @@ export default function CompanyUsersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.email")}</span>
               <input
                 required
                 type="email"
@@ -324,33 +331,33 @@ export default function CompanyUsersPage() {
               />
             </label>
             <PasswordField
-              label="Password"
+              label={t("company.users.passwordLabel")}
               value={password}
               onChange={setPassword}
-              hint="At least 8 characters, including a letter and a number."
+              hint={t("company.users.passwordHint")}
             />
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Role</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.users.role")}</span>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="store_user">Store User</option>
-                <option value="store_manager">Store Manager</option>
-                <option value="company_admin">Company Admin</option>
+                <option value="store_user">{t("company.users.roleStoreUser")}</option>
+                <option value="store_manager">{t("company.users.roleStoreManager")}</option>
+                <option value="company_admin">{t("company.users.roleCompanyAdmin")}</option>
               </select>
             </label>
             {role !== "company_admin" ? (
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Store</span>
+                <span className="text-sm font-medium text-slate-700">{t("nav.store")}</span>
                 <select
                   required
                   value={storeId}
                   onChange={(e) => setStoreId(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
                 >
-                  <option value="">Select a store</option>
+                  <option value="">{t("company.users.selectStore")}</option>
                   {stores.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -363,7 +370,7 @@ export default function CompanyUsersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create user
+              {t("company.users.create")}
             </button>
           </form>
         </div>

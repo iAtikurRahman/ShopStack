@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Role } from "@/generated/tenant";
 import { LogoutButton } from "@/components/LogoutButton";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { WorkspaceNav } from "@/components/WorkspaceNav";
 
 function initialsOf(name: string): string {
@@ -35,6 +36,7 @@ export function WorkspaceHeader({ role, title, name, homeHref }: WorkspaceHeader
           </Link>
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <span className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-3">
               <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
                 {initialsOf(name)}

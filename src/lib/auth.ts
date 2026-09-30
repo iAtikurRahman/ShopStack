@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { Role } from "@/generated/tenant";
+import type { Locale } from "@/lib/i18n/locale";
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) {
@@ -18,6 +19,7 @@ export type ProjectAdminSession = {
   projectAdminId: number;
   email: string;
   name: string;
+  language: Locale;
 };
 
 export type TenantSession = {
@@ -28,6 +30,7 @@ export type TenantSession = {
   role: Role;
   email: string;
   name: string;
+  language: Locale;
 };
 
 export type SessionPayload = ProjectAdminSession | TenantSession;

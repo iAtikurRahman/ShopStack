@@ -3,30 +3,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/generated/tenant";
+import { useI18n } from "@/components/LocaleProvider";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
-type NavLink = { href: string; label: string };
+type NavLink = { href: string; label: TranslationKey };
 
 const STORE_LINKS: NavLink[] = [
-  { href: "/store", label: "Dashboard" },
-  { href: "/store/pos", label: "Checkout" },
-  { href: "/store/sales", label: "Sales" },
-  { href: "/store/returns", label: "Returns" },
-  { href: "/store/customers", label: "Customers" },
-  { href: "/store/inventory", label: "Inventory" },
-  { href: "/store/transfers", label: "Transfers" },
-  { href: "/store/purchases", label: "Purchases" },
-  { href: "/store/supplier-returns", label: "Supplier returns" },
+  { href: "/store", label: "nav.dashboard" },
+  { href: "/store/pos", label: "nav.checkout" },
+  { href: "/store/sales", label: "nav.sales" },
+  { href: "/store/returns", label: "nav.returns" },
+  { href: "/store/customers", label: "nav.customers" },
+  { href: "/store/inventory", label: "nav.inventory" },
+  { href: "/store/transfers", label: "nav.transfers" },
+  { href: "/store/purchases", label: "nav.purchases" },
+  { href: "/store/supplier-returns", label: "nav.supplierReturns" },
 ];
 
-const MANAGER_ONLY_LINKS: NavLink[] = [{ href: "/store/reports", label: "Reports" }];
+const MANAGER_ONLY_LINKS: NavLink[] = [{ href: "/store/reports", label: "nav.reports" }];
 
 const COMPANY_LINKS: NavLink[] = [
-  { href: "/company/stores", label: "Stores" },
-  { href: "/company/products", label: "Products" },
-  { href: "/company/categories", label: "Categories" },
-  { href: "/company/suppliers", label: "Suppliers" },
-  { href: "/company/users", label: "Users" },
-  { href: "/company/audit-log", label: "Audit log" },
+  { href: "/company/stores", label: "nav.stores" },
+  { href: "/company/products", label: "nav.products" },
+  { href: "/company/categories", label: "nav.categories" },
+  { href: "/company/suppliers", label: "nav.suppliers" },
+  { href: "/company/users", label: "nav.users" },
+  { href: "/company/audit-log", label: "nav.auditLog" },
 ];
 
 // "/store" and "/company" are section roots and must match exactly, otherwise
@@ -38,6 +40,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function WorkspaceNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const isManagerOrAdmin = role === "company_admin" || role === "store_manager";
   const links = isManagerOrAdmin
     ? [...STORE_LINKS, ...MANAGER_ONLY_LINKS, ...COMPANY_LINKS]
@@ -58,7 +61,7 @@ export function WorkspaceNav({ role }: { role: Role }) {
                 : "text-slate-600 hover:bg-white hover:text-slate-950"
             }`}
           >
-            {link.label}
+            {t(link.label)}
           </Link>
         );
       })}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { centralDb } from "@/lib/central-db";
 import { verifyPassword, signSessionToken, setSessionCookie, type ProjectAdminSession } from "@/lib/auth";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
+import { setLocaleCookie } from "@/lib/i18n/server-locale";
+import { toLocale } from "@/lib/i18n/locale";
 
 const GENERIC_ERROR = "Invalid email or password";
 
@@ -32,10 +34,13 @@ export async function POST(request: NextRequest) {
     projectAdminId: admin.id,
     email: admin.email,
     name: admin.name,
+    language: toLocale(admin.language),
   };
 
   const token = await signSessionToken(session);
   await setSessionCookie(token);
+  // The account's saved language wins, so signing back in restores it.
+  await setLocaleCookie(session.language);
 
   return NextResponse.json({ name: admin.name, email: admin.email });
 }

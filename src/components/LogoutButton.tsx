@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/services/api";
+import { useI18n } from "@/components/LocaleProvider";
 
 export function LogoutButton({ redirectTo, className }: { redirectTo: string; className?: string }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
 
   async function handleLogout() {
@@ -25,7 +27,7 @@ export function LogoutButton({ redirectTo, className }: { redirectTo: string; cl
       disabled={loading}
       className={className ?? "rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-50"}
     >
-      {loading ? "Signing out…" : "Log out"}
+      {loading ? t("auth.signingOut") : t("nav.signOut")}
     </button>
   );
 }

@@ -3,6 +3,8 @@ import { centralDb } from "@/lib/central-db";
 import { hashPassword, signSessionToken, setSessionCookie, type ProjectAdminSession } from "@/lib/auth";
 import { validatePassword } from "@/lib/validate-password";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
+import { setLocaleCookie } from "@/lib/i18n/server-locale";
+import { toLocale } from "@/lib/i18n/locale";
 
 // One-time setup route: only works while zero ProjectAdmin rows exist.
 // Locks itself out permanently after the first successful call - there is
@@ -64,9 +66,11 @@ export async function POST(request: NextRequest) {
     projectAdminId: admin.id,
     email: admin.email,
     name: admin.name,
+    language: toLocale(admin.language),
   };
   const token = await signSessionToken(session);
   await setSessionCookie(token);
+  await setLocaleCookie(session.language);
 
   return NextResponse.json({ name: admin.name, email: admin.email }, { status: 201 });
 }

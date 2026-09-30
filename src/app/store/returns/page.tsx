@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 import { computeRefundAmount, round2 } from "@/lib/returns";
 
@@ -42,6 +43,7 @@ type ReturnRecord = {
 };
 
 function ReturnsForm() {
+  const { t, tEnum } = useI18n();
   const searchParams = useSearchParams();
   const [saleIdInput, setSaleIdInput] = useState(searchParams.get("saleId") ?? "");
   const [sale, setSale] = useState<Sale | null>(null);
@@ -162,18 +164,18 @@ function ReturnsForm() {
     setSuccess(null);
 
     if (selectedItems.length === 0) {
-      setError("Enter a quantity to return for at least one item");
+      setError(t("storeCommerce.returns.errNoItems"));
       return;
     }
 
     const finalAmount = round2(Number(displayedRefund));
     if (!Number.isFinite(finalAmount) || finalAmount < 0) {
-      setError("Enter a valid refund amount of zero or more");
+      setError(t("storeCommerce.returns.errInvalidAmount"));
       return;
     }
     const saleTotal = Number(sale.totalAmount);
     if (finalAmount > saleTotal) {
-      setError(`Refund cannot exceed the sale total of ৳${saleTotal.toFixed(2)}`);
+      setError(t("storeCommerce.returns.errExceedsTotal", { total: saleTotal.toFixed(2) }));
       return;
     }
 
@@ -184,7 +186,7 @@ function ReturnsForm() {
         reason,
         refundAmount: finalAmount,
       });
-      setSuccess(`Return processed — ৳${finalAmount.toFixed(2)} refunded.`);
+      setSuccess(t("storeCommerce.returns.successProcessed", { amount: finalAmount.toFixed(2) }));
       await loadSale(String(sale.id));
       await loadReturns();
     } catch (err) {
@@ -205,15 +207,17 @@ function ReturnsForm() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Returns</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.returns")}</h1>
 
-      <h2 className="text-lg font-semibold text-slate-950">Process a return</h2>
+      <h2 className="text-lg font-semibold text-slate-950">
+        {t("storeCommerce.returns.processTitle")}
+      </h2>
 
       <div className="flex gap-3">
         <input
           value={saleIdInput}
           onChange={(e) => setSaleIdInput(e.target.value)}
-          placeholder="Sale ID"
+          placeholder={t("storeCommerce.returns.saleIdPlaceholder")}
           className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 outline-none focus:border-slate-900"
         />
         <button
@@ -221,40 +225,42 @@ function ReturnsForm() {
           onClick={() => loadSale(saleIdInput)}
           className="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
         >
-          Load sale
+          {t("storeCommerce.returns.loadSale")}
         </button>
       </div>
 
-      {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading ? <p className="text-sm text-slate-600">{t("common.loading")}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
       {sale ? (
         <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-950">Sale #{sale.id}</h3>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{sale.status}</span>
+            <h3 className="text-lg font-semibold text-slate-950">
+              {t("storeCommerce.returns.saleLabel", { id: sale.id })}
+            </h3>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{tEnum(sale.status)}</span>
           </div>
 
           <div className="mt-4 space-y-1 rounded-2xl bg-slate-50 p-4 text-sm">
             <div className="flex justify-between text-slate-600">
-              <span>Subtotal</span>
+              <span>{t("storeCommerce.returns.subtotal")}</span>
               <span>৳{sale.subtotal}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Line discounts</span>
+              <span>{t("storeCommerce.returns.lineDiscounts")}</span>
               <span>-৳{lineDiscountTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Order discount</span>
+              <span>{t("storeCommerce.returns.orderDiscount")}</span>
               <span>-৳{Number(sale.discountAmount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Tax</span>
+              <span>{t("storeCommerce.returns.tax")}</span>
               <span>৳{Number(sale.taxAmount).toFixed(2)}</span>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-950">
-              <span>Total paid</span>
+              <span>{t("storeCommerce.returns.totalPaid")}</span>
               <span>৳{Number(sale.totalAmount).toFixed(2)}</span>
             </div>
           </div>
@@ -265,14 +271,22 @@ function ReturnsForm() {
               return (
                 <div key={item.id} className="flex items-center justify-between rounded-2xl bg-slate-50 p-3 text-sm">
                   <div>
-                    <p className="font-medium text-slate-950">Product {item.productId}</p>
+                    <p className="font-medium text-slate-950">
+                      {t("storeCommerce.returns.productLabel", { id: item.productId })}
+                    </p>
                     <p className="text-xs text-slate-500">
-                      ৳{item.unitPrice} each · {item.quantity} sold · {remaining} returnable
+                      {t("storeCommerce.returns.itemMeta", {
+                        price: item.unitPrice,
+                        qty: item.quantity,
+                        remaining,
+                      })}
                     </p>
                     {Number(item.discountAmount) > 0 ? (
                       <p className="text-xs text-amber-700">
-                        Line discount -৳{Number(item.discountAmount).toFixed(2)} (line total ৳
-                        {Number(item.lineTotal).toFixed(2)})
+                        {t("storeCommerce.returns.lineDiscountNote", {
+                          discount: Number(item.discountAmount).toFixed(2),
+                          total: Number(item.lineTotal).toFixed(2),
+                        })}
                       </p>
                     ) : null}
                   </div>
@@ -294,7 +308,9 @@ function ReturnsForm() {
 
           <div className="mt-4 rounded-2xl border border-slate-200 p-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Refund amount</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.returns.refundAmount")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -309,8 +325,8 @@ function ReturnsForm() {
             </label>
             <p className="mt-2 text-xs text-slate-500">
               {refundTouched
-                ? "Using your amount. Clear it and retype a quantity to go back to the calculated figure."
-                : `Calculated from the selected items, after discounts and tax. Adjust it if you agreed something different at the till.`}
+                ? t("storeCommerce.returns.refundHintTouched")
+                : t("storeCommerce.returns.refundHintCalculated")}
             </p>
             {refundTouched && displayedRefund !== suggestedRefund.toFixed(2) ? (
               <button
@@ -321,13 +337,15 @@ function ReturnsForm() {
                 }}
                 className="mt-2 text-xs font-semibold text-slate-600 underline hover:text-slate-900"
               >
-                Reset to calculated ৳{suggestedRefund.toFixed(2)}
+                {t("storeCommerce.returns.resetToCalculated", { amount: suggestedRefund.toFixed(2) })}
               </button>
             ) : null}
           </div>
 
           <label className="mt-4 block">
-            <span className="text-sm font-medium text-slate-700">Reason (optional)</span>
+            <span className="text-sm font-medium text-slate-700">
+              {t("storeCommerce.returns.reasonOptional")}
+            </span>
             <input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -339,18 +357,24 @@ function ReturnsForm() {
             type="submit"
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Process return · ৳{displayedRefund || "0.00"}
+            {t("storeCommerce.returns.submit", { amount: displayedRefund || "0.00" })}
           </button>
         </form>
       ) : null}
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-950">Refunded returns</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.returns.refundedReturns")}
+          </h2>
           {filteredReturns.length > 0 ? (
             <p className="text-sm text-slate-500">
-              {filteredReturns.length} return{filteredReturns.length === 1 ? "" : "s"} · ৳{totalRefunded.toFixed(2)}{" "}
-              refunded
+              {filteredReturns.length === 1
+                ? t("storeCommerce.returns.summaryOne", { total: totalRefunded.toFixed(2) })
+                : t("storeCommerce.returns.summaryMany", {
+                    count: filteredReturns.length,
+                    total: totalRefunded.toFixed(2),
+                  })}
             </p>
           ) : null}
         </div>
@@ -359,7 +383,7 @@ function ReturnsForm() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by return #, sale #, or reason"
+            placeholder={t("storeCommerce.returns.searchPlaceholder")}
             className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {search ? (
@@ -368,7 +392,7 @@ function ReturnsForm() {
               onClick={() => setSearch("")}
               className="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
             >
-              Clear
+              {t("common.clear")}
             </button>
           ) : null}
         </div>
@@ -376,11 +400,11 @@ function ReturnsForm() {
         {returnsError ? <p className="mt-3 text-sm text-red-600">{returnsError}</p> : null}
 
         {loadingReturns ? (
-          <p className="mt-3 text-sm text-slate-600">Loading…</p>
+          <p className="mt-3 text-sm text-slate-600">{t("common.loading")}</p>
         ) : returns.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No returns processed yet.</p>
+          <p className="mt-3 text-sm text-slate-600">{t("storeCommerce.returns.noneYet")}</p>
         ) : filteredReturns.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No returns match your search.</p>
+          <p className="mt-3 text-sm text-slate-600">{t("storeCommerce.returns.noMatch")}</p>
         ) : (
           <div className="mt-4 space-y-3">
             {filteredReturns.map((r) => {
@@ -391,20 +415,22 @@ function ReturnsForm() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold text-slate-950">
-                        Return #{r.id} ·{" "}
+                        {t("storeCommerce.returns.returnLabel", { id: r.id })} ·{" "}
                         <Link href={`/store/sales/${r.saleId}`} className="font-normal text-slate-500 hover:underline">
-                          Sale #{r.saleId}
+                          {t("storeCommerce.returns.saleLabel", { id: r.saleId })}
                         </Link>
                       </p>
                       <p className="text-xs text-slate-500">
-                        {units} unit{units === 1 ? "" : "s"} restocked
+                        {units === 1
+                          ? t("storeCommerce.returns.restockedOne")
+                          : t("storeCommerce.returns.restockedMany", { count: units })}
                         {r.reason ? ` · ${r.reason}` : ""}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-medium text-red-600">-৳{r.refundAmount}</p>
-                      <p className="text-xs text-slate-500">refunded</p>
+                      <p className="text-xs text-slate-500">{t("storeCommerce.returns.refundedLabel")}</p>
                     </div>
                   </div>
 
@@ -413,7 +439,9 @@ function ReturnsForm() {
                       {editError ? <p className="mb-2 text-sm text-red-600">{editError}</p> : null}
                       <div className="grid gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-end">
                         <label className="block">
-                          <span className="text-xs font-medium text-slate-700">Refund amount</span>
+                          <span className="text-xs font-medium text-slate-700">
+                            {t("storeCommerce.returns.refundAmount")}
+                          </span>
                           <input
                             type="number"
                             min={0}
@@ -424,7 +452,7 @@ function ReturnsForm() {
                           />
                         </label>
                         <label className="block">
-                          <span className="text-xs font-medium text-slate-700">Reason</span>
+                          <span className="text-xs font-medium text-slate-700">{t("common.reason")}</span>
                           <input
                             value={editReason}
                             onChange={(e) => setEditReason(e.target.value)}
@@ -433,7 +461,7 @@ function ReturnsForm() {
                         </label>
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
-                        Sale total was ৳{r.sale.totalAmount}. Every change is recorded in the audit log.
+                        {t("storeCommerce.returns.editNote", { total: r.sale.totalAmount })}
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button
@@ -442,14 +470,14 @@ function ReturnsForm() {
                           disabled={savingId === r.id}
                           className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
                         >
-                          {savingId === r.id ? "Saving…" : "Save refund"}
+                          {savingId === r.id ? t("common.saving") : t("storeCommerce.returns.saveRefund")}
                         </button>
                         <button
                           type="button"
                           onClick={cancelEdit}
                           className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
                         >
-                          Cancel
+                          {t("common.cancel")}
                         </button>
                       </div>
                     </div>
@@ -459,7 +487,7 @@ function ReturnsForm() {
                       onClick={() => startEdit(r)}
                       className="mt-3 rounded-2xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
                     >
-                      Edit refund
+                      {t("storeCommerce.returns.editRefund")}
                     </button>
                   )}
                 </div>
@@ -473,8 +501,14 @@ function ReturnsForm() {
 }
 
 export default function StoreReturnsPage() {
+  const { t } = useI18n();
+
   return (
-    <Suspense fallback={<main className="mx-auto max-w-4xl p-8 text-sm text-slate-600">Loading…</main>}>
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-4xl p-8 text-sm text-slate-600">{t("common.loading")}</main>
+      }
+    >
       <ReturnsForm />
     </Suspense>
   );

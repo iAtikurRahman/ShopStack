@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Category = {
@@ -10,6 +11,7 @@ type Category = {
 };
 
 export default function CompanyCategoriesPage() {
+  const { t } = useI18n();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,23 +62,25 @@ export default function CompanyCategoriesPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Categories</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.categories")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All categories</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.categories.allTitle")}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by category or parent…"
+            placeholder={t("company.categories.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredCategories.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No categories match "${search.trim()}".` : "No categories yet."}
+              {search.trim()
+                ? t("company.categories.noMatch", { search: search.trim() })
+                : t("company.categories.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -84,7 +88,9 @@ export default function CompanyCategoriesPage() {
                 <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                   <p className="font-semibold text-slate-950">{category.name}</p>
                   {category.parent ? (
-                    <p className="mt-1 text-xs text-slate-500">under {category.parent.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t("company.categories.under", { parent: category.parent.name })}
+                    </p>
                   ) : null}
                 </div>
               ))}
@@ -93,10 +99,10 @@ export default function CompanyCategoriesPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a category</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.categories.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -105,13 +111,15 @@ export default function CompanyCategoriesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Parent category (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.categories.parentOptional")}
+              </span>
               <select
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">None</option>
+                <option value="">{t("common.none")}</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -124,7 +132,7 @@ export default function CompanyCategoriesPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create category
+              {t("company.categories.create")}
             </button>
           </form>
         </div>

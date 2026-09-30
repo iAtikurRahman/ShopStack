@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string; store: { id: number; name: string } };
@@ -45,6 +46,7 @@ function subtotalOf(items: PurchaseItem[]): string {
 }
 
 export default function CompanyPurchasesPage() {
+  const { t } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -143,7 +145,7 @@ export default function CompanyPurchasesPage() {
         (item) => !item.productId || !item.warehouseId || !item.quantity || item.quantity <= 0
       )
     ) {
-      setError("Every line needs a warehouse, product and a quantity above 0.");
+      setError(t("company.purchases.validationError"));
       return;
     }
 
@@ -173,18 +175,16 @@ export default function CompanyPurchasesPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Purchases (stock-in)</h1>
-      <p className="text-sm text-slate-600">
-        Record what you bought and when - pick today or an earlier date for a purchase you&apos;re logging late.
-      </p>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("company.purchases.title")}</h1>
+      <p className="text-sm text-slate-600">{t("company.purchases.helper")}</p>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Recent purchases</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.purchases.recent")}</h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : purchases.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No purchases yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("company.purchases.noneYet")}</p>
           ) : (
             <div className="mt-6 space-y-3">
               {purchases.map((purchase) => (
@@ -196,16 +196,16 @@ export default function CompanyPurchasesPage() {
                   <p className="mt-1 text-slate-600">
                     {purchase.warehouse
                       ? `${purchase.warehouse.name} (${purchase.warehouse.store.name})`
-                      : "Multiple warehouses"}{" "}
+                      : t("company.purchases.multipleWarehouses")}{" "}
                     · {new Date(purchase.purchasedAt).toLocaleDateString()}
                   </p>
                   <div className="mt-3">
                     <div className="grid grid-cols-[1fr_5.5rem_3rem_5.5rem_5.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                      <span>Product</span>
-                      <span>Warehouse</span>
-                      <span className="text-right">Qty</span>
-                      <span className="text-right">Unit price</span>
-                      <span className="text-right">Total</span>
+                      <span>{t("company.purchases.product")}</span>
+                      <span>{t("company.purchases.warehouse")}</span>
+                      <span className="text-right">{t("company.purchases.qty")}</span>
+                      <span className="text-right">{t("company.purchases.unitPrice")}</span>
+                      <span className="text-right">{t("company.purchases.totalLabel")}</span>
                     </div>
                     {purchase.items.map((item) => (
                       <div
@@ -225,12 +225,14 @@ export default function CompanyPurchasesPage() {
                       </div>
                     ))}
                     <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-1.5 font-medium text-slate-950">
-                      <span>Subtotal</span>
+                      <span>{t("company.purchases.subtotal")}</span>
                       <span className="tabular-nums">৳{subtotalOf(purchase.items)}</span>
                     </div>
                   </div>
                   {purchase.reference ? (
-                    <p className="mt-1 text-xs text-slate-500">Ref: {purchase.reference}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t("company.purchases.refLabel", { reference: purchase.reference })}
+                    </p>
                   ) : null}
                 </div>
               ))}
@@ -239,14 +241,11 @@ export default function CompanyPurchasesPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Record a purchase</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            One delivery from one supplier, as many products as you like - each line can go to a
-            different warehouse.
-          </p>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.purchases.recordTitle")}</h2>
+          <p className="mt-1 text-xs text-slate-500">{t("company.purchases.recordHelper")}</p>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Purchased on</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.purchases.purchasedOn")}</span>
               <input
                 required
                 type="date"
@@ -257,14 +256,14 @@ export default function CompanyPurchasesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Supplier</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.purchases.supplier")}</span>
               <select
                 required
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select supplier</option>
+                <option value="">{t("company.purchases.selectSupplier")}</option>
                 {suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -273,7 +272,9 @@ export default function CompanyPurchasesPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Reference / invoice no. (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.purchases.referenceOptional")}
+              </span>
               <input
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
@@ -283,7 +284,9 @@ export default function CompanyPurchasesPage() {
 
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-700">Items ({lines.length})</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t("company.purchases.itemsCount", { count: lines.length })}
+                </span>
                 <span className="text-sm font-semibold text-slate-950 tabular-nums">৳{formTotal}</span>
               </div>
               <div className="mt-2 space-y-3">
@@ -291,14 +294,16 @@ export default function CompanyPurchasesPage() {
                   <div key={line.key} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                     <div className="flex items-start gap-2">
                       <label className="block flex-1">
-                        <span className="text-xs font-medium text-slate-600">Product</span>
+                        <span className="text-xs font-medium text-slate-600">
+                          {t("company.purchases.product")}
+                        </span>
                         <select
                           required
                           value={line.productId}
                           onChange={(e) => selectProduct(line, e.target.value)}
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
-                          <option value="">Select product</option>
+                          <option value="">{t("company.purchases.selectProduct")}</option>
                           {products.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.sku} — {p.name}
@@ -310,7 +315,7 @@ export default function CompanyPurchasesPage() {
                         type="button"
                         onClick={() => removeLine(line.key)}
                         disabled={lines.length === 1}
-                        title="Remove item"
+                        title={t("company.purchases.removeItem")}
                         className="mt-5 h-9 w-9 shrink-0 rounded-xl border border-slate-200 bg-white text-sm text-slate-500 transition hover:border-red-300 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         ✕
@@ -318,14 +323,18 @@ export default function CompanyPurchasesPage() {
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2">
                       <label className="block">
-                        <span className="text-xs font-medium text-slate-600">Warehouse</span>
+                        <span className="text-xs font-medium text-slate-600">
+                          {t("company.purchases.warehouse")}
+                        </span>
                         <select
                           required
                           value={line.warehouseId}
                           onChange={(e) => updateLine(line.key, { warehouseId: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         >
-                          {warehouses.length === 0 ? <option value="">No warehouse</option> : null}
+                          {warehouses.length === 0 ? (
+                            <option value="">{t("company.purchases.noWarehouse")}</option>
+                          ) : null}
                           {warehouses.map((w) => (
                             <option key={w.id} value={w.id}>
                               {w.name} ({w.store.name})
@@ -334,7 +343,9 @@ export default function CompanyPurchasesPage() {
                         </select>
                       </label>
                       <label className="block">
-                        <span className="text-xs font-medium text-slate-600">Quantity</span>
+                        <span className="text-xs font-medium text-slate-600">
+                          {t("common.quantity")}
+                        </span>
                         <input
                           required
                           type="number"
@@ -345,7 +356,9 @@ export default function CompanyPurchasesPage() {
                         />
                       </label>
                       <label className="block">
-                        <span className="text-xs font-medium text-slate-600">Unit cost</span>
+                        <span className="text-xs font-medium text-slate-600">
+                          {t("company.purchases.unitCost")}
+                        </span>
                         <input
                           required
                           type="number"
@@ -358,7 +371,7 @@ export default function CompanyPurchasesPage() {
                       </label>
                     </div>
                     <p className="mt-1.5 text-right text-xs text-slate-500">
-                      Line total{" "}
+                      {t("company.purchases.lineTotal")}{" "}
                       <span className="tabular-nums text-slate-700">
                         ৳{((Number(line.quantity) || 0) * (Number(line.unitCost) || 0)).toFixed(2)}
                       </span>
@@ -371,7 +384,7 @@ export default function CompanyPurchasesPage() {
                 onClick={addLine}
                 className="mt-3 w-full rounded-2xl border border-dashed border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-900 hover:text-slate-950"
               >
-                + Add another item
+                {t("company.purchases.addAnotherItem")}
               </button>
             </div>
 
@@ -380,7 +393,9 @@ export default function CompanyPurchasesPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Record {lines.length > 1 ? `${lines.length} items` : "purchase"}
+              {lines.length > 1
+                ? t("company.purchases.submitMany", { count: lines.length })
+                : t("company.purchases.submitOne")}
             </button>
           </form>
         </div>

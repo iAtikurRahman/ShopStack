@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Supplier = {
@@ -14,6 +15,7 @@ type Supplier = {
 };
 
 export default function CompanySuppliersPage() {
+  const { t } = useI18n();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,23 +82,25 @@ export default function CompanySuppliersPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Suppliers</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.suppliers")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All suppliers</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.suppliers.allTitle")}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, phone, email or address…"
+            placeholder={t("company.suppliers.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredSuppliers.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No suppliers match "${search.trim()}".` : "No suppliers yet."}
+              {search.trim()
+                ? t("company.suppliers.noMatch", { search: search.trim() })
+                : t("company.suppliers.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -108,10 +112,13 @@ export default function CompanySuppliersPage() {
                 >
                   <p className="font-semibold text-slate-950">{supplier.name}</p>
                   <p className="mt-1 text-sm text-slate-600">
-                    {[supplier.phone, supplier.email].filter(Boolean).join(" · ") || "No contact info"}
+                    {[supplier.phone, supplier.email].filter(Boolean).join(" · ") ||
+                      t("company.suppliers.noContact")}
                   </p>
                   {supplier.address ? <p className="mt-1 text-xs text-slate-500">{supplier.address}</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-600">View purchases →</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                    {t("company.suppliers.viewPurchases")}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -119,10 +126,10 @@ export default function CompanySuppliersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a supplier</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.suppliers.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -131,7 +138,9 @@ export default function CompanySuppliersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Phone (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.suppliers.phoneOptional")}
+              </span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -139,7 +148,9 @@ export default function CompanySuppliersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.suppliers.emailOptional")}
+              </span>
               <input
                 type="email"
                 value={email}
@@ -148,7 +159,9 @@ export default function CompanySuppliersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Address (optional)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.suppliers.addressOptional")}
+              </span>
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -160,7 +173,7 @@ export default function CompanySuppliersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Add supplier
+              {t("company.suppliers.addButton")}
             </button>
           </form>
         </div>

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { verifySession } from "@/lib/session";
 import { LogoutButton } from "@/components/LogoutButton";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getDictionary, translate, type TranslationKey } from "@/lib/i18n/dictionaries";
+import { readLocaleCookie } from "@/lib/i18n/server-locale";
 
 export default async function AdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const session = await verifySession();
@@ -17,24 +20,29 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
     redirect("/admin/login");
   }
 
+  const dictionary = getDictionary(await readLocaleCookie());
+  const t = (key: TranslationKey, vars?: Record<string, string | number>) =>
+    translate(dictionary, key, vars);
+
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="border-b border-slate-200 bg-slate-950 text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-400">ShopStack</p>
-            <p className="text-lg font-semibold">Project Admin</p>
+            <p className="text-lg font-semibold">{t("admin.console.title")}</p>
           </div>
           <nav className="flex items-center gap-6 text-sm">
             <Link href="/admin/companies" className="hover:underline">
-              Companies
+              {t("nav.companies")}
             </Link>
             <Link href="/admin/reports" className="hover:underline">
-              Reports
+              {t("nav.reports")}
             </Link>
             <Link href="/admin/audit-log" className="hover:underline">
-              Audit log
+              {t("nav.auditLog")}
             </Link>
+            <LanguageSwitcher variant="dark" />
             <span className="text-slate-400">{session.name}</span>
             <LogoutButton
               redirectTo="/admin/login"

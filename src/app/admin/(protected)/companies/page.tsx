@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 
 type Company = {
   id: number;
@@ -18,6 +19,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function AdminCompaniesPage() {
+  const { t, tEnum } = useI18n();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +68,7 @@ export default function AdminCompaniesPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Failed to create company");
+      if (!res.ok) throw new Error(data.message ?? t("admin.companies.createFailed"));
 
       setCompanyName("");
       setSlug("");
@@ -85,19 +87,17 @@ export default function AdminCompaniesPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-950">Companies</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Onboard a new company. This provisions a dedicated tenant database automatically.
-        </p>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nav.companies")}</h1>
+        <p className="mt-1 text-sm text-slate-600">{t("admin.companies.description")}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All companies</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("admin.companies.allCompanies")}</h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : companies.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No companies yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("admin.companies.noneYet")}</p>
           ) : (
             <div className="mt-6 space-y-3">
               {companies.map((company) => (
@@ -109,13 +109,13 @@ export default function AdminCompaniesPage() {
                         STATUS_STYLES[company.status] ?? "bg-slate-200 text-slate-700"
                       }`}
                     >
-                      {company.status}
+                      {tEnum(company.status)}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">/{company.slug}</p>
                   {company.tenantDb ? (
                     <p className="mt-1 text-xs text-slate-500">
-                      db: {company.tenantDb.dbName} · {company.tenantDb.status}
+                      db: {company.tenantDb.dbName} · {tEnum(company.tenantDb.status)}
                       {company.tenantDb.lastError ? ` · ${company.tenantDb.lastError}` : ""}
                     </p>
                   ) : null}
@@ -126,10 +126,10 @@ export default function AdminCompaniesPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Onboard a company</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("admin.companies.onboardTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Company name</span>
+              <span className="text-sm font-medium text-slate-700">{t("admin.companies.companyName")}</span>
               <input
                 required
                 value={companyName}
@@ -138,7 +138,7 @@ export default function AdminCompaniesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Slug (used for login)</span>
+              <span className="text-sm font-medium text-slate-700">{t("admin.companies.slug")}</span>
               <input
                 required
                 pattern="[a-z0-9-]+"
@@ -149,7 +149,7 @@ export default function AdminCompaniesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Company admin name</span>
+              <span className="text-sm font-medium text-slate-700">{t("admin.companies.adminName")}</span>
               <input
                 required
                 value={adminName}
@@ -158,7 +158,7 @@ export default function AdminCompaniesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Company admin email</span>
+              <span className="text-sm font-medium text-slate-700">{t("admin.companies.adminEmail")}</span>
               <input
                 required
                 type="email"
@@ -168,7 +168,7 @@ export default function AdminCompaniesPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Company admin password</span>
+              <span className="text-sm font-medium text-slate-700">{t("admin.companies.adminPassword")}</span>
               <input
                 required
                 type="password"
@@ -184,7 +184,7 @@ export default function AdminCompaniesPage() {
               disabled={submitting}
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
             >
-              {submitting ? "Provisioning…" : "Create company"}
+              {submitting ? t("admin.companies.provisioning") : t("admin.companies.create")}
             </button>
           </form>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Report = {
@@ -14,6 +15,7 @@ type Report = {
 };
 
 export default function CompanyReportsPage() {
+  const { t } = useI18n();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,35 +35,37 @@ export default function CompanyReportsPage() {
     load();
   }, []);
 
-  if (loading) return <main className="p-8 text-sm text-slate-600">Loading…</main>;
-  if (error || !report) return <main className="p-8 text-sm text-red-600">{error ?? "Not available"}</main>;
+  if (loading) return <main className="p-8 text-sm text-slate-600">{t("common.loading")}</main>;
+  if (error || !report) {
+    return <main className="p-8 text-sm text-red-600">{error ?? t("company.reports.notAvailable")}</main>;
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Company reports</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("company.reports.title")}</h1>
 
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Total sales</p>
+          <p className="text-sm text-slate-600">{t("company.reports.totalSales")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalSales}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Total refunds</p>
+          <p className="text-sm text-slate-600">{t("company.reports.totalRefunds")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalRefunds}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Sales count</p>
+          <p className="text-sm text-slate-600">{t("company.reports.salesCount")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{report.salesCount}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Low stock items</p>
+          <p className="text-sm text-slate-600">{t("company.reports.lowStockItems")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{report.lowStockCount}</p>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">By store</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.byStore")}</h2>
           <div className="mt-4 space-y-2">
             {report.byStore.map((row) => (
               <div key={row.storeId} className="flex justify-between text-sm">
@@ -73,7 +77,7 @@ export default function CompanyReportsPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Staff performance</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.staffPerformance")}</h2>
           <div className="mt-4 space-y-2">
             {report.staffPerformance.map((row) => (
               <div key={row.cashierId} className="flex justify-between text-sm">
@@ -85,11 +89,11 @@ export default function CompanyReportsPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Top products</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.topProducts")}</h2>
           <div className="mt-4 space-y-2">
             {report.topProducts.map((p, i) => (
               <div key={i} className="flex justify-between text-sm">
-                <span className="text-slate-950">{p.product?.name ?? "Unknown"}</span>
+                <span className="text-slate-950">{p.product?.name ?? t("company.reports.unknown")}</span>
                 <span className="text-slate-600">{p.quantitySold} · ৳{p.revenue}</span>
               </div>
             ))}

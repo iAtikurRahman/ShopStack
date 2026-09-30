@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Customer = { id: number; name: string; phone: string | null; email: string | null; loyaltyPoints: number };
 
 export default function StoreCustomersPage() {
+  const { t } = useI18n();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,23 +66,27 @@ export default function StoreCustomersPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Customers</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.customers")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All customers</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.customers.allTitle")}
+          </h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, phone or email…"
+            placeholder={t("storeCommerce.customers.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredCustomers.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No customers match "${search.trim()}".` : "No customers yet."}
+              {search.trim()
+                ? t("storeCommerce.customers.noMatch", { search: search.trim() })
+                : t("storeCommerce.customers.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -92,14 +98,20 @@ export default function StoreCustomersPage() {
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-950">{customer.name}</p>
-                    <span className="text-xs text-slate-500">{customer.loyaltyPoints} pts</span>
+                    <span className="text-xs text-slate-500">
+                      {t("storeCommerce.customers.points", { points: customer.loyaltyPoints })}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">
-                    {customer.phone ? `Phone: ${customer.phone}` : null}
+                    {customer.phone ? `${t("common.phone")}: ${customer.phone}` : null}
                   </p>
-                  <p className="text-sm text-slate-600">{customer.email ? `Email: ${customer.email}` : null}</p>
+                  <p className="text-sm text-slate-600">
+                    {customer.email ? `${t("common.email")}: ${customer.email}` : null}
+                  </p>
                   {!customer.phone && !customer.email ? <p className="mt-1 text-sm text-slate-600">—</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-600">View purchases →</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                    {t("storeCommerce.customers.viewPurchases")}
+                  </p>
                 </Link>
               ))}
             </div>
@@ -107,10 +119,12 @@ export default function StoreCustomersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a customer</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.customers.addTitle")}
+          </h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -119,7 +133,7 @@ export default function StoreCustomersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Phone</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.phone")}</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -127,7 +141,7 @@ export default function StoreCustomersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.email")}</span>
               <input
                 type="email"
                 value={email}
@@ -140,7 +154,7 @@ export default function StoreCustomersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Add customer
+              {t("storeCommerce.customers.addButton")}
             </button>
           </form>
         </div>

@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/services/api";
+import { useI18n } from "@/components/LocaleProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [slug, setSlug] = useState("");
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -50,16 +53,21 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="absolute right-6 top-6">
+        <LanguageSwitcher />
+      </div>
       <div className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
         <div className="w-full rounded-4xl border border-slate-200 bg-white p-10 shadow-xl">
-          <h1 className="text-3xl font-semibold">Sign in to ShopStack</h1>
+          <h1 className="text-3xl font-semibold">{t("auth.signInTitle")}</h1>
           <p className="mt-3 text-sm text-slate-600">
-            {companyName ? `Welcome to ${companyName}.` : "Enter your company workspace to continue."}
+            {companyName
+              ? t("auth.welcomeTo", { company: companyName })
+              : t("auth.companyPrompt")}
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Company slug</span>
+              <span className="text-sm font-medium text-slate-700">{t("auth.companySlug")}</span>
               <input
                 type="text"
                 value={slug}
@@ -72,7 +80,7 @@ export default function LoginPage() {
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email</span>
+              <span className="text-sm font-medium text-slate-700">{t("auth.email")}</span>
               <input
                 type="email"
                 value={email}
@@ -83,7 +91,7 @@ export default function LoginPage() {
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Password</span>
+              <span className="text-sm font-medium text-slate-700">{t("auth.password")}</span>
               <span className="relative mt-2 block">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -97,7 +105,7 @@ export default function LoginPage() {
                   onClick={() => setShowPassword((current) => !current)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-1 text-xs font-semibold text-slate-500 hover:text-slate-900"
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? t("auth.hide") : t("auth.show")}
                 </button>
               </span>
             </label>
@@ -109,7 +117,7 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
             </button>
           </form>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type StockByStore = { warehouseId: number; warehouseName: string; storeId: number; storeName: string; quantity: number };
@@ -27,6 +28,7 @@ const PRICE_INPUT_CLASS =
   "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900";
 
 export default function CompanyProductsPage() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -167,8 +169,14 @@ export default function CompanyProductsPage() {
         includePriced,
       });
       const skippedNote =
-        result.skipped.length > 0 ? ` ${result.skipped.length} skipped (no purchase cost recorded).` : "";
-      setNotice(`Priced ${result.updated} product${result.updated === 1 ? "" : "s"}.${skippedNote}`);
+        result.skipped.length > 0
+          ? ` ${t("company.products.skippedNote", { count: result.skipped.length })}`
+          : "";
+      const pricedNote = t(
+        result.updated === 1 ? "company.products.pricedOne" : "company.products.pricedMany",
+        { count: result.updated }
+      );
+      setNotice(`${pricedNote}${skippedNote}`);
       await loadData();
     } catch (err) {
       setError((err as Error).message);
@@ -179,41 +187,41 @@ export default function CompanyProductsPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Products</h1>
-      <p className="text-sm text-slate-600">
-        Cost and sale price are set here and apply to every store. Edit a cell and it saves when you click away.
-      </p>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.products")}</h1>
+      <p className="text-sm text-slate-600">{t("company.products.priceNote")}</p>
       {notice ? <p className="text-sm text-emerald-600">{notice}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All products</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.products.allTitle")}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by SKU, name, category, unit or store…"
+            placeholder={t("company.products.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredProducts.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No products match "${search.trim()}".` : "No products yet."}
+              {search.trim()
+                ? t("company.products.noMatch", { search: search.trim() })
+                : t("company.products.noneYet")}
             </p>
           ) : (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-slate-500">
                   <tr>
-                    <th className="pb-2">SKU</th>
-                    <th className="pb-2">Name</th>
-                    <th className="pb-2">Category</th>
-                    <th className="pb-2">Unit</th>
-                    <th className="pb-2">Cost</th>
-                    <th className="pb-2">Sale price</th>
-                    <th className="pb-2">Total stock</th>
-                    <th className="pb-2">By store</th>
+                    <th className="pb-2">{t("company.products.sku")}</th>
+                    <th className="pb-2">{t("common.name")}</th>
+                    <th className="pb-2">{t("nav.categories")}</th>
+                    <th className="pb-2">{t("company.products.unit")}</th>
+                    <th className="pb-2">{t("common.cost")}</th>
+                    <th className="pb-2">{t("company.products.salePrice")}</th>
+                    <th className="pb-2">{t("company.products.totalStock")}</th>
+                    <th className="pb-2">{t("company.products.byStore")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -263,13 +271,13 @@ export default function CompanyProductsPage() {
 
         <div className="space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Set prices in bulk</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Marks up the recorded purchase cost to fill in every missing sale price at once.
-          </p>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.products.bulkTitle")}</h2>
+          <p className="mt-1 text-sm text-slate-600">{t("company.products.bulkHelper")}</p>
           <form onSubmit={handleBulkPricing} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Markup on cost (%)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.products.markupOnCost")}
+              </span>
               <input
                 required
                 type="number"
@@ -281,7 +289,9 @@ export default function CompanyProductsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Set tax rate to (%)</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.products.setTaxRate")}
+              </span>
               <input
                 type="number"
                 step="0.01"
@@ -289,7 +299,7 @@ export default function CompanyProductsPage() {
                 max={100}
                 value={bulkTaxRate}
                 onChange={(e) => setBulkTaxRate(e.target.value)}
-                placeholder="Leave blank to keep current"
+                placeholder={t("company.products.keepCurrent")}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
@@ -300,23 +310,23 @@ export default function CompanyProductsPage() {
                 onChange={(e) => setIncludePriced(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300"
               />
-              Also reprice products that already have a sale price
+              {t("company.products.alsoReprice")}
             </label>
             <button
               type="submit"
               disabled={bulkApplying}
               className="w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {bulkApplying ? "Applying…" : "Apply to catalog"}
+              {bulkApplying ? t("company.products.applying") : t("company.products.applyToCatalog")}
             </button>
           </form>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a product</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.products.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">SKU</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.products.sku")}</span>
               <input
                 required
                 value={sku}
@@ -325,7 +335,7 @@ export default function CompanyProductsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -335,7 +345,7 @@ export default function CompanyProductsPage() {
             </label>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Cost</span>
+                <span className="text-sm font-medium text-slate-700">{t("common.cost")}</span>
                 <input
                   type="number"
                   min={0}
@@ -346,7 +356,9 @@ export default function CompanyProductsPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Sale price</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t("company.products.salePrice")}
+                </span>
                 <input
                   type="number"
                   min={0}
@@ -358,7 +370,7 @@ export default function CompanyProductsPage() {
               </label>
             </div>
             <div className="block" ref={categoryFieldRef}>
-              <span className="text-sm font-medium text-slate-700">Category</span>
+              <span className="text-sm font-medium text-slate-700">{t("nav.categories")}</span>
               <div className="relative mt-2">
                 <input
                   value={categoryQuery}
@@ -368,7 +380,7 @@ export default function CompanyProductsPage() {
                     setIsCategoryOpen(true);
                   }}
                   onFocus={() => setIsCategoryOpen(true)}
-                  placeholder="Search category…"
+                  placeholder={t("company.products.searchCategory")}
                   autoComplete="off"
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
                 />
@@ -380,11 +392,13 @@ export default function CompanyProductsPage() {
                         onClick={() => selectCategory(null)}
                         className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100"
                       >
-                        None
+                        {t("common.none")}
                       </button>
                     </li>
                     {filteredCategories.length === 0 ? (
-                      <li className="px-3 py-2 text-sm text-slate-400">No matching categories</li>
+                      <li className="px-3 py-2 text-sm text-slate-400">
+                        {t("company.products.noMatchingCategories")}
+                      </li>
                     ) : (
                       filteredCategories.map((category) => (
                         <li key={category.id}>
@@ -408,19 +422,21 @@ export default function CompanyProductsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Unit value</span>
+                <span className="text-sm font-medium text-slate-700">
+                  {t("company.products.unitValue")}
+                </span>
                 <input
                   type="number"
                   min={0}
                   step="0.01"
                   value={unitValue}
                   onChange={(e) => setUnitValue(e.target.value)}
-                  placeholder="e.g. 250"
+                  placeholder={t("company.products.unitValuePlaceholder")}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
                 />
               </label>
               <label className="block">
-                <span className="text-sm font-medium text-slate-700">Unit</span>
+                <span className="text-sm font-medium text-slate-700">{t("company.products.unit")}</span>
                 <select
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
@@ -435,7 +451,7 @@ export default function CompanyProductsPage() {
               </label>
             </div>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Tax rate (%)</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.products.taxRate")}</span>
               <input
                 type="number"
                 step="0.01"
@@ -449,7 +465,7 @@ export default function CompanyProductsPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create product
+              {t("company.products.create")}
             </button>
           </form>
         </div>

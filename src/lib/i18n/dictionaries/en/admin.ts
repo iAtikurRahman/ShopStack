@@ -1,0 +1,50 @@
+﻿export const en = {
+  admin: {
+    console: {
+      title: "Project Admin",
+    },
+    companies: {
+      description:
+        "Onboard a new company. This provisions a dedicated tenant database automatically.",
+      allCompanies: "All companies",
+      noneYet: "No companies yet.",
+      onboardTitle: "Onboard a company",
+      companyName: "Company name",
+      slug: "Slug (used for login)",
+      adminName: "Company admin name",
+      adminEmail: "Company admin email",
+      adminPassword: "Company admin password",
+      createFailed: "Failed to create company",
+      provisioning: "Provisioning…",
+      create: "Create company",
+    },
+    reports: {
+      title: "Cross-company reports",
+      refreshing: "Refreshing…",
+      refreshSnapshot: "Refresh snapshot",
+      disclaimer:
+        "Figures come from the periodic rollup snapshot, not a live query across every tenant database.",
+      totalRevenue: "Total revenue",
+      totalSales: "Total sales",
+      byCompany: "By company",
+      refunds: "Refunds",
+      refreshed: "Refreshed",
+      never: "never",
+      notAvailable: "Not available",
+    },
+    auditLog: {
+      noneYet: "No activity recorded yet.",
+      when: "When",
+      action: "Action",
+      target: "Target",
+      actions: {
+        companyProvisioned: "Company provisioned",
+        projectAdminSetup: "Project Admin set up",
+      },
+      entities: {
+        company: "Company",
+        projectAdmin: "Project Admin",
+      },
+    },
+  },
+};

@@ -1,20 +1,22 @@
 import Link from "next/link";
+import { getDictionary, translate } from "@/lib/i18n/dictionaries";
+import { readLocaleCookie } from "@/lib/i18n/server-locale";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const dictionary = getDictionary(await readLocaleCookie());
+
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-16 text-slate-950">
-      <div className="mx-auto max-w-3xl rounded-4xl border border-slate-200 bg-white p-10 shadow-xl text-center">
-        <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Page not found</p>
-        <h1 className="mt-4 text-4xl font-semibold">404 — We couldn&apos;t find that page</h1>
-        <p className="mt-4 text-slate-600">Return home or sign in to continue.</p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Link href="/" className="rounded-2xl bg-slate-950 px-6 py-3 text-white transition hover:bg-slate-800">
-            Home
-          </Link>
-          <Link href="/login" className="rounded-2xl border border-slate-300 px-6 py-3 text-slate-950 transition hover:bg-slate-50">
-            Sign in
-          </Link>
-        </div>
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-slate-950">
+      <div className="w-full max-w-lg rounded-4xl border border-slate-200 bg-white p-10 text-center shadow-xl">
+        <p className="text-sm uppercase tracking-[0.28em] text-slate-400">ShopStack</p>
+        <h1 className="mt-4 text-3xl font-semibold">{translate(dictionary, "auth.notFoundTitle")}</h1>
+        <p className="mt-3 text-sm text-slate-600">{translate(dictionary, "auth.notFoundBody")}</p>
+        <Link
+          href="/"
+          className="mt-8 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+        >
+          {translate(dictionary, "auth.goHome")}
+        </Link>
       </div>
     </main>
   );

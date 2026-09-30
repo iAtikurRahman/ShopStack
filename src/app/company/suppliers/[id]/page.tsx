@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Supplier = {
@@ -44,6 +45,7 @@ type Detail = { supplier: Supplier; purchases: Purchase[]; supplierReturns: Supp
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const { t } = useI18n();
   const [data, setData] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,13 +106,13 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-8">
       <Link href="/company/suppliers" className="text-sm text-slate-600 hover:underline">
-        ← Back to suppliers
+        {t("company.supplierDetail.backToSuppliers")}
       </Link>
 
       {loading ? (
-        <p className="text-sm text-slate-600">Loading…</p>
+        <p className="text-sm text-slate-600">{t("common.loading")}</p>
       ) : error || !data ? (
-        <p className="text-sm text-red-600">{error ?? "Supplier not found"}</p>
+        <p className="text-sm text-red-600">{error ?? t("company.supplierDetail.notFound")}</p>
       ) : (
         <>
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -118,13 +120,16 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
               <div>
                 <h1 className="text-2xl font-semibold text-slate-950">{data.supplier.name}</h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  {[data.supplier.phone, data.supplier.email].filter(Boolean).join(" · ") || "No contact info"}
+                  {[data.supplier.phone, data.supplier.email].filter(Boolean).join(" · ") ||
+                    t("company.supplierDetail.noContact")}
                 </p>
                 {data.supplier.address ? (
                   <p className="mt-0.5 text-xs text-slate-500">{data.supplier.address}</p>
                 ) : null}
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Supplier since {new Date(data.supplier.createdAt).toLocaleDateString()}
+                  {t("company.supplierDetail.supplierSince", {
+                    date: new Date(data.supplier.createdAt).toLocaleDateString(),
+                  })}
                 </p>
               </div>
               <span
@@ -132,42 +137,55 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                   data.supplier.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
                 }`}
               >
-                {data.supplier.isActive ? "Active" : "Inactive"}
+                {data.supplier.isActive ? t("common.active") : t("common.inactive")}
               </span>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm text-slate-600">Purchases</p>
+              <p className="text-sm text-slate-600">{t("nav.purchases")}</p>
               <p className="mt-2 text-3xl font-semibold text-slate-950">{stats.purchaseCount}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.lastPurchaseAt
-                  ? `Last on ${new Date(stats.lastPurchaseAt).toLocaleDateString()}`
-                  : "No purchases yet"}
+                  ? t("company.supplierDetail.lastOn", {
+                      date: new Date(stats.lastPurchaseAt).toLocaleDateString(),
+                    })
+                  : t("company.supplierDetail.noPurchases")}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm text-slate-600">Total purchased</p>
+              <p className="text-sm text-slate-600">{t("company.supplierDetail.totalPurchased")}</p>
               <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalCost.toFixed(2)}</p>
               <p className="mt-1 text-xs text-slate-500">
-                Avg ৳{stats.averageCost.toFixed(2)} · {stats.units} unit{stats.units === 1 ? "" : "s"}
+                {stats.units === 1
+                  ? t("company.supplierDetail.avgOne", { amount: stats.averageCost.toFixed(2) })
+                  : t("company.supplierDetail.avgMany", {
+                      amount: stats.averageCost.toFixed(2),
+                      count: stats.units,
+                    })}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm text-slate-600">Returned to supplier</p>
+              <p className="text-sm text-slate-600">{t("company.supplierDetail.returnedToSupplier")}</p>
               <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.returnedAmount.toFixed(2)}</p>
               <p className="mt-1 text-xs text-slate-500">
-                {stats.returnedUnits} unit{stats.returnedUnits === 1 ? "" : "s"} sent back
+                {stats.returnedUnits === 1
+                  ? t("company.supplierDetail.sentBackOne")
+                  : t("company.supplierDetail.sentBackMany", { count: stats.returnedUnits })}
               </p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-950">Purchase history</h2>
+              <h2 className="text-lg font-semibold text-slate-950">
+                {t("company.supplierDetail.purchaseHistory")}
+              </h2>
               <p className="text-sm text-slate-500">
-                {filteredPurchases.length} purchase{filteredPurchases.length === 1 ? "" : "s"}
+                {filteredPurchases.length === 1
+                  ? t("company.supplierDetail.purchaseCountOne")
+                  : t("company.supplierDetail.purchaseCountMany", { count: filteredPurchases.length })}
               </p>
             </div>
 
@@ -175,13 +193,15 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by purchase #, reference, product, warehouse, amount or date…"
+              placeholder={t("company.supplierDetail.searchPlaceholder")}
               className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
             />
 
             {filteredPurchases.length === 0 ? (
               <p className="mt-6 text-sm text-slate-600">
-                {search.trim() ? `No purchases match "${search.trim()}".` : "This supplier has no purchases yet."}
+                {search.trim()
+                  ? t("company.supplierDetail.noMatch", { search: search.trim() })
+                  : t("company.supplierDetail.noneYet")}
               </p>
             ) : (
               <div className="mt-4 space-y-3">
@@ -192,11 +212,18 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-semibold text-slate-950">
-                            Purchase #{purchase.id}
+                            {t("company.supplierDetail.purchaseLabel", { id: purchase.id })}
                             {purchase.reference ? ` · ${purchase.reference}` : ""}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {new Date(purchase.purchasedAt).toLocaleString()} · {units} unit{units === 1 ? "" : "s"}
+                            {units === 1
+                              ? t("company.supplierDetail.metaOne", {
+                                  date: new Date(purchase.purchasedAt).toLocaleString(),
+                                })
+                              : t("company.supplierDetail.metaMany", {
+                                  date: new Date(purchase.purchasedAt).toLocaleString(),
+                                  count: units,
+                                })}
                           </p>
                           <p className="mt-1 text-xs text-slate-600">
                             {purchase.warehouse
@@ -208,7 +235,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="font-medium text-slate-950">৳{purchase.totalCost}</p>
-                          <p className="text-xs text-slate-500">cost</p>
+                          <p className="text-xs text-slate-500">{t("company.supplierDetail.costLabel")}</p>
                         </div>
                       </div>
 
@@ -235,7 +262,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
           {data.supplierReturns.length > 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-950">Sent back to supplier</h2>
+              <h2 className="text-lg font-semibold text-slate-950">
+                {t("company.supplierDetail.sentBackTitle")}
+              </h2>
               <div className="mt-4 space-y-3">
                 {data.supplierReturns.map((row) => (
                   <div key={row.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
@@ -243,8 +272,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       <div>
                         <p className="font-semibold text-slate-950">{row.product.name}</p>
                         <p className="text-xs text-slate-500">
-                          {row.quantity} unit{row.quantity === 1 ? "" : "s"} · {row.warehouse.name} (
-                          {row.warehouse.store.name})
+                          {row.quantity === 1
+                            ? t("company.supplierDetail.unitsOne")
+                            : t("company.supplierDetail.unitsMany", { count: row.quantity })}
+                          {" · "}
+                          {row.warehouse.name} ({row.warehouse.store.name})
                         </p>
                         {row.reason ? <p className="mt-1 text-xs text-slate-600">{row.reason}</p> : null}
                         <p className="mt-0.5 text-xs text-slate-400">{new Date(row.createdAt).toLocaleString()}</p>

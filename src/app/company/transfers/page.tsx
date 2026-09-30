@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string; store: { id: number; name: string } };
@@ -16,6 +17,7 @@ type Transfer = {
 };
 
 export default function CompanyTransfersPage() {
+  const { t, tEnum } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -29,12 +31,12 @@ export default function CompanyTransfersPage() {
 
   function warehouseLabel(id: number) {
     const w = warehouses.find((wh) => wh.id === id);
-    return w ? `${w.name} (${w.store.name})` : `Warehouse ${id}`;
+    return w ? `${w.name} (${w.store.name})` : t("company.transfers.warehouseFallback", { id });
   }
 
   function productLabel(id: number) {
     const p = products.find((prod) => prod.id === id);
-    return p ? `${p.sku} — ${p.name}` : `Product ${id}`;
+    return p ? `${p.sku} — ${p.name}` : t("company.transfers.productFallback", { id });
   }
 
   async function loadAll() {
@@ -81,16 +83,16 @@ export default function CompanyTransfersPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Stock transfers</h1>
-      <p className="text-sm text-slate-600">Move stock between any two warehouses, across stores.</p>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("company.transfers.title")}</h1>
+      <p className="text-sm text-slate-600">{t("company.transfers.helper")}</p>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Recent transfers</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.transfers.recent")}</h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : transfers.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No transfers yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("company.transfers.noneYet")}</p>
           ) : (
             <div className="mt-6 space-y-3">
               {transfers.map((transfer) => (
@@ -100,7 +102,7 @@ export default function CompanyTransfersPage() {
                       {warehouseLabel(transfer.fromWarehouseId)} → {warehouseLabel(transfer.toWarehouseId)}
                     </p>
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                      {transfer.status}
+                      {tEnum(transfer.status)}
                     </span>
                   </div>
                   <p className="mt-1 text-slate-600">
@@ -113,17 +115,17 @@ export default function CompanyTransfersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">New transfer</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.transfers.newTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">From</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.transfers.fromLabel")}</span>
               <select
                 required
                 value={fromWarehouseId}
                 onChange={(e) => setFromWarehouseId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select source</option>
+                <option value="">{t("company.transfers.selectSource")}</option>
                 {warehouses.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name} ({w.store.name})
@@ -132,14 +134,14 @@ export default function CompanyTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">To</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.transfers.toLabel")}</span>
               <select
                 required
                 value={toWarehouseId}
                 onChange={(e) => setToWarehouseId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select destination</option>
+                <option value="">{t("company.transfers.selectDestination")}</option>
                 {warehouses
                   .filter((w) => String(w.id) !== fromWarehouseId)
                   .map((w) => (
@@ -150,14 +152,14 @@ export default function CompanyTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Product</span>
+              <span className="text-sm font-medium text-slate-700">{t("company.transfers.product")}</span>
               <select
                 required
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                <option value="">Select product</option>
+                <option value="">{t("company.transfers.selectProduct")}</option>
                 {products.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.sku} — {p.name}
@@ -166,7 +168,7 @@ export default function CompanyTransfersPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Quantity</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
               <input
                 required
                 type="number"
@@ -181,7 +183,7 @@ export default function CompanyTransfersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Transfer stock
+              {t("company.transfers.submit")}
             </button>
           </form>
         </div>

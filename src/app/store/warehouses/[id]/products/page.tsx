@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Product = {
@@ -18,6 +19,7 @@ type Product = {
 };
 
 export default function WarehouseProductsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { t } = useI18n();
   const { id: warehouseId } = use(params);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,12 +97,13 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <div>
         <Link href="/store/inventory" className="text-sm text-slate-600 hover:underline">
-          ← Back to inventory
+          {t("storeOps.warehouseProducts.backToInventory")}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-950">Warehouse products</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-950">
+          {t("storeOps.warehouseProducts.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Actions here are gated by your product.view/create/update/delete permissions - if you&apos;re missing
-          one, the server will reject the action with an error below.
+          {t("storeOps.warehouseProducts.permissionsNote")}
         </p>
       </div>
 
@@ -108,20 +111,22 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Products in this warehouse</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeOps.warehouseProducts.productsInWarehouse")}
+          </h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : products.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No products stocked here yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("storeOps.warehouseProducts.noStock")}</p>
           ) : (
             <div className="mt-6 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-slate-500">
                   <tr>
-                    <th className="pb-2">SKU</th>
-                    <th className="pb-2">Name</th>
-                    <th className="pb-2">Sale price</th>
-                    <th className="pb-2">Qty</th>
+                    <th className="pb-2">{t("storeOps.warehouseProducts.sku")}</th>
+                    <th className="pb-2">{t("common.name")}</th>
+                    <th className="pb-2">{t("storeOps.warehouseProducts.salePrice")}</th>
+                    <th className="pb-2">{t("storeOps.warehouseProducts.qty")}</th>
                     <th className="pb-2"></th>
                   </tr>
                 </thead>
@@ -148,7 +153,7 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
                           onClick={() => handleDelete(product.productId)}
                           className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                         >
-                          Remove
+                          {t("storeOps.warehouseProducts.remove")}
                         </button>
                       </td>
                     </tr>
@@ -160,10 +165,14 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a product</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeOps.warehouseProducts.addProduct")}
+          </h2>
           <form onSubmit={handleCreate} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">SKU</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeOps.warehouseProducts.sku")}
+              </span>
               <input
                 required
                 value={sku}
@@ -172,7 +181,7 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -181,7 +190,9 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Purchase price</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeOps.warehouseProducts.purchasePrice")}
+              </span>
               <input
                 required
                 type="number"
@@ -192,7 +203,9 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Sale price</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeOps.warehouseProducts.salePrice")}
+              </span>
               <input
                 required
                 type="number"
@@ -203,7 +216,9 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Initial quantity</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeOps.warehouseProducts.initialQuantity")}
+              </span>
               <input
                 type="number"
                 min={0}
@@ -216,7 +231,7 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Add product
+              {t("storeOps.warehouseProducts.addProductButton")}
             </button>
           </form>
         </div>

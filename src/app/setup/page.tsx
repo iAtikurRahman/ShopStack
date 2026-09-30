@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/services/api";
+import { useI18n } from "@/components/LocaleProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function SetupPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,18 +32,18 @@ export default function SetupPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
+      <div className="absolute right-6 top-6">
+        <LanguageSwitcher variant="dark" />
+      </div>
       <div className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
         <div className="w-full rounded-4xl border border-slate-800 bg-slate-900 p-10 shadow-xl">
           <p className="text-sm uppercase tracking-[0.28em] text-slate-500">ShopStack</p>
-          <h1 className="mt-3 text-3xl font-semibold">Create the Project Admin account</h1>
-          <p className="mt-3 text-sm text-slate-400">
-            This one-time setup runs only while no Project Admin exists yet. Once complete, this page
-            locks itself and future sign-ins happen at /admin/login.
-          </p>
+          <h1 className="mt-3 text-3xl font-semibold">{t("auth.setupTitle")}</h1>
+          <p className="mt-3 text-sm text-slate-400">{t("auth.setupBody")}</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Name</span>
+              <span className="text-sm font-medium text-slate-300">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -49,7 +52,7 @@ export default function SetupPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Email</span>
+              <span className="text-sm font-medium text-slate-300">{t("auth.email")}</span>
               <input
                 required
                 type="email"
@@ -59,7 +62,7 @@ export default function SetupPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Password</span>
+              <span className="text-sm font-medium text-slate-300">{t("auth.password")}</span>
               <input
                 required
                 type="password"
@@ -77,7 +80,7 @@ export default function SetupPage() {
               disabled={loading}
               className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? "Creating…" : "Create Project Admin"}
+              {loading ? t("auth.creating") : t("auth.createProjectAdmin")}
             </button>
           </form>
         </div>

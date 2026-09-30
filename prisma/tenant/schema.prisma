@@ -74,6 +74,9 @@ model User {
   store               Store?                   @relation(fields: [storeId], references: [id])
   storeId             Int?
   isActive            Boolean                  @default(true)
+  // UI language this account last chose ("en" or "bn"). Kept on the account
+  // so a re-login restores it, and copied into the signed session token.
+  language            String                   @default("en")
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   permissionOverrides UserPermissionOverride[]

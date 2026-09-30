@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/services/api";
+import { useI18n } from "@/components/LocaleProvider";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +32,17 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
+      <div className="absolute right-6 top-6">
+        <LanguageSwitcher variant="dark" />
+      </div>
       <div className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
         <div className="w-full rounded-4xl border border-slate-800 bg-slate-900 p-10 shadow-xl">
           <p className="text-sm uppercase tracking-[0.28em] text-slate-500">ShopStack</p>
-          <h1 className="mt-3 text-3xl font-semibold">Project Admin sign in</h1>
+          <h1 className="mt-3 text-3xl font-semibold">{t("auth.projectAdminSignIn")}</h1>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Email</span>
+              <span className="text-sm font-medium text-slate-300">{t("auth.email")}</span>
               <input
                 type="email"
                 value={email}
@@ -47,7 +53,7 @@ export default function AdminLoginPage() {
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Password</span>
+              <span className="text-sm font-medium text-slate-300">{t("auth.password")}</span>
               <input
                 type="password"
                 value={password}
@@ -64,7 +70,7 @@ export default function AdminLoginPage() {
               disabled={loading}
               className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
             </button>
           </form>
         </div>

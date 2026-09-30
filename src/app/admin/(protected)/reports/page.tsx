@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type CompanyRow = {
@@ -26,6 +27,7 @@ type Report = {
 };
 
 export default function AdminReportsPage() {
+  const { t, tEnum } = useI18n();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,71 +65,72 @@ export default function AdminReportsPage() {
     }
   }
 
-  if (loading) return <main className="p-8 text-sm text-slate-400">Loading…</main>;
-  if (error || !report) return <main className="p-8 text-sm text-red-400">{error ?? "Not available"}</main>;
+  if (loading) return <main className="p-8 text-sm text-slate-400">{t("common.loading")}</main>;
+  if (error || !report)
+    return <main className="p-8 text-sm text-red-400">{error ?? t("admin.reports.notAvailable")}</main>;
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-slate-950">Cross-company reports</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("admin.reports.title")}</h1>
         <button
           type="button"
           onClick={handleRefresh}
           disabled={refreshing}
           className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
         >
-          {refreshing ? "Refreshing…" : "Refresh snapshot"}
+          {refreshing ? t("admin.reports.refreshing") : t("admin.reports.refreshSnapshot")}
         </button>
       </div>
-      <p className="text-sm text-slate-600">
-        Figures come from the periodic rollup snapshot, not a live query across every tenant database.
-      </p>
+      <p className="text-sm text-slate-600">{t("admin.reports.disclaimer")}</p>
 
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Companies</p>
+          <p className="text-sm text-slate-600">{t("nav.companies")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{report.companyCount}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Active</p>
+          <p className="text-sm text-slate-600">{t("common.active")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{report.activeCount}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Total revenue</p>
+          <p className="text-sm text-slate-600">{t("admin.reports.totalRevenue")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totals.totalSales.toFixed(2)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Total sales</p>
+          <p className="text-sm text-slate-600">{t("admin.reports.totalSales")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-950">{report.totals.salesCount}</p>
         </div>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">By company</h2>
+        <h2 className="text-lg font-semibold text-slate-950">{t("admin.reports.byCompany")}</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-slate-500">
               <tr>
-                <th className="pb-2">Company</th>
-                <th className="pb-2">Status</th>
-                <th className="pb-2">Sales</th>
-                <th className="pb-2">Refunds</th>
-                <th className="pb-2">Stores</th>
-                <th className="pb-2">Users</th>
-                <th className="pb-2">Refreshed</th>
+                <th className="pb-2">{t("nav.company")}</th>
+                <th className="pb-2">{t("common.status")}</th>
+                <th className="pb-2">{t("nav.sales")}</th>
+                <th className="pb-2">{t("admin.reports.refunds")}</th>
+                <th className="pb-2">{t("nav.stores")}</th>
+                <th className="pb-2">{t("nav.users")}</th>
+                <th className="pb-2">{t("admin.reports.refreshed")}</th>
               </tr>
             </thead>
             <tbody>
               {report.companies.map((company) => (
                 <tr key={company.id} className="border-t border-slate-100">
                   <td className="py-2 font-medium text-slate-950">{company.name}</td>
-                  <td className="py-2 text-slate-600">{company.status}</td>
+                  <td className="py-2 text-slate-600">{tEnum(company.status)}</td>
                   <td className="py-2 text-slate-600">৳{company.metrics?.totalSales ?? "0.00"}</td>
                   <td className="py-2 text-slate-600">৳{company.metrics?.totalRefunds ?? "0.00"}</td>
                   <td className="py-2 text-slate-600">{company.metrics?.storeCount ?? "—"}</td>
                   <td className="py-2 text-slate-600">{company.metrics?.userCount ?? "—"}</td>
                   <td className="py-2 text-slate-500">
-                    {company.metrics ? new Date(company.metrics.refreshedAt).toLocaleString() : "never"}
+                    {company.metrics
+                      ? new Date(company.metrics.refreshedAt).toLocaleString()
+                      : t("admin.reports.never")}
                   </td>
                 </tr>
               ))}

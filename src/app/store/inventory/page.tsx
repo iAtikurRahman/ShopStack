@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string };
@@ -9,6 +10,7 @@ type Product = { id: number; sku: string; name: string; category: { name: string
 type Stock = { warehouseId: number; productId: number; quantity: number; lowStockThreshold: number };
 
 export default function StoreInventoryPage() {
+  const { t } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
@@ -33,6 +35,7 @@ export default function StoreInventoryPage() {
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
+    const lowStockTerm = t("storeOps.inventory.lowStock").toLowerCase();
     return products.filter((p) => {
       const current = stockByProduct.get(p.id);
       const quantity = current?.quantity ?? 0;
@@ -41,10 +44,10 @@ export default function StoreInventoryPage() {
         p.name.toLowerCase().includes(q) ||
         (p.category?.name ?? "").toLowerCase().includes(q) ||
         String(quantity).includes(q) ||
-        (quantity <= (current?.lowStockThreshold ?? 5) && "low stock".includes(q))
+        (quantity <= (current?.lowStockThreshold ?? 5) && lowStockTerm.includes(q))
       );
     });
-  }, [products, search, stockByProduct]);
+  }, [products, search, stockByProduct, t]);
 
   useEffect(() => {
     apiFetch<{ role?: string }>("/api/auth/me")
@@ -116,7 +119,7 @@ export default function StoreInventoryPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-950">Inventory</h1>
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nav.inventory")}</h1>
         <div className="flex items-center gap-3">
           {warehouses.length > 1 ? (
             <select
@@ -136,7 +139,7 @@ export default function StoreInventoryPage() {
               href={`/store/warehouses/${selectedWarehouseId}/products`}
               className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
             >
-              Manage products
+              {t("storeOps.inventory.manageProducts")}
             </Link>
           ) : null}
           {isManager ? (
@@ -145,7 +148,7 @@ export default function StoreInventoryPage() {
               onClick={() => setShowNewWarehouse((v) => !v)}
               className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              New warehouse
+              {t("storeOps.inventory.newWarehouse")}
             </button>
           ) : null}
         </div>
@@ -154,7 +157,7 @@ export default function StoreInventoryPage() {
       {showNewWarehouse && isManager ? (
         <form onSubmit={handleCreateWarehouse} className="flex flex-wrap items-end gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">Name</span>
+            <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
             <input
               required
               value={newWarehouseName}
@@ -163,7 +166,7 @@ export default function StoreInventoryPage() {
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium text-slate-700">Location</span>
+            <span className="text-sm font-medium text-slate-700">{t("storeOps.inventory.location")}</span>
             <input
               value={newWarehouseLocation}
               onChange={(e) => setNewWarehouseLocation(e.target.value)}
@@ -171,7 +174,7 @@ export default function StoreInventoryPage() {
             />
           </label>
           <button type="submit" className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800">
-            Create
+            {t("storeOps.inventory.create")}
           </button>
         </form>
       ) : null}
@@ -183,26 +186,28 @@ export default function StoreInventoryPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by SKU, name, category or quantity…"
+          placeholder={t("storeOps.inventory.searchPlaceholder")}
           className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
         />
         {loading ? (
-          <p className="mt-6 text-sm text-slate-600">Loading…</p>
+          <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
         ) : !selectedWarehouseId ? (
-          <p className="mt-6 text-sm text-slate-600">No warehouse assigned to your store yet.</p>
+          <p className="mt-6 text-sm text-slate-600">{t("storeOps.inventory.noWarehouse")}</p>
         ) : filteredProducts.length === 0 ? (
           <p className="mt-6 text-sm text-slate-600">
-            {search.trim() ? `No products match "${search.trim()}".` : "No products in the catalog yet."}
+            {search.trim()
+              ? t("storeOps.inventory.noMatch", { search: search.trim() })
+              : t("storeOps.inventory.noProducts")}
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-slate-500">
                 <tr>
-                  <th className="pb-2">SKU</th>
-                  <th className="pb-2">Name</th>
-                  <th className="pb-2">Category</th>
-                  <th className="pb-2">Quantity</th>
+                  <th className="pb-2">{t("storeOps.inventory.sku")}</th>
+                  <th className="pb-2">{t("common.name")}</th>
+                  <th className="pb-2">{t("storeOps.inventory.category")}</th>
+                  <th className="pb-2">{t("common.quantity")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -230,7 +235,11 @@ export default function StoreInventoryPage() {
                               isLow ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50"
                             }`}
                           />
-                          {isLow ? <span className="text-xs font-medium text-red-600">low stock</span> : null}
+                          {isLow ? (
+                            <span className="text-xs font-medium text-red-600">
+                              {t("storeOps.inventory.lowStock")}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

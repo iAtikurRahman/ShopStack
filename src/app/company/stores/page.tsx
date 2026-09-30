@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Store = {
@@ -14,6 +15,7 @@ type Store = {
 };
 
 export default function CompanyStoresPage() {
+  const { t } = useI18n();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,23 +88,25 @@ export default function CompanyStoresPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Stores</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.stores")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">All stores</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.stores.allTitle")}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, address or phone…"
+            placeholder={t("company.stores.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredStores.length === 0 ? (
             <p className="mt-6 text-sm text-slate-600">
-              {search.trim() ? `No stores match "${search.trim()}".` : "No stores yet."}
+              {search.trim()
+                ? t("company.stores.noMatch", { search: search.trim() })
+                : t("company.stores.noneYet")}
             </p>
           ) : (
             <div className="mt-4 space-y-3">
@@ -116,13 +120,14 @@ export default function CompanyStoresPage() {
                     <p className="font-semibold text-slate-950">{store.name}</p>
                     {!store.isActive ? (
                       <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-medium text-slate-700">
-                        inactive
+                        {t("company.stores.inactivePill")}
                       </span>
                     ) : null}
                   </div>
                   {store.address ? <p className="mt-1 text-sm text-slate-600">{store.address}</p> : null}
                   <p className="mt-1 text-xs text-slate-500">
-                    {store._count.warehouses} warehouse(s) · {store._count.users} user(s)
+                    {t("company.stores.warehouseCount", { count: store._count.warehouses })} ·{" "}
+                    {t("company.stores.userCount", { count: store._count.users })}
                   </p>
                 </Link>
               ))}
@@ -131,10 +136,10 @@ export default function CompanyStoresPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a store</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("company.stores.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -143,7 +148,7 @@ export default function CompanyStoresPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Address</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.address")}</span>
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -151,7 +156,7 @@ export default function CompanyStoresPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Phone</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.phone")}</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -165,13 +170,15 @@ export default function CompanyStoresPage() {
                 onChange={(e) => setAddManager(e.target.checked)}
                 className="rounded border-slate-300"
               />
-              Also create the initial Store Manager
+              {t("company.stores.alsoCreateManager")}
             </label>
 
             {addManager ? (
               <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <label className="block">
-                  <span className="text-sm font-medium text-slate-700">Manager name</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t("company.stores.managerName")}
+                  </span>
                   <input
                     required={addManager}
                     value={managerName}
@@ -180,7 +187,9 @@ export default function CompanyStoresPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-slate-700">Manager email</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t("company.stores.managerEmail")}
+                  </span>
                   <input
                     required={addManager}
                     type="email"
@@ -190,7 +199,9 @@ export default function CompanyStoresPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="text-sm font-medium text-slate-700">Manager password</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    {t("company.stores.managerPassword")}
+                  </span>
                   <input
                     required={addManager}
                     type="password"
@@ -208,7 +219,7 @@ export default function CompanyStoresPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create store
+              {t("company.stores.create")}
             </button>
           </form>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type StoreUser = { id: number; name: string; email: string; role: string; isActive: boolean };
@@ -8,7 +9,26 @@ type PermissionRow = { key: string; label: string; description: string | null; r
 
 const PRODUCT_PERMISSIONS = ["product.view", "product.create", "product.update", "product.delete"];
 
+type Translate = ReturnType<typeof useI18n>["t"];
+
+/** The permission checkboxes show the action, not the raw `product.*` key. */
+function permissionLabel(t: Translate, key: string): string {
+  switch (key.replace("product.", "")) {
+    case "view":
+      return t("storeCommerce.users.permissionView");
+    case "create":
+      return t("storeCommerce.users.permissionCreate");
+    case "update":
+      return t("storeCommerce.users.permissionUpdate");
+    case "delete":
+      return t("storeCommerce.users.permissionDelete");
+    default:
+      return key.replace("product.", "");
+  }
+}
+
 export default function StoreUsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<StoreUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,16 +118,18 @@ export default function StoreUsersPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Store users</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("storeCommerce.users.title")}</h1>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Users in your store</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.users.inYourStore")}
+          </h2>
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : users.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No store users yet.</p>
+            <p className="mt-6 text-sm text-slate-600">{t("storeCommerce.users.noneYet")}</p>
           ) : (
             <div className="mt-6 space-y-3">
               {users.map((user) => (
@@ -116,8 +138,9 @@ export default function StoreUsersPage() {
                     <div>
                       <p className="font-semibold text-slate-950">{user.name}</p>
                       <p className="text-xs text-slate-500">
-                        {user.email}
-                        {!user.isActive ? " · inactive" : ""}
+                        {user.isActive
+                          ? user.email
+                          : t("storeCommerce.users.emailInactive", { email: user.email })}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -126,7 +149,7 @@ export default function StoreUsersPage() {
                         onClick={() => openPermissions(user.id)}
                         className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                       >
-                        Permissions
+                        {t("storeCommerce.users.permissions")}
                       </button>
                       {user.isActive ? (
                         <button
@@ -134,7 +157,7 @@ export default function StoreUsersPage() {
                           onClick={() => handleDeactivate(user.id)}
                           className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                         >
-                          Deactivate
+                          {t("storeCommerce.users.deactivate")}
                         </button>
                       ) : null}
                     </div>
@@ -153,7 +176,7 @@ export default function StoreUsersPage() {
                                 p.override === true ? "bg-emerald-600 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Allow
+                              {t("storeCommerce.users.allow")}
                             </button>
                             <button
                               type="button"
@@ -162,7 +185,7 @@ export default function StoreUsersPage() {
                                 p.override === false ? "bg-red-600 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Deny
+                              {t("storeCommerce.users.deny")}
                             </button>
                             <button
                               type="button"
@@ -171,7 +194,7 @@ export default function StoreUsersPage() {
                                 p.override === null ? "bg-slate-900 text-white" : "bg-white text-slate-700 border border-slate-200"
                               }`}
                             >
-                              Default
+                              {t("storeCommerce.users.defaultOverride")}
                             </button>
                           </div>
                         </div>
@@ -185,10 +208,12 @@ export default function StoreUsersPage() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Add a store user</h2>
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("storeCommerce.users.addTitle")}
+          </h2>
           <form onSubmit={handleCreate} className="mt-6 space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Name</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.name")}</span>
               <input
                 required
                 value={name}
@@ -197,7 +222,7 @@ export default function StoreUsersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email</span>
+              <span className="text-sm font-medium text-slate-700">{t("common.email")}</span>
               <input
                 required
                 type="email"
@@ -207,7 +232,7 @@ export default function StoreUsersPage() {
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-slate-700">Password</span>
+              <span className="text-sm font-medium text-slate-700">{t("storeCommerce.users.password")}</span>
               <input
                 required
                 type="password"
@@ -218,7 +243,9 @@ export default function StoreUsersPage() {
               />
             </label>
             <div>
-              <span className="text-sm font-medium text-slate-700">Product permissions</span>
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.users.productPermissions")}
+              </span>
               <div className="mt-2 space-y-2">
                 {PRODUCT_PERMISSIONS.map((key) => (
                   <label key={key} className="flex items-center gap-2 text-sm text-slate-700">
@@ -228,7 +255,7 @@ export default function StoreUsersPage() {
                       onChange={() => togglePermission(key)}
                       className="rounded border-slate-300"
                     />
-                    {key.replace("product.", "")}
+                    {permissionLabel(t, key)}
                   </label>
                 ))}
               </div>
@@ -237,7 +264,7 @@ export default function StoreUsersPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Create store user
+              {t("storeCommerce.users.create")}
             </button>
           </form>
         </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string };
@@ -23,6 +24,7 @@ function round2(value: number) {
 
 export default function PosCheckoutPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
@@ -139,7 +141,7 @@ export default function PosCheckoutPage() {
     if (!trimmedPhone) return null;
     if (matchedCustomer) return matchedCustomer.id;
     if (!customerName.trim()) {
-      throw new Error("Enter a name to create a new customer for this phone number");
+      throw new Error(t("storeOps.pos.customerNameRequired"));
     }
     const created = await apiFetch<{ customer: Customer }>("/api/store/customers", "POST", {
       name: customerName.trim(),
@@ -172,23 +174,25 @@ export default function PosCheckoutPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">Checkout</h1>
+      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.checkout")}</h1>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">Products</h2>
+          <h2 className="text-lg font-semibold text-slate-950">{t("nav.products")}</h2>
           <input
             type="text"
             value={productSearch}
             onChange={(e) => setProductSearch(e.target.value)}
-            placeholder="Search by name or SKU…"
+            placeholder={t("storeOps.pos.searchPlaceholder")}
             className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
-            <p className="mt-6 text-sm text-slate-600">Loading…</p>
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
           ) : filteredProducts.length === 0 ? (
-            <p className="mt-6 text-sm text-slate-600">No products match &quot;{productSearch}&quot;.</p>
+            <p className="mt-6 text-sm text-slate-600">
+              {t("storeOps.pos.noProductsMatch", { search: productSearch })}
+            </p>
           ) : (
             <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {filteredProducts.map((product) => {
@@ -220,7 +224,9 @@ export default function PosCheckoutPage() {
                         soldOut ? "text-red-500" : qty <= 5 ? "text-amber-600" : "text-slate-500"
                       }`}
                     >
-                      {soldOut ? "out of stock" : `${qty} in stock`}
+                      {soldOut
+                        ? t("storeOps.pos.outOfStock")
+                        : t("storeOps.pos.inStock", { qty })}
                     </span>
                     {inCart > 0 ? (
                       <span className="w-16 shrink-0 rounded-full bg-slate-900 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-white">
@@ -228,7 +234,7 @@ export default function PosCheckoutPage() {
                       </span>
                     ) : (
                       <span className="w-16 shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-center text-xs font-semibold text-slate-500">
-                        add
+                        {t("storeOps.pos.add")}
                       </span>
                     )}
                   </button>
@@ -240,12 +246,15 @@ export default function PosCheckoutPage() {
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mt-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-950">Cart</h2>
+            <h2 className="text-lg font-semibold text-slate-950">{t("storeOps.pos.cart")}</h2>
             {cart.length > 0 ? (
               <div className="flex items-center gap-3">
                 <span className="text-xs text-slate-500">
-                  {cart.length} product{cart.length === 1 ? "" : "s"} · {itemCount} item
-                  {itemCount === 1 ? "" : "s"}
+                  {cart.length === 1 && itemCount === 1
+                    ? t("storeOps.pos.cartSummarySingle")
+                    : cart.length === 1
+                      ? t("storeOps.pos.cartSummaryOneProduct", { items: itemCount })
+                      : t("storeOps.pos.cartSummary", { products: cart.length, items: itemCount })}
                 </span>
                 <button
                   type="button"
@@ -255,7 +264,7 @@ export default function PosCheckoutPage() {
                   }}
                   className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                 >
-                  Clear
+                  {t("common.clear")}
                 </button>
               </div>
             ) : null}
@@ -277,9 +286,7 @@ export default function PosCheckoutPage() {
 
           <div className="mt-4 space-y-2">
             {cart.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Cart is empty. Tap a product to add it, then tap it again for more.
-              </p>
+              <p className="text-sm text-slate-500">{t("storeOps.pos.emptyCart")}</p>
             ) : (
               cart.map((line) => {
                 const maxQty = availableQty(line.productId);
@@ -291,7 +298,10 @@ export default function PosCheckoutPage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-950">{line.name}</p>
                       <p className="text-xs text-slate-500">
-                        ৳{line.unitPrice.toFixed(2)} each · {maxQty} in stock
+                        {t("storeOps.pos.lineMeta", {
+                          price: line.unitPrice.toFixed(2),
+                          qty: maxQty,
+                        })}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -323,7 +333,7 @@ export default function PosCheckoutPage() {
                       <button
                         type="button"
                         onClick={() => removeFromCart(line.productId)}
-                        aria-label={`Remove ${line.name}`}
+                        aria-label={t("storeOps.pos.removeItem", { name: line.name })}
                         className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600"
                       >
                         ✕
@@ -338,12 +348,12 @@ export default function PosCheckoutPage() {
           <div className="mt-6 space-y-3 border-t border-slate-100 pt-4 text-sm">
             <div>
               <label className="flex items-center justify-between">
-                <span className="text-slate-600">Customer phone</span>
+                <span className="text-slate-600">{t("storeOps.pos.customerPhone")}</span>
                 <input
                   type="tel"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Leave blank for walk-in"
+                  placeholder={t("storeOps.pos.walkInPlaceholder")}
                   className="w-44 rounded-xl border border-slate-200 px-3 py-1.5 outline-none focus:border-slate-900"
                 />
               </label>
@@ -351,19 +361,19 @@ export default function PosCheckoutPage() {
                 <p className="mt-1 text-right text-xs font-medium text-emerald-600">✓ {matchedCustomer.name}</p>
               ) : trimmedPhone ? (
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-xs text-slate-500">New customer</span>
+                  <span className="text-xs text-slate-500">{t("storeOps.pos.newCustomer")}</span>
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Name"
+                    placeholder={t("common.name")}
                     className="w-44 rounded-xl border border-slate-200 px-3 py-1.5 text-xs outline-none focus:border-slate-900"
                   />
                 </div>
               ) : null}
             </div>
             <label className="flex items-center justify-between">
-              <span className="text-slate-600">Discount</span>
+              <span className="text-slate-600">{t("storeOps.pos.discount")}</span>
               <input
                 type="number"
                 step="0.01"
@@ -373,30 +383,30 @@ export default function PosCheckoutPage() {
               />
             </label>
             <label className="flex items-center justify-between">
-              <span className="text-slate-600">Payment method</span>
+              <span className="text-slate-600">{t("storeOps.pos.paymentMethod")}</span>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
                 className="rounded-xl border border-slate-200 px-3 py-1.5 outline-none focus:border-slate-900"
               >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="mobile">Mobile</option>
-                <option value="other">Other</option>
+                <option value="cash">{t("storeOps.pos.cash")}</option>
+                <option value="card">{t("storeOps.pos.card")}</option>
+                <option value="mobile">{t("storeOps.pos.mobile")}</option>
+                <option value="other">{t("storeOps.pos.other")}</option>
               </select>
             </label>
 
             <div className="space-y-1 border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-600">
-                <span>Subtotal</span>
+                <span>{t("storeOps.pos.subtotal")}</span>
                 <span>৳{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Tax</span>
+                <span>{t("storeOps.pos.tax")}</span>
                 <span>৳{taxAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-base font-semibold text-slate-950">
-                <span>Total</span>
+                <span>{t("common.total")}</span>
                 <span>৳{total.toFixed(2)}</span>
               </div>
             </div>
@@ -409,10 +419,15 @@ export default function PosCheckoutPage() {
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting
-              ? "Processing…"
+              ? t("storeOps.pos.processing")
               : cart.length === 0
-                ? "Add products to charge"
-                : `Charge ৳${total.toFixed(2)} · ${itemCount} item${itemCount === 1 ? "" : "s"}`}
+                ? t("storeOps.pos.chargeEmpty")
+                : itemCount === 1
+                  ? t("storeOps.pos.chargeOne", { total: total.toFixed(2) })
+                  : t("storeOps.pos.charge", {
+                      total: total.toFixed(2),
+                      items: itemCount,
+                    })}
           </button>
         </div>
       </div>

@@ -32,6 +32,8 @@ model ProjectAdmin {
   email     String   @unique
   password  String
   isActive  Boolean  @default(true)
+  // UI language this account last chose ("en" or "bn").
+  language  String   @default("en")
   createdAt DateTime @default(now())
 }
 
