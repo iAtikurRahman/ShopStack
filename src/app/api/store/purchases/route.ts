@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
+import type { PaymentMethod } from "@/generated/tenant";
+
+const PAYMENT_METHODS: PaymentMethod[] = ["cash", "card", "mobile", "other", "due"];
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -32,13 +36,17 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { supplierId, warehouseId, reference, items, purchasedAt } = body ?? {};
+  const { supplierId, warehouseId, reference, items, purchasedAt, paymentMethod = "cash" } = body ?? {};
 
   if (!supplierId || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
       { message: "supplierId and a non-empty items array are required" },
       { status: 400 }
     );
+  }
+
+  if (!PAYMENT_METHODS.includes(paymentMethod)) {
+    return NextResponse.json({ message: `Unknown payment method: ${paymentMethod}` }, { status: 400 });
   }
 
   const supplier = await db.supplier.findUnique({ where: { id: Number(supplierId) } });
@@ -110,13 +118,14 @@ export const POST = withAuth(async (request, { session, db }) => {
       const warehouseIdsUsed = [...new Set(lineItems.map((i) => i.warehouseId))];
       const primaryWarehouseId = warehouseIdsUsed.length === 1 ? warehouseIdsUsed[0] : null;
 
-      return tx.purchase.create({
+      const created = await tx.purchase.create({
         data: {
           supplierId: Number(supplierId),
           warehouseId: primaryWarehouseId,
           receivedById: session.userId,
           reference: reference || null,
           totalCost,
+          paymentMethod,
           purchasedAt: parsedPurchasedAt,
           items: { create: lineItems },
         },
@@ -130,6 +139,30 @@ export const POST = withAuth(async (request, { session, db }) => {
           supplier: { select: { id: true, name: true } },
         },
       });
+
+      // A `due` purchase is unpaid: the delivery is booked but no money changed
+      // hands, so the whole total goes onto what we owe this supplier. Inside
+      // the same transaction as the purchase, so a failure here rolls the
+      // stock increments back rather than leaving stock with no due behind it.
+      if (paymentMethod === "due" && totalCost > 0) {
+        await tx.supplier.update({
+          where: { id: Number(supplierId) },
+          data: { dueAmount: { increment: totalCost } },
+        });
+      }
+
+      await writeAuditLog(tx, session, {
+        action: "purchase.created",
+        entityType: "Purchase",
+        entityId: created.id,
+        after: {
+          totalCost,
+          paymentMethod,
+          dueAdded: paymentMethod === "due" ? totalCost : 0,
+        },
+      });
+
+      return created;
     });
 
     return NextResponse.json({ purchase }, { status: 201 });

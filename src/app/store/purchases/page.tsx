@@ -22,6 +22,7 @@ type Purchase = {
   reference: string | null;
   totalCost: string;
   purchasedAt: string;
+  paymentMethod: string | null;
   supplier: { id: number; name: string };
   items: PurchaseItem[];
 };
@@ -32,6 +33,12 @@ type Line = {
   unitCost: string;
   warehouseId: string;
 };
+
+// Same list, same order, as the till's payment method - one vocabulary for
+// "how did the money move" across the whole app. `due` leads for the same
+// reason: it is the choice with a lasting balance-sheet consequence.
+const PAYMENT_METHODS = ["due", "cash", "card", "mobile", "other"] as const;
+type PaymentMethodOption = (typeof PAYMENT_METHODS)[number];
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -46,7 +53,7 @@ function subtotalOf(items: PurchaseItem[]): number {
 }
 
 export default function StorePurchasesPage() {
-  const { t, fmt } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -56,6 +63,7 @@ export default function StorePurchasesPage() {
 
   const [supplierId, setSupplierId] = useState("");
   const [reference, setReference] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodOption>("cash");
   const [purchasedAt, setPurchasedAt] = useState(today());
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([
@@ -171,6 +179,7 @@ export default function StorePurchasesPage() {
         supplierId: Number(supplierId),
         reference: reference || null,
         purchasedAt,
+        paymentMethod,
         items: payloadItems,
       });
       setLines((current) =>
@@ -236,6 +245,17 @@ export default function StorePurchasesPage() {
                     {purchase.warehouseId === null ? (
                       <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                         {t("storeCommerce.purchases.multipleWarehouses")}
+                      </span>
+                    ) : null}
+                    {purchase.paymentMethod ? (
+                      <span
+                        className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          purchase.paymentMethod === "due"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {tEnum(purchase.paymentMethod)}
                       </span>
                     ) : null}
                   </p>
@@ -325,6 +345,29 @@ export default function StorePurchasesPage() {
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
             </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.purchases.paymentMethod")}
+              </span>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethodOption)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              >
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>
+                    {t(`storeCommerce.purchases.${method}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {paymentMethod === "due" ? (
+              <p className="rounded-2xl bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                {t("storeCommerce.purchases.dueNotice", {
+                  amount: fmt.number(formTotal, { decimals: 2 }),
+                })}
+              </p>
+            ) : null}
 
             <div>
               <div className="flex items-center justify-between">

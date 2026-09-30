@@ -16,6 +16,7 @@
     "prisma:migrate:tenant": "prisma migrate dev --schema=prisma/tenant/schema.prisma",
     "prisma:deploy:central": "prisma migrate deploy --schema=prisma/central/schema.prisma",
     "prisma:deploy:tenant": "prisma migrate deploy --schema=prisma/tenant/schema.prisma",
+    "prisma:deploy:tenants": "tsx scripts/deploy-tenant-migrations.ts",
     "prisma:deploy": "npm run prisma:deploy:central && npm run prisma:deploy:tenant",
     "prisma:studio:central": "prisma studio --schema=prisma/central/schema.prisma",
     "prisma:studio:tenant": "prisma studio --schema=prisma/tenant/schema.prisma",

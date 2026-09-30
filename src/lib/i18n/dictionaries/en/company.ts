@@ -78,6 +78,9 @@
       phoneOptional: "Phone (optional)",
       emailOptional: "Email (optional)",
       addressOptional: "Address (optional)",
+      previousDue: "Previous due (optional)",
+      previousDueHint: "What you already owed them before you started using this. Leave blank for none.",
+      dueOwed: "You owe ৳{amount}",
       addButton: "Add supplier",
     },
     supplierDetail: {

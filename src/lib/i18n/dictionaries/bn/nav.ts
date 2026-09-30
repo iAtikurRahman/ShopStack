@@ -21,6 +21,7 @@ export const bn = {
     categories: "ক্যাটাগরি",
     suppliers: "সরবরাহকারী",
     users: "ব্যবহারকারী",
+    payments: "পেমেন্ট",
     auditLog: "অডিট লগ",
     companies: "কোম্পানিসমূহ",
     signOut: "সাইন আউট",

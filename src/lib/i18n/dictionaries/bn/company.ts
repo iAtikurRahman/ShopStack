@@ -78,6 +78,9 @@
       phoneOptional: "ফোন (ঐচ্ছিক)",
       emailOptional: "ইমেইল (ঐচ্ছিক)",
       addressOptional: "ঠিকানা (ঐচ্ছিক)",
+      previousDue: "আগের বাকি (ঐচ্ছিক)",
+      previousDueHint: "এই সিস্টেম ব্যবহার শুরু করার আগে আপনি তার কাছে যা দেননি। কিছু না থাকলে খালি রাখুন।",
+      dueOwed: "আপনি দেননি ৳{amount}",
       addButton: "সরবরাহকারী যোগ করুন",
     },
     supplierDetail: {

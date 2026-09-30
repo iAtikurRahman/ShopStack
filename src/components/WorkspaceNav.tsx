@@ -18,6 +18,7 @@ const STORE_LINKS: NavLink[] = [
   { href: "/store/transfers", label: "nav.transfers" },
   { href: "/store/purchases", label: "nav.purchases" },
   { href: "/store/supplier-returns", label: "nav.supplierReturns" },
+  { href: "/store/payments", label: "nav.payments" },
 ];
 
 const MANAGER_ONLY_LINKS: NavLink[] = [{ href: "/store/reports", label: "nav.reports" }];
@@ -27,6 +28,7 @@ const COMPANY_LINKS: NavLink[] = [
   { href: "/company/products", label: "nav.products" },
   { href: "/company/categories", label: "nav.categories" },
   { href: "/company/suppliers", label: "nav.suppliers" },
+  { href: "/company/payments", label: "nav.payments" },
   { href: "/company/users", label: "nav.users" },
   { href: "/company/audit-log", label: "nav.auditLog" },
 ];

@@ -5,7 +5,14 @@ import Link from "next/link";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
-type Customer = { id: number; name: string; phone: string | null; email: string | null; loyaltyPoints: number };
+type Customer = {
+  id: number;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  loyaltyPoints: number;
+  dueAmount: number;
+};
 
 export default function StoreCustomersPage() {
   const { t, fmt } = useI18n();
@@ -15,6 +22,9 @@ export default function StoreCustomersPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  // Opening balance the customer already owed us. Defaults to 0; the field
+  // stays optional, so clearing it also records no due.
+  const [previousDue, setPreviousDue] = useState("0");
   const [search, setSearch] = useState("");
 
   async function loadCustomers() {
@@ -40,10 +50,16 @@ export default function StoreCustomersPage() {
     event.preventDefault();
     setError(null);
     try {
-      await apiFetch("/api/store/customers", "POST", { name, phone: phone || null, email: email || null });
+      await apiFetch("/api/store/customers", "POST", {
+        name,
+        phone: phone || null,
+        email: email || null,
+        previousDue: previousDue === "" ? undefined : Number(previousDue),
+      });
       setName("");
       setPhone("");
       setEmail("");
+      setPreviousDue("0");
       await loadCustomers();
     } catch (err) {
       setError((err as Error).message);
@@ -109,6 +125,13 @@ export default function StoreCustomersPage() {
                     {customer.email ? `${t("common.email")}: ${customer.email}` : null}
                   </p>
                   {!customer.phone && !customer.email ? <p className="mt-1 text-sm text-slate-600">—</p> : null}
+                  {customer.dueAmount > 0 ? (
+                    <p className="mt-1 text-sm font-semibold text-amber-700">
+                      {t("storeCommerce.customers.dueOwed", {
+                        amount: fmt.number(customer.dueAmount, { decimals: 2 }),
+                      })}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {t("storeCommerce.customers.viewPurchases")}
                   </p>
@@ -148,6 +171,23 @@ export default function StoreCustomersPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.customers.previousDue")}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={previousDue}
+                onChange={(e) => setPreviousDue(e.target.value)}
+                placeholder="0"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                {t("storeCommerce.customers.previousDueHint")}
+              </span>
             </label>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <button

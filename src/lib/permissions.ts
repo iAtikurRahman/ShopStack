@@ -16,6 +16,7 @@ export const ROLE_PERMISSIONS: Record<Role, PermissionKey[]> = {
     "can_manage_products",
     "can_process_sales",
     "can_manage_customers",
+    "can_manage_payments",
     "product.view",
     "product.create",
     "product.update",
@@ -27,6 +28,7 @@ export const ROLE_PERMISSIONS: Record<Role, PermissionKey[]> = {
     "can_view_reports",
     "can_process_sales",
     "can_manage_customers",
+    "can_manage_payments",
     "product.view",
     "product.create",
     "product.update",
@@ -36,7 +38,7 @@ export const ROLE_PERMISSIONS: Record<Role, PermissionKey[]> = {
   // Manager grants them individually as per-user overrides at creation
   // time (or later), so a store_user can hold e.g. view+create without
   // delete.
-  store_user: ["can_process_sales", "can_manage_customers"],
+  store_user: ["can_process_sales", "can_manage_customers", "can_manage_payments"],
 };
 
 /** override (if any) wins, otherwise falls back to the role default. */

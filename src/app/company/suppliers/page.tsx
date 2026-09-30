@@ -12,10 +12,11 @@ type Supplier = {
   email: string | null;
   address: string | null;
   isActive: boolean;
+  dueAmount: number;
 };
 
 export default function CompanySuppliersPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,9 @@ export default function CompanySuppliersPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  // What we already owed this supplier when we started tracking them. Defaults
+  // to 0; the field stays optional, so clearing it also records no due.
+  const [previousDue, setPreviousDue] = useState("0");
   const [search, setSearch] = useState("");
 
   async function loadSuppliers() {
@@ -54,11 +58,13 @@ export default function CompanySuppliersPage() {
         phone: phone || null,
         email: email || null,
         address: address || null,
+        previousDue: previousDue === "" ? undefined : Number(previousDue),
       });
       setName("");
       setPhone("");
       setEmail("");
       setAddress("");
+      setPreviousDue("0");
       await loadSuppliers();
     } catch (err) {
       setError((err as Error).message);
@@ -116,6 +122,13 @@ export default function CompanySuppliersPage() {
                       t("company.suppliers.noContact")}
                   </p>
                   {supplier.address ? <p className="mt-1 text-xs text-slate-500">{supplier.address}</p> : null}
+                  {supplier.dueAmount > 0 ? (
+                    <p className="mt-1 text-sm font-semibold text-amber-700">
+                      {t("company.suppliers.dueOwed", {
+                        amount: fmt.number(supplier.dueAmount, { decimals: 2 }),
+                      })}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {t("company.suppliers.viewPurchases")}
                   </p>
@@ -167,6 +180,23 @@ export default function CompanySuppliersPage() {
                 onChange={(e) => setAddress(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.suppliers.previousDue")}
+              </span>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={previousDue}
+                onChange={(e) => setPreviousDue(e.target.value)}
+                placeholder="0"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                {t("company.suppliers.previousDueHint")}
+              </span>
             </label>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <button

@@ -12,6 +12,11 @@ export const PERMISSION_CATALOG = [
   { key: "can_manage_products", label: "Manage products", description: "Create, update, and deactivate products and categories" },
   { key: "can_process_sales", label: "Process sales", description: "Use the POS checkout screen" },
   { key: "can_manage_customers", label: "Manage customers", description: "Create and edit customer profiles" },
+  // Moving real money against a due is a bookkeeping act, not a till act, so
+  // it gets its own key rather than riding along with can_manage_customers -
+  // a Store Manager should be able to keep profiles without being able to
+  // write off what the shop is owed.
+  { key: "can_manage_payments", label: "Manage payments", description: "Record, view and void customer and supplier payments" },
   // Granular per-action product permissions, scoped to a store_user's own
   // store's warehouse(s) via /api/store/warehouses/[id]/products and
   // /api/store/products/[id] - finer-grained than can_manage_products

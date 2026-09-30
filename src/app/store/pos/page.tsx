@@ -18,6 +18,12 @@ type Stock = { warehouseId: number; productId: number; quantity: number };
 type Customer = { id: number; name: string; phone: string | null };
 type CartLine = { productId: number; name: string; unitPrice: number; taxRate: number; quantity: number };
 
+// `due` is first in the list because it is the most consequential choice at the
+// till. It is deliberately NOT the default: an accidental credit sale is far
+// worse than an accidental cash sale, which the cashier can just change.
+const PAYMENT_METHODS = ["due", "cash", "card", "mobile", "other"] as const;
+type PaymentMethodOption = (typeof PAYMENT_METHODS)[number];
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -32,7 +38,7 @@ export default function PosCheckoutPage() {
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "mobile" | "other">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodOption>("cash");
   const [discountAmount, setDiscountAmount] = useState("0");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,6 +159,12 @@ export default function PosCheckoutPage() {
 
   async function handleCheckout() {
     if (!warehouseId || cart.length === 0) return;
+    // Caught here so the cashier gets the message before the round-trip, but
+    // the route enforces it too - a walk-in due has no customer to owe the money.
+    if (paymentMethod === "due" && !trimmedPhone) {
+      setError(t("storeOps.pos.dueNeedsCustomer"));
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -389,15 +401,27 @@ export default function PosCheckoutPage() {
               <span className="text-slate-600">{t("storeOps.pos.paymentMethod")}</span>
               <select
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethodOption)}
                 className="rounded-xl border border-slate-200 px-3 py-1.5 outline-none focus:border-slate-900"
               >
-                <option value="cash">{t("storeOps.pos.cash")}</option>
-                <option value="card">{t("storeOps.pos.card")}</option>
-                <option value="mobile">{t("storeOps.pos.mobile")}</option>
-                <option value="other">{t("storeOps.pos.other")}</option>
+                {PAYMENT_METHODS.map((method) => (
+                  <option key={method} value={method}>
+                    {t(`storeOps.pos.${method}`)}
+                  </option>
+                ))}
               </select>
             </label>
+            {paymentMethod === "due" ? (
+              <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="font-semibold">{t("storeOps.pos.dueNotice")}</p>
+                {!trimmedPhone ? (
+                  <p className="mt-0.5 text-red-600">{t("storeOps.pos.dueNeedsCustomer")}</p>
+                ) : null}
+                <p className="mt-0.5 tabular-nums">
+                  {t("storeOps.pos.dueAdds", { amount: fmt.number(total, { decimals: 2 }) })}
+                </p>
+              </div>
+            ) : null}
 
             <div className="space-y-1 border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-600">
@@ -417,7 +441,7 @@ export default function PosCheckoutPage() {
 
           <button
             type="button"
-            disabled={submitting || cart.length === 0}
+            disabled={submitting || cart.length === 0 || (paymentMethod === "due" && !trimmedPhone)}
             onClick={handleCheckout}
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >

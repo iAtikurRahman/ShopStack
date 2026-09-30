@@ -119,8 +119,8 @@ export default function StoreUsersPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-8">
       <h1 className="text-2xl font-semibold text-slate-950">{t("storeCommerce.users.title")}</h1>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">
