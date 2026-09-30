@@ -17,7 +17,7 @@ type Transfer = {
 };
 
 export default function CompanyTransfersPage() {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -31,12 +31,12 @@ export default function CompanyTransfersPage() {
 
   function warehouseLabel(id: number) {
     const w = warehouses.find((wh) => wh.id === id);
-    return w ? `${w.name} (${w.store.name})` : t("company.transfers.warehouseFallback", { id });
+    return w ? `${w.name} (${w.store.name})` : t("company.transfers.warehouseFallback", { id: fmt.number(id) });
   }
 
   function productLabel(id: number) {
     const p = products.find((prod) => prod.id === id);
-    return p ? `${p.sku} — ${p.name}` : t("company.transfers.productFallback", { id });
+    return p ? `${p.sku} — ${p.name}` : t("company.transfers.productFallback", { id: fmt.number(id) });
   }
 
   async function loadAll() {
@@ -106,7 +106,9 @@ export default function CompanyTransfersPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-slate-600">
-                    {transfer.items.map((item) => `${productLabel(item.productId)} × ${item.quantity}`).join(", ")}
+                    {transfer.items
+                      .map((item) => `${productLabel(item.productId)} × ${fmt.quantity(item.quantity)}`)
+                      .join(", ")}
                   </p>
                 </div>
               ))}

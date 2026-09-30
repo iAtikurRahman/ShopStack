@@ -27,7 +27,7 @@ type Report = {
 };
 
 export default function AdminReportsPage() {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -87,19 +87,23 @@ export default function AdminReportsPage() {
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("nav.companies")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{report.companyCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(report.companyCount)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("common.active")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{report.activeCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(report.activeCount)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("admin.reports.totalRevenue")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totals.totalSales.toFixed(2)}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">
+            {fmt.money(report.totals.totalSales)}
+          </p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("admin.reports.totalSales")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{report.totals.salesCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">
+            {fmt.number(report.totals.salesCount)}
+          </p>
         </div>
       </div>
 
@@ -123,13 +127,17 @@ export default function AdminReportsPage() {
                 <tr key={company.id} className="border-t border-slate-100">
                   <td className="py-2 font-medium text-slate-950">{company.name}</td>
                   <td className="py-2 text-slate-600">{tEnum(company.status)}</td>
-                  <td className="py-2 text-slate-600">৳{company.metrics?.totalSales ?? "0.00"}</td>
-                  <td className="py-2 text-slate-600">৳{company.metrics?.totalRefunds ?? "0.00"}</td>
-                  <td className="py-2 text-slate-600">{company.metrics?.storeCount ?? "—"}</td>
-                  <td className="py-2 text-slate-600">{company.metrics?.userCount ?? "—"}</td>
+                  <td className="py-2 text-slate-600">
+                    {fmt.money(company.metrics?.totalSales ?? "0.00")}
+                  </td>
+                  <td className="py-2 text-slate-600">
+                    {fmt.money(company.metrics?.totalRefunds ?? "0.00")}
+                  </td>
+                  <td className="py-2 text-slate-600">{fmt.number(company.metrics?.storeCount)}</td>
+                  <td className="py-2 text-slate-600">{fmt.number(company.metrics?.userCount)}</td>
                   <td className="py-2 text-slate-500">
                     {company.metrics
-                      ? new Date(company.metrics.refreshedAt).toLocaleString()
+                      ? fmt.dateTime(company.metrics.refreshedAt)
                       : t("admin.reports.never")}
                   </td>
                 </tr>

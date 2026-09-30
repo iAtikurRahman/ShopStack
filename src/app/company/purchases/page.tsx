@@ -37,16 +37,16 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function lineTotal(item: PurchaseItem): string {
-  return (item.quantity * Number(item.unitCost)).toFixed(2);
+function lineTotal(item: PurchaseItem): number {
+  return item.quantity * Number(item.unitCost);
 }
 
-function subtotalOf(items: PurchaseItem[]): string {
-  return items.reduce((sum, item) => sum + item.quantity * Number(item.unitCost), 0).toFixed(2);
+function subtotalOf(items: PurchaseItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity * Number(item.unitCost), 0);
 }
 
 export default function CompanyPurchasesPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -62,9 +62,10 @@ export default function CompanyPurchasesPage() {
   ]);
   const nextKey = useRef(2);
 
-  const formTotal = lines
-    .reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0), 0)
-    .toFixed(2);
+  const formTotal = lines.reduce(
+    (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0),
+    0
+  );
 
   async function loadAll() {
     const [warehousesResult, productsResult, suppliersResult, purchasesResult] = await Promise.allSettled([
@@ -191,13 +192,13 @@ export default function CompanyPurchasesPage() {
                 <div key={purchase.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">{purchase.supplier.name}</p>
-                    <span className="text-slate-600">৳{purchase.totalCost}</span>
+                    <span className="text-slate-600">{fmt.money(purchase.totalCost)}</span>
                   </div>
                   <p className="mt-1 text-slate-600">
                     {purchase.warehouse
                       ? `${purchase.warehouse.name} (${purchase.warehouse.store.name})`
                       : t("company.purchases.multipleWarehouses")}{" "}
-                    · {new Date(purchase.purchasedAt).toLocaleDateString()}
+                    · {fmt.date(purchase.purchasedAt)}
                   </p>
                   <div className="mt-3">
                     <div className="grid grid-cols-[1fr_5.5rem_3rem_5.5rem_5.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -219,14 +220,14 @@ export default function CompanyPurchasesPage() {
                         <span className="truncate text-xs text-slate-500">
                           {item.warehouse.name} ({item.warehouse.store.name})
                         </span>
-                        <span className="text-right tabular-nums">{item.quantity}</span>
-                        <span className="text-right tabular-nums">৳{item.unitCost}</span>
-                        <span className="text-right tabular-nums">৳{lineTotal(item)}</span>
+                        <span className="text-right tabular-nums">{fmt.quantity(item.quantity)}</span>
+                        <span className="text-right tabular-nums">{fmt.money(item.unitCost)}</span>
+                        <span className="text-right tabular-nums">{fmt.money(lineTotal(item))}</span>
                       </div>
                     ))}
                     <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-1.5 font-medium text-slate-950">
                       <span>{t("company.purchases.subtotal")}</span>
-                      <span className="tabular-nums">৳{subtotalOf(purchase.items)}</span>
+                      <span className="tabular-nums">{fmt.money(subtotalOf(purchase.items))}</span>
                     </div>
                   </div>
                   {purchase.reference ? (
@@ -285,9 +286,9 @@ export default function CompanyPurchasesPage() {
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-700">
-                  {t("company.purchases.itemsCount", { count: lines.length })}
+                  {t("company.purchases.itemsCount", { count: fmt.number(lines.length) })}
                 </span>
-                <span className="text-sm font-semibold text-slate-950 tabular-nums">৳{formTotal}</span>
+                <span className="text-sm font-semibold text-slate-950 tabular-nums">{fmt.money(formTotal)}</span>
               </div>
               <div className="mt-2 space-y-3">
                 {lines.map((line) => (
@@ -373,7 +374,7 @@ export default function CompanyPurchasesPage() {
                     <p className="mt-1.5 text-right text-xs text-slate-500">
                       {t("company.purchases.lineTotal")}{" "}
                       <span className="tabular-nums text-slate-700">
-                        ৳{((Number(line.quantity) || 0) * (Number(line.unitCost) || 0)).toFixed(2)}
+                        {fmt.money((Number(line.quantity) || 0) * (Number(line.unitCost) || 0))}
                       </span>
                     </p>
                   </div>
@@ -393,9 +394,9 @@ export default function CompanyPurchasesPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              {lines.length > 1
-                ? t("company.purchases.submitMany", { count: lines.length })
-                : t("company.purchases.submitOne")}
+            {lines.length > 1
+              ? t("company.purchases.submitMany", { count: fmt.number(lines.length) })
+              : t("company.purchases.submitOne")}
             </button>
           </form>
         </div>

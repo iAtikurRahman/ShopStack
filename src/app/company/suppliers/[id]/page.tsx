@@ -45,7 +45,7 @@ type Detail = { supplier: Supplier; purchases: Purchase[]; supplierReturns: Supp
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [data, setData] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                 ) : null}
                 <p className="mt-0.5 text-xs text-slate-400">
                   {t("company.supplierDetail.supplierSince", {
-                    date: new Date(data.supplier.createdAt).toLocaleDateString(),
+                    date: fmt.date(data.supplier.createdAt),
                   })}
                 </p>
               </div>
@@ -145,34 +145,36 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("nav.purchases")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">{stats.purchaseCount}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(stats.purchaseCount)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.lastPurchaseAt
                   ? t("company.supplierDetail.lastOn", {
-                      date: new Date(stats.lastPurchaseAt).toLocaleDateString(),
+                      date: fmt.date(stats.lastPurchaseAt),
                     })
                   : t("company.supplierDetail.noPurchases")}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("company.supplierDetail.totalPurchased")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalCost.toFixed(2)}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(stats.totalCost)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.units === 1
-                  ? t("company.supplierDetail.avgOne", { amount: stats.averageCost.toFixed(2) })
+                  ? t("company.supplierDetail.avgOne", {
+                      amount: fmt.number(stats.averageCost, { decimals: 2 }),
+                    })
                   : t("company.supplierDetail.avgMany", {
-                      amount: stats.averageCost.toFixed(2),
-                      count: stats.units,
+                      amount: fmt.number(stats.averageCost, { decimals: 2 }),
+                      count: fmt.quantity(stats.units),
                     })}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("company.supplierDetail.returnedToSupplier")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.returnedAmount.toFixed(2)}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(stats.returnedAmount)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.returnedUnits === 1
                   ? t("company.supplierDetail.sentBackOne")
-                  : t("company.supplierDetail.sentBackMany", { count: stats.returnedUnits })}
+                  : t("company.supplierDetail.sentBackMany", { count: fmt.quantity(stats.returnedUnits) })}
               </p>
             </div>
           </div>
@@ -185,7 +187,9 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-sm text-slate-500">
                 {filteredPurchases.length === 1
                   ? t("company.supplierDetail.purchaseCountOne")
-                  : t("company.supplierDetail.purchaseCountMany", { count: filteredPurchases.length })}
+                  : t("company.supplierDetail.purchaseCountMany", {
+                      count: fmt.number(filteredPurchases.length),
+                    })}
               </p>
             </div>
 
@@ -212,17 +216,17 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <p className="font-semibold text-slate-950">
-                            {t("company.supplierDetail.purchaseLabel", { id: purchase.id })}
+                            {t("company.supplierDetail.purchaseLabel", { id: fmt.number(purchase.id) })}
                             {purchase.reference ? ` · ${purchase.reference}` : ""}
                           </p>
                           <p className="text-xs text-slate-500">
                             {units === 1
                               ? t("company.supplierDetail.metaOne", {
-                                  date: new Date(purchase.purchasedAt).toLocaleString(),
+                                  date: fmt.dateTime(purchase.purchasedAt),
                                 })
                               : t("company.supplierDetail.metaMany", {
-                                  date: new Date(purchase.purchasedAt).toLocaleString(),
-                                  count: units,
+                                  date: fmt.dateTime(purchase.purchasedAt),
+                                  count: fmt.quantity(units),
                                 })}
                           </p>
                           <p className="mt-1 text-xs text-slate-600">
@@ -234,7 +238,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="font-medium text-slate-950">৳{purchase.totalCost}</p>
+                          <p className="font-medium text-slate-950">{fmt.money(purchase.totalCost)}</p>
                           <p className="text-xs text-slate-500">{t("company.supplierDetail.costLabel")}</p>
                         </div>
                       </div>
@@ -247,8 +251,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                               <span className="text-slate-500"> ({item.warehouse.name})</span>
                             </span>
                             <span className="shrink-0 text-slate-600">
-                              {item.quantity} × ৳{item.unitCost} = ৳
-                              {(item.quantity * Number(item.unitCost)).toFixed(2)}
+                              {fmt.quantity(item.quantity)} × {fmt.money(item.unitCost)} ={" "}
+                              {fmt.money(item.quantity * Number(item.unitCost))}
                             </span>
                           </div>
                         ))}
@@ -274,14 +278,14 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                         <p className="text-xs text-slate-500">
                           {row.quantity === 1
                             ? t("company.supplierDetail.unitsOne")
-                            : t("company.supplierDetail.unitsMany", { count: row.quantity })}
+                            : t("company.supplierDetail.unitsMany", { count: fmt.quantity(row.quantity) })}
                           {" · "}
                           {row.warehouse.name} ({row.warehouse.store.name})
                         </p>
                         {row.reason ? <p className="mt-1 text-xs text-slate-600">{row.reason}</p> : null}
-                        <p className="mt-0.5 text-xs text-slate-400">{new Date(row.createdAt).toLocaleString()}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{fmt.dateTime(row.createdAt)}</p>
                       </div>
-                      <p className="shrink-0 text-right font-medium text-red-600">-৳{row.amount}</p>
+                      <p className="shrink-0 text-right font-medium text-red-600">-{fmt.money(row.amount)}</p>
                     </div>
                   </div>
                 ))}

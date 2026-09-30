@@ -30,7 +30,7 @@ type Product = { id: number; name: string };
 type Detail = { customer: Customer; sales: Sale[]; products: Product[] };
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const { id } = use(params);
   const [data, setData] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,12 +122,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
                   {t("storeCommerce.customerDetail.customerSince", {
-                    date: new Date(data.customer.createdAt).toLocaleDateString(),
+                    date: fmt.date(data.customer.createdAt),
                   })}
                 </p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                {t("storeCommerce.customers.points", { points: data.customer.loyaltyPoints })}
+                {t("storeCommerce.customers.points", { points: fmt.number(data.customer.loyaltyPoints) })}
               </span>
             </div>
           </div>
@@ -135,35 +135,35 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("nav.purchases")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">{stats.saleCount}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(stats.saleCount)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.lastPurchaseAt
                   ? t("storeCommerce.customerDetail.lastOn", {
-                      date: new Date(stats.lastPurchaseAt).toLocaleDateString(),
+                      date: fmt.date(stats.lastPurchaseAt),
                     })
                   : t("storeCommerce.customerDetail.noPurchases")}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("storeCommerce.customerDetail.totalSpent")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalSpent.toFixed(2)}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(stats.totalSpent)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {stats.units === 1
                   ? t("storeCommerce.customerDetail.avgBasketOne", {
-                      amount: stats.averageBasket.toFixed(2),
+                      amount: fmt.number(stats.averageBasket, { decimals: 2 }),
                     })
                   : t("storeCommerce.customerDetail.avgBasketMany", {
-                      amount: stats.averageBasket.toFixed(2),
-                      count: stats.units,
+                      amount: fmt.number(stats.averageBasket, { decimals: 2 }),
+                      count: fmt.quantity(stats.units),
                     })}
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-slate-600">{t("storeCommerce.customerDetail.refunded")}</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-950">৳{stats.totalRefunded.toFixed(2)}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(stats.totalRefunded)}</p>
               <p className="mt-1 text-xs text-slate-500">
                 {t("storeCommerce.customerDetail.netSpent", {
-                  amount: (stats.totalSpent - stats.totalRefunded).toFixed(2),
+                  amount: fmt.number(stats.totalSpent - stats.totalRefunded, { decimals: 2 }),
                 })}
               </p>
             </div>
@@ -177,7 +177,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-sm text-slate-500">
                 {filteredSales.length === 1
                   ? t("storeCommerce.customerDetail.saleCountOne")
-                  : t("storeCommerce.customerDetail.saleCountMany", { count: filteredSales.length })}
+                  : t("storeCommerce.customerDetail.saleCountMany", { count: fmt.number(filteredSales.length) })}
               </p>
             </div>
 
@@ -213,12 +213,12 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                         <p className="text-xs text-slate-500">
                           {units === 1
                             ? t("storeCommerce.customerDetail.saleMetaOne", {
-                                date: new Date(sale.createdAt).toLocaleString(),
+                                date: fmt.dateTime(sale.createdAt),
                                 status: sale.status,
                               })
                             : t("storeCommerce.customerDetail.saleMetaMany", {
-                                date: new Date(sale.createdAt).toLocaleString(),
-                                count: units,
+                                date: fmt.dateTime(sale.createdAt),
+                                count: fmt.quantity(units),
                                 status: sale.status,
                               })}
                         </p>
@@ -229,22 +229,24 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                                 `${
                                   productNames.get(item.productId) ??
                                   t("storeCommerce.customerDetail.productFallback", { id: item.productId })
-                                } ×${item.quantity}`
+                                } ×${fmt.quantity(item.quantity)}`
                             )
                             .join(", ")}
                         </p>
                         {refunded > 0 ? (
                           <p className="mt-1 text-xs text-red-600">
                             {t("storeCommerce.customerDetail.refundedAmount", {
-                              amount: refunded.toFixed(2),
+                              amount: fmt.number(refunded, { decimals: 2 }),
                             })}
                           </p>
                         ) : null}
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="font-medium text-slate-950">৳{sale.totalAmount}</p>
+                        <p className="font-medium text-slate-950">{fmt.money(sale.totalAmount)}</p>
                         <p className="text-xs text-slate-500">
-                          {t("storeCommerce.customerDetail.subtotalLabel", { amount: sale.subtotal })}
+                          {t("storeCommerce.customerDetail.subtotalLabel", {
+                            amount: fmt.number(sale.subtotal, { decimals: 2 }),
+                          })}
                         </p>
                       </div>
                     </Link>

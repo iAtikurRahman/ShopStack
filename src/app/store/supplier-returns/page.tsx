@@ -21,7 +21,7 @@ type SupplierReturn = {
 };
 
 export default function StoreSupplierReturnsPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -132,10 +132,12 @@ export default function StoreSupplierReturnsPage() {
             {supplierReturns.length > 0 ? (
               <p className="text-sm text-slate-500">
                 {supplierReturns.length === 1
-                  ? t("storeCommerce.supplierReturns.summaryOne", { total: totalCredited.toFixed(2) })
+                  ? t("storeCommerce.supplierReturns.summaryOne", {
+                      total: fmt.number(totalCredited, { decimals: 2 }),
+                    })
                   : t("storeCommerce.supplierReturns.summaryMany", {
-                      count: supplierReturns.length,
-                      total: totalCredited.toFixed(2),
+                      count: fmt.number(supplierReturns.length),
+                      total: fmt.number(totalCredited, { decimals: 2 }),
                     })}
               </p>
             ) : null}
@@ -166,15 +168,15 @@ export default function StoreSupplierReturnsPage() {
                         {ret.product
                           ? `${ret.product.sku} — ${ret.product.name}`
                           : t("storeCommerce.supplierReturns.productFallback", { id: ret.productId })}{" "}
-                        × {ret.quantity}
+                        × {fmt.quantity(ret.quantity)}
                       </p>
                       {ret.reason ? <p className="mt-1 text-slate-600">{ret.reason}</p> : null}
-                      <p className="mt-0.5 text-xs text-slate-400">{new Date(ret.createdAt).toLocaleString()}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{fmt.dateTime(ret.createdAt)}</p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="font-medium text-emerald-700">
                         {Number(ret.amount) > 0
-                          ? `৳${Number(ret.amount).toFixed(2)}`
+                          ? fmt.money(ret.amount)
                           : t("storeCommerce.supplierReturns.notRecorded")}
                       </p>
                       <p className="text-xs text-slate-500">
@@ -281,8 +283,8 @@ export default function StoreSupplierReturnsPage() {
                   ? t("storeCommerce.supplierReturns.amountHintTouched")
                   : selectedProduct
                     ? t("storeCommerce.supplierReturns.amountHintProduct", {
-                        price: Number(selectedProduct.purchasePrice).toFixed(2),
-                        qty: quantity,
+                        price: fmt.number(selectedProduct.purchasePrice, { decimals: 2 }),
+                        qty: fmt.quantity(quantity),
                       })
                     : t("storeCommerce.supplierReturns.amountHintEmpty")}
               </span>
@@ -303,7 +305,9 @@ export default function StoreSupplierReturnsPage() {
               type="submit"
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              {t("storeCommerce.supplierReturns.submit", { amount: displayedAmount || "0.00" })}
+              {t("storeCommerce.supplierReturns.submit", {
+                amount: fmt.number(displayedAmount || 0, { decimals: 2 }),
+              })}
             </button>
           </form>
         </div>

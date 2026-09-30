@@ -14,7 +14,7 @@ type Sale = {
 };
 
 export default function StoreSalesPage() {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,12 +85,11 @@ export default function StoreSalesPage() {
                     {t("storeOps.sales.saleLabel", { id: sale.id })}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {sale.customer?.name ?? t("storeOps.sales.walkIn")} ·{" "}
-                    {new Date(sale.createdAt).toLocaleDateString()}
+                    {sale.customer?.name ?? t("storeOps.sales.walkIn")} · {fmt.date(sale.createdAt)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-slate-950">৳{sale.totalAmount}</p>
+                  <p className="font-medium text-slate-950">{fmt.money(sale.totalAmount)}</p>
                   <p className="text-xs text-slate-500">{tEnum(sale.status)}</p>
                 </div>
               </Link>

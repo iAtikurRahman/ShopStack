@@ -28,7 +28,7 @@ const PRICE_INPUT_CLASS =
   "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900";
 
 export default function CompanyProductsPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,11 +170,11 @@ export default function CompanyProductsPage() {
       });
       const skippedNote =
         result.skipped.length > 0
-          ? ` ${t("company.products.skippedNote", { count: result.skipped.length })}`
+          ? ` ${t("company.products.skippedNote", { count: fmt.number(result.skipped.length) })}`
           : "";
       const pricedNote = t(
         result.updated === 1 ? "company.products.pricedOne" : "company.products.pricedMany",
-        { count: result.updated }
+        { count: fmt.number(result.updated) }
       );
       setNotice(`${pricedNote}${skippedNote}`);
       await loadData();
@@ -231,7 +231,9 @@ export default function CompanyProductsPage() {
                       <td className="py-2 font-medium text-slate-950">{product.name}</td>
                       <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
                       <td className="py-2 text-slate-600">
-                        {product.unitValue ? `${product.unitValue} ${product.unit ?? ""}`.trim() : product.unit ?? "—"}
+                        {product.unitValue
+                          ? `${fmt.quantity(product.unitValue)} ${product.unit ?? ""}`.trim()
+                          : product.unit ?? "—"}
                       </td>
                       <td className="py-2">
                         <input
@@ -253,12 +255,12 @@ export default function CompanyProductsPage() {
                           className={PRICE_INPUT_CLASS}
                         />
                       </td>
-                      <td className="py-2 text-slate-600">{product.totalStock}</td>
+                      <td className="py-2 text-slate-600">{fmt.quantity(product.totalStock)}</td>
                       <td className="py-2 text-xs text-slate-500">
                         {product.stockByStore.length === 0
                           ? "—"
                           : product.stockByStore
-                              .map((s) => `${s.storeName} (${s.warehouseName}): ${s.quantity}`)
+                              .map((s) => `${s.storeName} (${s.warehouseName}): ${fmt.quantity(s.quantity)}`)
                               .join(", ")}
                       </td>
                     </tr>

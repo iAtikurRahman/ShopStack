@@ -37,7 +37,7 @@ function entityLabel(t: Translate, targetType: string): string {
 }
 
 export default function AdminAuditLogPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,11 +80,11 @@ export default function AdminAuditLogPage() {
               <tbody>
                 {entries.map((entry) => (
                   <tr key={entry.id} className="border-t border-slate-100">
-                    <td className="py-2 text-slate-500">{new Date(entry.createdAt).toLocaleString()}</td>
+                    <td className="py-2 text-slate-500">{fmt.dateTime(entry.createdAt)}</td>
                     <td className="py-2 font-medium text-slate-950">{actionLabel(t, entry.action)}</td>
                     <td className="py-2 text-slate-600">
                       {entityLabel(t, entry.targetType)}
-                      {entry.targetId ? ` #${entry.targetId}` : ""}
+                      {entry.targetId ? ` #${fmt.number(entry.targetId)}` : ""}
                     </td>
                   </tr>
                 ))}

@@ -17,7 +17,7 @@ type Transfer = {
 };
 
 export default function StoreTransfersPage() {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const [myWarehouses, setMyWarehouses] = useState<Warehouse[]>([]);
   const [allWarehouses, setAllWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -143,7 +143,7 @@ export default function StoreTransfersPage() {
                       {tEnum(transfer.status)}
                     </span>
                   </div>
-                  <p className="mt-1 text-slate-600">{new Date(transfer.createdAt).toLocaleDateString()}</p>
+                  <p className="mt-1 text-slate-600">{fmt.date(transfer.createdAt)}</p>
                   <div className="mt-3">
                     <div className="grid grid-cols-[1fr_3.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
                       <span>{t("storeCommerce.transfers.product")}</span>
@@ -158,7 +158,7 @@ export default function StoreTransfersPage() {
                             ({productById.get(item.productId)?.sku ?? "—"})
                           </span>
                         </span>
-                        <span className="text-right tabular-nums">{item.quantity}</span>
+                        <span className="text-right tabular-nums">{fmt.quantity(item.quantity)}</span>
                       </div>
                     ))}
                   </div>

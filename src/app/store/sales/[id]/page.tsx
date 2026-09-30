@@ -24,7 +24,7 @@ type Sale = {
 };
 
 export default function SaleReceiptPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const { id } = use(params);
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,9 +82,9 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
                   <td className="py-2 text-slate-600">
                     {t("storeOps.saleDetail.productRow", { id: item.productId })}
                   </td>
-                  <td className="py-2 text-slate-600">{item.quantity}</td>
-                  <td className="py-2 text-slate-600">৳{item.unitPrice}</td>
-                  <td className="py-2 text-slate-950">৳{item.lineTotal}</td>
+                  <td className="py-2 text-slate-600">{fmt.quantity(item.quantity)}</td>
+                  <td className="py-2 text-slate-600">{fmt.money(item.unitPrice)}</td>
+                  <td className="py-2 text-slate-950">{fmt.money(item.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
@@ -93,25 +93,25 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
           <div className="mt-6 space-y-1 border-t border-slate-100 pt-4 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>{t("storeOps.saleDetail.subtotal")}</span>
-              <span>৳{sale.subtotal}</span>
+              <span>{fmt.money(sale.subtotal)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>{t("storeOps.saleDetail.discount")}</span>
-              <span>-৳{sale.discountAmount}</span>
+              <span>-{fmt.money(sale.discountAmount)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>{t("storeOps.saleDetail.tax")}</span>
-              <span>৳{sale.taxAmount}</span>
+              <span>{fmt.money(sale.taxAmount)}</span>
             </div>
             <div className="flex justify-between text-base font-semibold text-slate-950">
               <span>{t("common.total")}</span>
-              <span>৳{sale.totalAmount}</span>
+              <span>{fmt.money(sale.totalAmount)}</span>
             </div>
           </div>
 
           <div className="mt-4 text-sm text-slate-500">
             {t("storeOps.saleDetail.paidVia", {
-              methods: sale.payments.map((p) => `${tEnum(p.method)} (৳${p.amount})`).join(", "),
+              methods: sale.payments.map((p) => `${tEnum(p.method)} (${fmt.money(p.amount)})`).join(", "),
             })}
           </div>
 
@@ -121,8 +121,8 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
               {sale.returns.map((r) => (
                 <p key={r.id} className="mt-1 text-sm text-slate-600">
                   {t("storeOps.saleDetail.refunded", {
-                    amount: r.refundAmount,
-                    date: new Date(r.createdAt).toLocaleDateString(),
+                    amount: fmt.number(r.refundAmount, { decimals: 2 }),
+                    date: fmt.date(r.createdAt),
                   })}
                 </p>
               ))}

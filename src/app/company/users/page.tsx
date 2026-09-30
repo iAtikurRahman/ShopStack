@@ -11,7 +11,7 @@ type Store = { id: number; name: string };
 type PermissionRow = { key: string; label: string; description: string | null; roleDefault: boolean; override: boolean | null };
 
 export default function CompanyUsersPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [users, setUsers] = useState<User[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,7 +193,7 @@ export default function CompanyUsersPage() {
                       <p className="text-xs text-slate-500">
                         {t("company.users.meta", { email: user.email, role: user.role })}
                         {user.storeId
-                          ? ` · ${storeNameById.get(user.storeId) ?? t("company.users.storeFallback", { id: user.storeId })}`
+                          ? ` · ${storeNameById.get(user.storeId) ?? t("company.users.storeFallback", { id: fmt.number(user.storeId) })}`
                           : ""}
                         {!user.isActive ? ` · ${t("company.users.inactiveLabel")}` : ""}
                       </p>

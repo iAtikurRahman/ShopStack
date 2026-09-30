@@ -13,7 +13,7 @@ type Report = {
 };
 
 export default function StoreReportsPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -44,15 +44,15 @@ export default function StoreReportsPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("storeOps.reports.totalSales")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalSales}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(report.totalSales)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("storeOps.reports.totalRefunds")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">৳{report.totalRefunds}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(report.totalRefunds)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("storeOps.reports.salesCount")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{report.salesCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(report.salesCount)}</p>
         </div>
       </div>
 
@@ -69,7 +69,10 @@ export default function StoreReportsPage() {
                     {p.product?.name ?? t("storeOps.reports.unknownProduct")}
                   </span>
                   <span className="text-slate-600">
-                    {t("storeOps.reports.soldMeta", { qty: p.quantitySold, revenue: p.revenue })}
+                    {t("storeOps.reports.soldMeta", {
+                      qty: fmt.quantity(p.quantitySold),
+                      revenue: fmt.number(p.revenue, { decimals: 2 }),
+                    })}
                   </span>
                 </div>
               ))}
@@ -87,7 +90,7 @@ export default function StoreReportsPage() {
                 <div key={i} className="flex justify-between text-sm">
                   <span className="text-slate-950">{item.product.name}</span>
                   <span className="font-medium text-red-600">
-                    {item.quantity} / {item.lowStockThreshold}
+                    {fmt.quantity(item.quantity)} / {fmt.quantity(item.lowStockThreshold)}
                   </span>
                 </div>
               ))}

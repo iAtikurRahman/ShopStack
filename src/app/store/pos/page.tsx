@@ -24,7 +24,7 @@ function round2(value: number) {
 
 export default function PosCheckoutPage() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
@@ -217,7 +217,7 @@ export default function PosCheckoutPage() {
                       </p>
                     </div>
                     <span className="shrink-0 text-sm font-medium tabular-nums text-slate-900">
-                      ৳{product.salePrice}
+                      {fmt.money(product.salePrice)}
                     </span>
                     <span
                       className={`w-20 shrink-0 text-right text-xs tabular-nums ${
@@ -226,11 +226,11 @@ export default function PosCheckoutPage() {
                     >
                       {soldOut
                         ? t("storeOps.pos.outOfStock")
-                        : t("storeOps.pos.inStock", { qty })}
+                        : t("storeOps.pos.inStock", { qty: fmt.quantity(qty) })}
                     </span>
                     {inCart > 0 ? (
                       <span className="w-16 shrink-0 rounded-full bg-slate-900 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-white">
-                        ×{inCart}
+                        ×{fmt.quantity(inCart)}
                       </span>
                     ) : (
                       <span className="w-16 shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-center text-xs font-semibold text-slate-500">
@@ -253,8 +253,11 @@ export default function PosCheckoutPage() {
                   {cart.length === 1 && itemCount === 1
                     ? t("storeOps.pos.cartSummarySingle")
                     : cart.length === 1
-                      ? t("storeOps.pos.cartSummaryOneProduct", { items: itemCount })
-                      : t("storeOps.pos.cartSummary", { products: cart.length, items: itemCount })}
+                      ? t("storeOps.pos.cartSummaryOneProduct", { items: fmt.quantity(itemCount) })
+                      : t("storeOps.pos.cartSummary", {
+                          products: fmt.quantity(cart.length),
+                          items: fmt.quantity(itemCount),
+                        })}
                 </span>
                 <button
                   type="button"
@@ -299,14 +302,14 @@ export default function PosCheckoutPage() {
                       <p className="truncate font-medium text-slate-950">{line.name}</p>
                       <p className="text-xs text-slate-500">
                         {t("storeOps.pos.lineMeta", {
-                          price: line.unitPrice.toFixed(2),
-                          qty: maxQty,
+                          price: fmt.number(line.unitPrice, { decimals: 2 }),
+                          qty: fmt.quantity(maxQty),
                         })}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="tabular-nums text-slate-700">
-                        ৳{round2(line.unitPrice * line.quantity).toFixed(2)}
+                        {fmt.money(round2(line.unitPrice * line.quantity))}
                       </span>
                       <input
                         type="number"
@@ -399,15 +402,15 @@ export default function PosCheckoutPage() {
             <div className="space-y-1 border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-600">
                 <span>{t("storeOps.pos.subtotal")}</span>
-                <span>৳{subtotal.toFixed(2)}</span>
+                <span>{fmt.money(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>{t("storeOps.pos.tax")}</span>
-                <span>৳{taxAmount.toFixed(2)}</span>
+                <span>{fmt.money(taxAmount)}</span>
               </div>
               <div className="flex justify-between text-base font-semibold text-slate-950">
                 <span>{t("common.total")}</span>
-                <span>৳{total.toFixed(2)}</span>
+                <span>{fmt.money(total)}</span>
               </div>
             </div>
           </div>
@@ -423,10 +426,10 @@ export default function PosCheckoutPage() {
               : cart.length === 0
                 ? t("storeOps.pos.chargeEmpty")
                 : itemCount === 1
-                  ? t("storeOps.pos.chargeOne", { total: total.toFixed(2) })
+                  ? t("storeOps.pos.chargeOne", { total: fmt.number(total, { decimals: 2 }) })
                   : t("storeOps.pos.charge", {
-                      total: total.toFixed(2),
-                      items: itemCount,
+                      total: fmt.number(total, { decimals: 2 }),
+                      items: fmt.quantity(itemCount),
                     })}
           </button>
         </div>

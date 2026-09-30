@@ -19,7 +19,7 @@ type Product = {
 };
 
 export default function WarehouseProductsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const { id: warehouseId } = use(params);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +146,7 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
                           className="w-24 rounded-lg border border-slate-200 px-2 py-1 outline-none focus:border-slate-900"
                         />
                       </td>
-                      <td className="py-2 text-slate-600">{product.quantity}</td>
+                      <td className="py-2 text-slate-600">{fmt.quantity(product.quantity)}</td>
                       <td className="py-2">
                         <button
                           type="button"

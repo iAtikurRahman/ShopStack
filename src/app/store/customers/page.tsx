@@ -8,7 +8,7 @@ import { apiFetch } from "@/services/api";
 type Customer = { id: number; name: string; phone: string | null; email: string | null; loyaltyPoints: number };
 
 export default function StoreCustomersPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +99,7 @@ export default function StoreCustomersPage() {
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-950">{customer.name}</p>
                     <span className="text-xs text-slate-500">
-                      {t("storeCommerce.customers.points", { points: customer.loyaltyPoints })}
+                      {t("storeCommerce.customers.points", { points: fmt.number(customer.loyaltyPoints) })}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-slate-600">

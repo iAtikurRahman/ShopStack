@@ -1,6 +1,7 @@
 import { requireTenantSession } from "@/lib/session";
 import { getDictionary, translate, type TranslationKey } from "@/lib/i18n/dictionaries";
 import { readLocaleCookie } from "@/lib/i18n/server-locale";
+import { createFormatters } from "@/lib/i18n/format";
 
 export default async function CompanyDashboardPage() {
   const { session, db } = await requireTenantSession({ roles: ["company_admin", "store_manager"] });
@@ -9,7 +10,9 @@ export default async function CompanyDashboardPage() {
     db.user.count(),
   ]);
 
-  const dictionary = getDictionary(await readLocaleCookie());
+  const locale = await readLocaleCookie();
+  const dictionary = getDictionary(locale);
+  const fmt = createFormatters(locale);
   const t = (key: TranslationKey, vars?: Record<string, string | number>) =>
     translate(dictionary, key, vars);
 
@@ -24,11 +27,11 @@ export default async function CompanyDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("nav.stores")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{storeCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(storeCount)}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-600">{t("nav.users")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{userCount}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(userCount)}</p>
         </div>
       </div>
     </main>

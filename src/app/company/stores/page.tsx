@@ -15,7 +15,7 @@ type Store = {
 };
 
 export default function CompanyStoresPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,8 +126,8 @@ export default function CompanyStoresPage() {
                   </div>
                   {store.address ? <p className="mt-1 text-sm text-slate-600">{store.address}</p> : null}
                   <p className="mt-1 text-xs text-slate-500">
-                    {t("company.stores.warehouseCount", { count: store._count.warehouses })} ·{" "}
-                    {t("company.stores.userCount", { count: store._count.users })}
+                    {t("company.stores.warehouseCount", { count: fmt.number(store._count.warehouses) })} ·{" "}
+                    {t("company.stores.userCount", { count: fmt.number(store._count.users) })}
                   </p>
                 </Link>
               ))}

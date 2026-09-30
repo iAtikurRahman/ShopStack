@@ -37,16 +37,16 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function lineTotal(item: PurchaseItem): string {
-  return (item.quantity * Number(item.unitCost)).toFixed(2);
+function lineTotal(item: PurchaseItem): number {
+  return item.quantity * Number(item.unitCost);
 }
 
-function subtotalOf(items: PurchaseItem[]): string {
-  return items.reduce((sum, item) => sum + item.quantity * Number(item.unitCost), 0).toFixed(2);
+function subtotalOf(items: PurchaseItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity * Number(item.unitCost), 0);
 }
 
 export default function StorePurchasesPage() {
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -82,10 +82,7 @@ export default function StorePurchasesPage() {
   }, [purchases, search]);
 
   const formTotal = useMemo(
-    () =>
-      lines
-        .reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0), 0)
-        .toFixed(2),
+    () => lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0), 0),
     [lines]
   );
 
@@ -232,10 +229,10 @@ export default function StorePurchasesPage() {
                 <div key={purchase.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">{purchase.supplier.name}</p>
-                    <span className="text-slate-600">৳{purchase.totalCost}</span>
+                    <span className="text-slate-600">{fmt.money(purchase.totalCost)}</span>
                   </div>
                   <p className="mt-1 text-slate-600">
-                    {new Date(purchase.purchasedAt).toLocaleDateString()}
+                    {fmt.date(purchase.purchasedAt)}
                     {purchase.warehouseId === null ? (
                       <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                         {t("storeCommerce.purchases.multipleWarehouses")}
@@ -260,14 +257,14 @@ export default function StorePurchasesPage() {
                           <span className="text-xs text-slate-500">({item.product.sku})</span>
                         </span>
                         <span className="truncate text-xs text-slate-500">{item.warehouse.name}</span>
-                        <span className="text-right tabular-nums">{item.quantity}</span>
-                        <span className="text-right tabular-nums">৳{item.unitCost}</span>
-                        <span className="text-right tabular-nums">৳{lineTotal(item)}</span>
+                        <span className="text-right tabular-nums">{fmt.quantity(item.quantity)}</span>
+                        <span className="text-right tabular-nums">{fmt.money(item.unitCost)}</span>
+                        <span className="text-right tabular-nums">{fmt.money(lineTotal(item))}</span>
                       </div>
                     ))}
                     <div className="mt-1 flex items-center justify-between border-t border-slate-200 pt-1.5 font-medium text-slate-950">
                       <span>{t("storeCommerce.purchases.subtotal")}</span>
-                      <span className="tabular-nums">৳{subtotalOf(purchase.items)}</span>
+                      <span className="tabular-nums">{fmt.money(subtotalOf(purchase.items))}</span>
                     </div>
                   </div>
                   {purchase.reference ? (
@@ -332,9 +329,9 @@ export default function StorePurchasesPage() {
             <div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-700">
-                  {t("storeCommerce.purchases.itemsCount", { count: lines.length })}
+                  {t("storeCommerce.purchases.itemsCount", { count: fmt.number(lines.length) })}
                 </span>
-                <span className="text-sm font-semibold text-slate-950 tabular-nums">৳{formTotal}</span>
+                <span className="text-sm font-semibold text-slate-950 tabular-nums">{fmt.money(formTotal)}</span>
               </div>
               <div className="mt-2 space-y-3">
                 {lines.map((line) => (
@@ -420,7 +417,7 @@ export default function StorePurchasesPage() {
                     <p className="mt-1.5 text-right text-xs text-slate-500">
                       {t("storeCommerce.purchases.lineTotal")} {" "}
                       <span className="tabular-nums text-slate-700">
-                        ৳{((Number(line.quantity) || 0) * (Number(line.unitCost) || 0)).toFixed(2)}
+                        {fmt.money((Number(line.quantity) || 0) * (Number(line.unitCost) || 0))}
                       </span>
                     </p>
                   </div>
@@ -441,7 +438,7 @@ export default function StorePurchasesPage() {
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               {lines.length > 1
-                ? t("storeCommerce.purchases.submitMany", { count: lines.length })
+                ? t("storeCommerce.purchases.submitMany", { count: fmt.number(lines.length) })
                 : t("storeCommerce.purchases.submitOne")}
             </button>
           </form>

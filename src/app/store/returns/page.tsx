@@ -43,7 +43,7 @@ type ReturnRecord = {
 };
 
 function ReturnsForm() {
-  const { t, tEnum } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const searchParams = useSearchParams();
   const [saleIdInput, setSaleIdInput] = useState(searchParams.get("saleId") ?? "");
   const [sale, setSale] = useState<Sale | null>(null);
@@ -175,7 +175,7 @@ function ReturnsForm() {
     }
     const saleTotal = Number(sale.totalAmount);
     if (finalAmount > saleTotal) {
-      setError(t("storeCommerce.returns.errExceedsTotal", { total: saleTotal.toFixed(2) }));
+      setError(t("storeCommerce.returns.errExceedsTotal", { total: fmt.number(saleTotal, { decimals: 2 }) }));
       return;
     }
 
@@ -186,7 +186,7 @@ function ReturnsForm() {
         reason,
         refundAmount: finalAmount,
       });
-      setSuccess(t("storeCommerce.returns.successProcessed", { amount: finalAmount.toFixed(2) }));
+      setSuccess(t("storeCommerce.returns.successProcessed", { amount: fmt.number(finalAmount, { decimals: 2 }) }));
       await loadSale(String(sale.id));
       await loadReturns();
     } catch (err) {
@@ -245,23 +245,23 @@ function ReturnsForm() {
           <div className="mt-4 space-y-1 rounded-2xl bg-slate-50 p-4 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>{t("storeCommerce.returns.subtotal")}</span>
-              <span>৳{sale.subtotal}</span>
+              <span>{fmt.money(sale.subtotal)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>{t("storeCommerce.returns.lineDiscounts")}</span>
-              <span>-৳{lineDiscountTotal.toFixed(2)}</span>
+              <span>-{fmt.money(lineDiscountTotal)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>{t("storeCommerce.returns.orderDiscount")}</span>
-              <span>-৳{Number(sale.discountAmount).toFixed(2)}</span>
+              <span>-{fmt.money(sale.discountAmount)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>{t("storeCommerce.returns.tax")}</span>
-              <span>৳{Number(sale.taxAmount).toFixed(2)}</span>
+              <span>{fmt.money(sale.taxAmount)}</span>
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-950">
               <span>{t("storeCommerce.returns.totalPaid")}</span>
-              <span>৳{Number(sale.totalAmount).toFixed(2)}</span>
+              <span>{fmt.money(sale.totalAmount)}</span>
             </div>
           </div>
 
@@ -276,16 +276,16 @@ function ReturnsForm() {
                     </p>
                     <p className="text-xs text-slate-500">
                       {t("storeCommerce.returns.itemMeta", {
-                        price: item.unitPrice,
-                        qty: item.quantity,
-                        remaining,
+                        price: fmt.number(item.unitPrice, { decimals: 2 }),
+                        qty: fmt.quantity(item.quantity),
+                        remaining: fmt.quantity(remaining),
                       })}
                     </p>
                     {Number(item.discountAmount) > 0 ? (
                       <p className="text-xs text-amber-700">
                         {t("storeCommerce.returns.lineDiscountNote", {
-                          discount: Number(item.discountAmount).toFixed(2),
-                          total: Number(item.lineTotal).toFixed(2),
+                          discount: fmt.number(item.discountAmount, { decimals: 2 }),
+                          total: fmt.number(item.lineTotal, { decimals: 2 }),
                         })}
                       </p>
                     ) : null}
@@ -337,7 +337,7 @@ function ReturnsForm() {
                 }}
                 className="mt-2 text-xs font-semibold text-slate-600 underline hover:text-slate-900"
               >
-                {t("storeCommerce.returns.resetToCalculated", { amount: suggestedRefund.toFixed(2) })}
+                {t("storeCommerce.returns.resetToCalculated", { amount: fmt.number(suggestedRefund, { decimals: 2 }) })}
               </button>
             ) : null}
           </div>
@@ -357,7 +357,7 @@ function ReturnsForm() {
             type="submit"
             className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            {t("storeCommerce.returns.submit", { amount: displayedRefund || "0.00" })}
+            {t("storeCommerce.returns.submit", { amount: fmt.number(displayedRefund || 0, { decimals: 2 }) })}
           </button>
         </form>
       ) : null}
@@ -370,10 +370,10 @@ function ReturnsForm() {
           {filteredReturns.length > 0 ? (
             <p className="text-sm text-slate-500">
               {filteredReturns.length === 1
-                ? t("storeCommerce.returns.summaryOne", { total: totalRefunded.toFixed(2) })
+                ? t("storeCommerce.returns.summaryOne", { total: fmt.number(totalRefunded, { decimals: 2 }) })
                 : t("storeCommerce.returns.summaryMany", {
-                    count: filteredReturns.length,
-                    total: totalRefunded.toFixed(2),
+                    count: fmt.number(filteredReturns.length),
+                    total: fmt.number(totalRefunded, { decimals: 2 }),
                   })}
             </p>
           ) : null}
@@ -423,13 +423,13 @@ function ReturnsForm() {
                       <p className="text-xs text-slate-500">
                         {units === 1
                           ? t("storeCommerce.returns.restockedOne")
-                          : t("storeCommerce.returns.restockedMany", { count: units })}
+                          : t("storeCommerce.returns.restockedMany", { count: fmt.quantity(units) })}
                         {r.reason ? ` · ${r.reason}` : ""}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-400">{new Date(r.createdAt).toLocaleString()}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{fmt.dateTime(r.createdAt)}</p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-medium text-red-600">-৳{r.refundAmount}</p>
+                      <p className="font-medium text-red-600">-{fmt.money(r.refundAmount)}</p>
                       <p className="text-xs text-slate-500">{t("storeCommerce.returns.refundedLabel")}</p>
                     </div>
                   </div>
@@ -461,7 +461,7 @@ function ReturnsForm() {
                         </label>
                       </div>
                       <p className="mt-2 text-xs text-slate-500">
-                        {t("storeCommerce.returns.editNote", { total: r.sale.totalAmount })}
+                        {t("storeCommerce.returns.editNote", { total: fmt.number(r.sale.totalAmount, { decimals: 2 }) })}
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button
