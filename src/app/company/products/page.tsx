@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
+import { toLatinNumber } from "@/lib/i18n/format";
 import { apiFetch } from "@/services/api";
 
 type StockByStore = { warehouseId: number; warehouseName: string; storeId: number; storeName: string; quantity: number };
@@ -26,6 +27,48 @@ const UNIT_OPTIONS = ["piece", "kg", "g", "liter", "ml", "box", "pack", "dozen"]
 
 const PRICE_INPUT_CLASS =
   "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900";
+
+/** Editable price cell: shows formatted digits (Bangla when the locale is bn),
+ *  hands the real Latin number to the caller on blur or Enter. */
+function PriceCell({
+  value,
+  onCommit,
+  className,
+}: {
+  value: string;
+  onCommit: (latinValue: string) => void;
+  className: string;
+}) {
+  const { fmt } = useI18n();
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = fmt.number(value, { decimals: 2 });
+
+  function commit() {
+    if (draft === null) return;
+    const latin = toLatinNumber(draft).trim();
+    setDraft(null);
+    if (latin === "" || !Number.isFinite(Number(latin))) return;
+    onCommit(latin);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft ?? display}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => {
+        setDraft(toLatinNumber(e.target.value));
+        e.target.select();
+      }}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      className={className}
+    />
+  );
+}
 
 export default function CompanyProductsPage() {
   const { t, fmt } = useI18n();
@@ -141,7 +184,9 @@ export default function CompanyProductsPage() {
   async function savePrice(productId: number, field: "purchasePrice" | "salePrice", value: string) {
     setError(null);
     const product = products.find((p) => p.id === productId);
-    if (!product || value === product[field]) return;
+    if (!product) return;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed === Number(product[field])) return;
 
     // Optimistic: keep the typing responsive, the reload below is the real check.
     setProducts((current) => current.map((p) => (p.id === productId ? { ...p, [field]: value } : p)));
@@ -236,22 +281,16 @@ export default function CompanyProductsPage() {
                           : product.unit ?? "—"}
                       </td>
                       <td className="py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          defaultValue={product.purchasePrice}
-                          onBlur={(e) => savePrice(product.id, "purchasePrice", e.target.value)}
+                        <PriceCell
+                          value={product.purchasePrice}
+                          onCommit={(latin) => savePrice(product.id, "purchasePrice", latin)}
                           className={PRICE_INPUT_CLASS}
                         />
                       </td>
                       <td className="py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min={0}
-                          defaultValue={product.salePrice}
-                          onBlur={(e) => savePrice(product.id, "salePrice", e.target.value)}
+                        <PriceCell
+                          value={product.salePrice}
+                          onCommit={(latin) => savePrice(product.id, "salePrice", latin)}
                           className={PRICE_INPUT_CLASS}
                         />
                       </td>

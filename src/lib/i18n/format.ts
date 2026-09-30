@@ -47,6 +47,19 @@ function toDate(value: string | number | Date | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/**
+ * Maps Bengali digits ("১২৩.৫০") back to Latin so an editable field can show
+ * Bangla digits yet still submit/parse a plain number.
+ */
+export function toLatinNumber(value: string): string {
+  let out = "";
+  for (const ch of value) {
+    const code = ch.codePointAt(0);
+    out += code !== undefined && code >= 0x09e6 && code <= 0x09ef ? String(code - 0x09e6) : ch;
+  }
+  return out;
+}
+
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
 
