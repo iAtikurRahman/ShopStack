@@ -34,6 +34,32 @@ enum PaymentMethod {
   other
 }
 
+// Money leaving or entering the business, recorded on a Payment row.
+// payment = we pay out (e.g. settling what we owe a supplier).
+// receive = we take in (e.g. collecting what a customer owes us).
+enum TransactionType {
+  payment
+  receive
+}
+
+// How the money actually moved. Deliberately separate from PaymentMethod
+// (the POS tender types): no card terminal is in play for settling a due,
+// but a bank transfer or mobile wallet transfer is.
+enum PaymentType {
+  bank
+  cash
+  mobile
+  other
+}
+
+// Which side of the ledger the party sits on. Because customer_supplier_id is
+// a loose int rather than a foreign key, this discriminator is the only thing
+// that tells us which table the id points into - so it must always be set.
+enum PartyType {
+  customer
+  supplier
+}
+
 // Singleton (id always 1), seeded at provisioning time.
 // The DAL cross-checks this against the session's companyId as a
 // defense-in-depth guard against a misrouted tenant database mapping.
@@ -181,6 +207,10 @@ model Supplier {
   email           String?
   address         String?
   isActive        Boolean          @default(true)
+  // Money still owed TO this supplier. Running balance, adjusted when a
+  // purchase is recorded and when a payment is made against it. 0 means
+  // nothing outstanding (or never captured).
+  dueAmount       Float            @default(0)
   products        Product[]
   purchases       Purchase[]
   supplierReturns SupplierReturn[]
@@ -252,6 +282,10 @@ model Customer {
   phone         String?
   email         String?
   loyaltyPoints Int      @default(0)
+  // Money this customer still owes the shop. Running balance, adjusted when
+  // a sale is booked on credit and when they pay it off. 0 means nothing
+  // outstanding (or never captured).
+  dueAmount     Float    @default(0)
   sales         Sale[]
   createdAt     DateTime @default(now())
 }
@@ -292,6 +326,44 @@ model SalePayment {
   method    PaymentMethod
   amount    Decimal       @db.Decimal(12, 2)
   reference String?
+}
+
+// A money movement recorded against a customer or a supplier - the ledger
+// behind Customer.dueAmount / Supplier.dueAmount. "receive" takes in what a
+// customer owes, "payment" pays out what we owe a supplier.
+//
+// Deliberately not a relation: one table covers both sides, so the id is a
+// loose int qualified by `type` instead of a real foreign key. That buys a
+// single table and a single form for both flows at the cost of referential
+// integrity - a deleted Customer/Supplier leaves these rows orphaned, and
+// nothing at the database level stops a wrong `type`/id pairing. Every
+// write path must verify the id against the table `type` names.
+model Payment {
+  id                 Int             @id @default(autoincrement())
+  // Human-facing trace/reference number for the movement (receipt no, bank
+  // ref). Unique so the same external transaction can never be booked twice -
+  // this is the guard against a double-submitted form posting the money again.
+  transactionId      String          @unique
+  transactionType    TransactionType
+  paymentType        PaymentType
+  type               PartyType
+  // Points at Customer.id when type = customer, Supplier.id when
+  // type = supplier. NOT a foreign key (see above).
+  customerSupplierId Int
+  // When the money actually moved, editable so a payment can be backdated to
+  // "paid last Tuesday" - separate from createdAt, which is the audit record
+  // insertion timestamp.
+  paymentDate        DateTime        @default(now())
+  paymentAmount      Float
+  description        String?         @db.Text
+  // Soft delete: a booked payment stays for the audit trail, and `isActive`
+  // lets a mistaken entry be voided without losing the row. Amounts already
+  // rolled into a dueAmount balance are not recalculated here.
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+
+  @@index([type, customerSupplierId])
+  @@index([paymentDate])
 }
 
 model Return {
