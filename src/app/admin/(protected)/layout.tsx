@@ -29,7 +29,7 @@ export default async function AdminProtectedLayout({ children }: { children: Rea
       <header className="border-b border-slate-200 bg-slate-950 text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-400">ShopStack</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Nexora POS</p>
             <p className="text-lg font-semibold">{t("admin.console.title")}</p>
           </div>
           <nav className="flex items-center gap-6 text-sm">

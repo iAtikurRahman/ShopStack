@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ShopStack",
+  title: "Nexora POS",
   description: "Multi-tenant point of sale SaaS for managing companies, stores, and warehouses.",
 };
 

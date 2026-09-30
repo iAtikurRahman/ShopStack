@@ -37,7 +37,7 @@ export default function SetupPage() {
       </div>
       <div className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
         <div className="w-full rounded-4xl border border-slate-800 bg-slate-900 p-10 shadow-xl">
-          <p className="text-sm uppercase tracking-[0.28em] text-slate-500">ShopStack</p>
+          <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Nexora POS</p>
           <h1 className="mt-3 text-3xl font-semibold">{t("auth.setupTitle")}</h1>
           <p className="mt-3 text-sm text-slate-400">{t("auth.setupBody")}</p>
 

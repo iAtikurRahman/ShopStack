@@ -1,6 +1,6 @@
 export const bn = {
   auth: {
-    signInTitle: "ShopStack-এ সাইন ইন করুন",
+    signInTitle: "Nexora POS-এ সাইন ইন করুন",
     companyPrompt: "চালিয়ে যেতে আপনার কোম্পানি ওয়ার্কস্পেসে প্রবেশ করুন।",
     welcomeTo: "{company}-এ স্বাগতম।",
     companySlug: "কোম্পানি স্লাগ",

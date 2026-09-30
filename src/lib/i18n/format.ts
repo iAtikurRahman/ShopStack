@@ -94,25 +94,22 @@ export function createFormatters(locale: Locale): Formatters {
   const date: Formatters["date"] = (value) => {
     const parsed = toDate(value);
     if (!parsed) return MISSING;
-    // Bengali has a real month name; English keeps the compact numeric form
-    // the app has always shown.
-    return locale === "bn"
-      ? dateFormat(locale, { dateStyle: "medium" }).format(parsed)
-      : dateFormat(locale, { year: "numeric", month: "numeric", day: "numeric" }).format(parsed);
+    // Full month names in both locales ("২৯ সেপ্টেম্বর, ২০২৬" / "29 September
+    // 2026"). dateStyle:"medium" shortens to "সেপ" in some browser ICU builds.
+    return dateFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(parsed);
   };
 
   const dateTime: Formatters["dateTime"] = (value) => {
     const parsed = toDate(value);
     if (!parsed) return MISSING;
-    return locale === "bn"
-      ? dateFormat(locale, { dateStyle: "medium", timeStyle: "short", hour12: false }).format(parsed)
-      : dateFormat(locale, {
-          year: "numeric",
-          month: "numeric",
-          day: "numeric",
-          hour: "numeric",
-          minute: "numeric",
-        }).format(parsed);
+    return dateFormat(locale, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      ...(locale === "bn" ? { hour12: false } : {}),
+    }).format(parsed);
   };
 
   return {

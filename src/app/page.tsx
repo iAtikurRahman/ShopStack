@@ -14,7 +14,7 @@ export default async function Home() {
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16 sm:px-8">
         <div className="rounded-4xl border border-slate-200 bg-white p-10 shadow-xl">
           <div className="max-w-3xl">
-            <p className="text-sm uppercase tracking-[0.28em] text-slate-500">ShopStack</p>
+            <p className="text-sm uppercase tracking-[0.28em] text-slate-500">Nexora POS</p>
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
               {t("auth.heroTitle")}
             </h1>

@@ -1,6 +1,6 @@
 export const en = {
   auth: {
-    signInTitle: "Sign in to ShopStack",
+    signInTitle: "Sign in to Nexora POS",
     companyPrompt: "Enter your company workspace to continue.",
     welcomeTo: "Welcome to {company}.",
     companySlug: "Company slug",
