@@ -14,7 +14,9 @@ export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => 
 
   // Company-wide view, matching /api/company/purchases: purchases are not
   // restricted to one store, so a supplier's whole history is shown here.
-  const [purchases, supplierReturns] = await Promise.all([
+  // Payments come along for the ride for the same reason - the ledger is
+  // company-wide. Voided rows are included so the history reads true.
+  const [purchases, supplierReturns, payments] = await Promise.all([
     db.purchase.findMany({
       where: { supplierId },
       include: {
@@ -36,7 +38,11 @@ export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => 
       },
       orderBy: { createdAt: "desc" },
     }),
+    db.payment.findMany({
+      where: { type: "supplier", customerSupplierId: supplierId },
+      orderBy: [{ paymentDate: "desc" }, { id: "desc" }],
+    }),
   ]);
 
-  return NextResponse.json({ supplier, purchases, supplierReturns });
+  return NextResponse.json({ supplier, purchases, supplierReturns, payments });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });

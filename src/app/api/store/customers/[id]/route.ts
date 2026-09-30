@@ -29,5 +29,13 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
     ? await db.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true } })
     : [];
 
-  return NextResponse.json({ customer, sales, products });
+  // Payments are part of the party's story, not of a store's - the ledger is
+  // company-wide, so this is the same set /company/payments lists for them.
+  // Voided rows are included so the history reads true; the panel marks them.
+  const payments = await db.payment.findMany({
+    where: { type: "customer", customerSupplierId: customerId },
+    orderBy: [{ paymentDate: "desc" }, { id: "desc" }],
+  });
+
+  return NextResponse.json({ customer, sales, products, payments });
 }, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });

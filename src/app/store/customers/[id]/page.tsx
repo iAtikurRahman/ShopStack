@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
+import { PartyPayments, type PartyPayment } from "@/components/PartyPayments";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
@@ -11,6 +12,7 @@ type Customer = {
   phone: string | null;
   email: string | null;
   loyaltyPoints: number;
+  dueAmount: number;
   createdAt: string;
 };
 type SaleItem = { id: number; productId: number; quantity: number; unitPrice: string; lineTotal: string };
@@ -27,7 +29,7 @@ type Sale = {
 };
 type Product = { id: number; name: string };
 
-type Detail = { customer: Customer; sales: Sale[]; products: Product[] };
+type Detail = { customer: Customer; sales: Sale[]; products: Product[]; payments: PartyPayment[] };
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { t, fmt } = useI18n();
@@ -120,6 +122,13 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     : t("storeCommerce.customerDetail.noPhone")}
                   {data.customer.email ? ` · ${data.customer.email}` : ""}
                 </p>
+                {data.customer.dueAmount > 0 ? (
+                  <p className="mt-1 text-sm font-semibold text-amber-700">
+                    {t("storeCommerce.customers.dueOwed", {
+                      amount: fmt.number(data.customer.dueAmount, { decimals: 2 }),
+                    })}
+                  </p>
+                ) : null}
                 <p className="mt-0.5 text-xs text-slate-400">
                   {t("storeCommerce.customerDetail.customerSince", {
                     date: fmt.date(data.customer.createdAt),
@@ -255,6 +264,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
           </div>
+
+          <PartyPayments payments={data.payments} />
         </>
       )}
     </main>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
+import { PartyPayments, type PartyPayment } from "@/components/PartyPayments";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
@@ -12,6 +13,7 @@ type Supplier = {
   email: string | null;
   address: string | null;
   isActive: boolean;
+  dueAmount: number;
   createdAt: string;
 };
 type Place = { id: number; name: string; store: { id: number; name: string } };
@@ -41,7 +43,12 @@ type SupplierReturnRow = {
   warehouse: Place;
 };
 
-type Detail = { supplier: Supplier; purchases: Purchase[]; supplierReturns: SupplierReturnRow[] };
+type Detail = {
+  supplier: Supplier;
+  purchases: Purchase[];
+  supplierReturns: SupplierReturnRow[];
+  payments: PartyPayment[];
+};
 
 export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -123,6 +130,13 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
                   {[data.supplier.phone, data.supplier.email].filter(Boolean).join(" · ") ||
                     t("company.supplierDetail.noContact")}
                 </p>
+                {data.supplier.dueAmount > 0 ? (
+                  <p className="mt-1 text-sm font-semibold text-amber-700">
+                    {t("company.suppliers.dueOwed", {
+                      amount: fmt.number(data.supplier.dueAmount, { decimals: 2 }),
+                    })}
+                  </p>
+                ) : null}
                 {data.supplier.address ? (
                   <p className="mt-0.5 text-xs text-slate-500">{data.supplier.address}</p>
                 ) : null}
@@ -263,6 +277,8 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
           </div>
+
+          <PartyPayments payments={data.payments} />
 
           {data.supplierReturns.length > 0 ? (
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
