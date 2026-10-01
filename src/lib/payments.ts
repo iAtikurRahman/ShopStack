@@ -29,7 +29,16 @@ const DUE_DIRECTION: Record<TransactionType, Record<PartyType, -1 | 1>> = {
 };
 
 const TRANSACTION_TYPES = new Set<string>(["receive", "payment"]);
-const PAYMENT_TYPES = new Set<string>(["bank", "cash", "mobile", "other"]);
+const PAYMENT_TYPES = new Set<string>([
+  "bank",
+  "cash",
+  "bkash",
+  "rocket",
+  "nagad",
+  "upay",
+  "banglaqr",
+  "other",
+]);
 const PARTY_TYPES = new Set<string>(["customer", "supplier"]);
 
 export type PaymentParty = { id: number; name: string; dueAmount: number };
@@ -86,6 +95,20 @@ function nextDueAmount(currentDue: number, delta: number): number {
   return round2(Math.max(0, currentDue + delta));
 }
 
+/** Writes a balance back to whichever of the two party tables `type` names. */
+async function applyDueAmount(
+  db: PrismaClient | Prisma.TransactionClient,
+  type: PartyType,
+  id: number,
+  dueAmount: number
+): Promise<void> {
+  if (type === "customer") {
+    await db.customer.update({ where: { id }, data: { dueAmount } });
+  } else {
+    await db.supplier.update({ where: { id }, data: { dueAmount } });
+  }
+}
+
 /**
  * Builds a human-facing trace number. The column is UNIQUE precisely so a
  * double-submitted form cannot book the same movement twice, so a caller may
@@ -109,6 +132,8 @@ export type CreatePaymentInput = {
   description?: unknown;
 };
 
+export type UpdatePaymentInput = CreatePaymentInput;
+
 type ValidPayment = {
   transactionId: string;
   transactionType: TransactionType;
@@ -129,7 +154,10 @@ function validate(input: CreatePaymentInput): ValidPayment {
 
   const paymentType = String(input.paymentType ?? "");
   if (!PAYMENT_TYPES.has(paymentType)) {
-    throw new PaymentError(400, "paymentType must be bank, cash, mobile or other");
+    // This exact string is a lookup key in both dictionaries (see
+    // common.serverMessages) - change it and the Bangla translation of this
+    // error silently stops matching.
+    throw new PaymentError(400, "paymentType must be bank, cash, bkash, rocket, nagad, upay, banglaqr or other");
   }
 
   const type = String(input.type ?? "");
@@ -332,6 +360,139 @@ export async function voidPayment(
         paymentDate: updated.paymentDate.toISOString(),
         createdAt: updated.createdAt.toISOString(),
         partyName: party.name,
+        partyDueAmount: dueAmount,
+      },
+      dueAmount,
+    };
+  });
+}
+
+/**
+ * Edits a booked payment in place. Voiding and re-recording would produce the
+ * same ledger but leaves two rows, so a correction is a real update - with the
+ * balance moved to match.
+ *
+ * The balance is fixed up in two steps rather than with one combined delta:
+ * invert exactly what `createPayment` did (which can only ever push the balance
+ * up, so the zero floor never bites), then apply exactly what the corrected
+ * payment does (which can only push it down, so the floor applies). That makes
+ * an edit indistinguishable from void-then-record, including when the operator
+ * moved the money to a different party entirely - the old party gets its old
+ * delta back and the new one is applied fresh.
+ */
+export async function updatePayment(
+  db: PrismaClient,
+  session: TenantSession,
+  id: number,
+  input: UpdatePaymentInput
+): Promise<{ payment: PaymentRow; dueAmount: number }> {
+  return db.$transaction(async (tx) => {
+    const existing = await tx.payment.findUnique({ where: { id } });
+    if (!existing) {
+      throw new PaymentError(404, "Payment not found");
+    }
+    // A voided row is frozen history: its reversal is already in the balances,
+    // so editing it would double-count. Re-record a new payment instead.
+    if (!existing.isActive) {
+      throw new PaymentError(400, "A voided payment cannot be edited");
+    }
+
+    const data = validate({
+      ...input,
+      // Unlike a create there is nothing to mint when the reference is blank -
+      // keep whatever the row already carries so the UNIQUE guard stays honest.
+      transactionId:
+        input.transactionId === undefined ||
+        input.transactionId === null ||
+        String(input.transactionId).trim() === ""
+          ? existing.transactionId
+          : input.transactionId,
+    });
+
+    const sameParty =
+      existing.type === data.type && existing.customerSupplierId === data.customerSupplierId;
+
+    const oldParty = await findParty(tx, existing.type, existing.customerSupplierId);
+    // On a new party, that party's balance is read fresh - it is untouched by
+    // the reversal happening on the old one.
+    const newParty = sameParty ? null : await findParty(tx, data.type, data.customerSupplierId);
+
+    // Step 1 - undo the movement as booked.
+    const revertDelta = -DUE_DIRECTION[existing.transactionType][existing.type] * existing.paymentAmount;
+    const revertedDue = nextDueAmount(oldParty.dueAmount, revertDelta);
+
+    // Step 2 - apply the movement as corrected, starting from whichever party
+    // now owns it.
+    const delta = DUE_DIRECTION[data.transactionType][data.type] * data.paymentAmount;
+    const dueAmount = nextDueAmount(sameParty ? revertedDue : newParty!.dueAmount, delta);
+
+    let updated;
+    try {
+      updated = await tx.payment.update({
+        where: { id },
+        data: {
+          transactionId: data.transactionId,
+          transactionType: data.transactionType,
+          paymentType: data.paymentType,
+          type: data.type,
+          customerSupplierId: data.customerSupplierId,
+          paymentDate: data.paymentDate,
+          paymentAmount: data.paymentAmount,
+          description: data.description,
+        },
+      });
+    } catch (err) {
+      // Swapping in a reference another row already holds is the same
+      // double-booking guard a create hits, so it gets the same 409.
+      if (isUniqueViolation(err)) {
+        throw new PaymentError(409, "A payment with this transaction id already exists");
+      }
+      throw err;
+    }
+
+    // Exactly one write per party that was touched. When the party is
+    // unchanged both steps landed on the same row, so only the FINAL balance
+    // is written - writing `revertedDue` here instead would persist the
+    // intermediate step and silently drop the corrected amount.
+    if (sameParty) {
+      await applyDueAmount(tx, data.type, data.customerSupplierId, dueAmount);
+    } else {
+      await applyDueAmount(tx, existing.type, existing.customerSupplierId, revertedDue);
+      await applyDueAmount(tx, data.type, data.customerSupplierId, dueAmount);
+    }
+
+    await writeAuditLog(tx, session, {
+      action: "payment.updated",
+      entityType: "Payment",
+      entityId: id,
+      // Both the row and the balances it touched, so an auditor can see the
+      // correction rather than infer it from the current state.
+      before: {
+        transactionId: existing.transactionId,
+        transactionType: existing.transactionType,
+        paymentType: existing.paymentType,
+        type: existing.type,
+        customerSupplierId: existing.customerSupplierId,
+        paymentAmount: existing.paymentAmount,
+        dueAmount: oldParty.dueAmount,
+      },
+      after: {
+        transactionId: updated.transactionId,
+        transactionType: updated.transactionType,
+        paymentType: updated.paymentType,
+        type: updated.type,
+        customerSupplierId: updated.customerSupplierId,
+        paymentAmount: updated.paymentAmount,
+        dueAmount,
+      },
+    });
+
+    return {
+      payment: {
+        ...updated,
+        paymentDate: updated.paymentDate.toISOString(),
+        createdAt: updated.createdAt.toISOString(),
+        partyName: (sameParty ? oldParty : newParty!).name,
         partyDueAmount: dueAmount,
       },
       dueAmount,

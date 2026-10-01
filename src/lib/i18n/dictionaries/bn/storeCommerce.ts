@@ -118,7 +118,11 @@
       due: "বাকি",
       cash: "নগদ",
       card: "কার্ড",
-      mobile: "মোবাইল",
+      bkash: "bKash",
+      rocket: "Rocket",
+      nagad: "Nagad",
+      upay: "Upay",
+      banglaqr: "BanglaQR",
       other: "অন্যান্য",
       dueNotice:
         "এখন সরবরাহকারীকে কিছু দেওয়া হচ্ছে না — পুরো টাকা আপনার বাকি হিসেবে যোগ হবে।",

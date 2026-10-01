@@ -27,10 +27,20 @@ enum SaleStatus {
   refunded
 }
 
+// How the customer handed the money over at the till.
+//
+// bkash/rocket/nagad/upay/banglaqr are the Bangladeshi mobile financial
+// services, named individually rather than lumped under one "mobile" value:
+// each carries its own reporting and reconciliation, and a shop that takes 200
+// bKash a day has no use for a figure that mixes it with Nagad.
 enum PaymentMethod {
   cash
   card
-  mobile
+  bkash
+  rocket
+  nagad
+  upay
+  banglaqr
   other
   // Nothing was handed over at the till. The whole amount is added to the
   // party's dueAmount instead, so no SalePayment / purchase method row is
@@ -49,11 +59,15 @@ enum TransactionType {
 
 // How the money actually moved. Deliberately separate from PaymentMethod
 // (the POS tender types): no card terminal is in play for settling a due,
-// but a bank transfer or mobile wallet transfer is.
+// but a bank transfer or an MFS wallet transfer very much is.
 enum PaymentType {
   bank
   cash
-  mobile
+  bkash
+  rocket
+  nagad
+  upay
+  banglaqr
   other
 }
 

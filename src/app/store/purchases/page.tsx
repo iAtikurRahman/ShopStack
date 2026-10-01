@@ -37,7 +37,17 @@ type Line = {
 // Same list, same order, as the till's payment method - one vocabulary for
 // "how did the money move" across the whole app. `due` leads for the same
 // reason: it is the choice with a lasting balance-sheet consequence.
-const PAYMENT_METHODS = ["due", "cash", "card", "mobile", "other"] as const;
+const PAYMENT_METHODS = [
+  "due",
+  "cash",
+  "card",
+  "bkash",
+  "rocket",
+  "nagad",
+  "upay",
+  "banglaqr",
+  "other",
+] as const;
 type PaymentMethodOption = (typeof PAYMENT_METHODS)[number];
 
 function today(): string {

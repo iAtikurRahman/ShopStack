@@ -237,6 +237,9 @@
         storeUpdated: "দোকান হালনাগাদ হয়েছে",
         categoryCreated: "ক্যাটাগরি তৈরি হয়েছে",
         supplierCreated: "সরবরাহকারী তৈরি হয়েছে",
+        paymentCreated: "পেমেন্ট লেখা হয়েছে",
+        paymentUpdated: "পেমেন্ট সম্পাদনা করা হয়েছে",
+        paymentVoided: "পেমেন্ট বাতিল করা হয়েছে",
       },
       entities: {
         product: "পণ্য",
@@ -247,6 +250,7 @@
         store: "দোকান",
         category: "ক্যাটাগরি",
         supplier: "সরবরাহকারী",
+        payment: "পেমেন্ট",
       },
     },
   },

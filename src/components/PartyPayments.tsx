@@ -3,7 +3,7 @@
 import { useI18n } from "@/components/LocaleProvider";
 
 type TransactionType = "receive" | "payment";
-type PaymentType = "bank" | "cash" | "mobile" | "other";
+type PaymentType = "bank" | "cash" | "bkash" | "rocket" | "nagad" | "upay" | "banglaqr" | "other";
 
 export type PartyPayment = {
   id: number;

@@ -237,6 +237,9 @@
         storeUpdated: "Store updated",
         categoryCreated: "Category created",
         supplierCreated: "Supplier created",
+        paymentCreated: "Payment recorded",
+        paymentUpdated: "Payment edited",
+        paymentVoided: "Payment voided",
       },
       entities: {
         product: "Product",
@@ -247,6 +250,7 @@
         store: "Store",
         category: "Category",
         supplier: "Supplier",
+        payment: "Payment",
       },
     },
   },

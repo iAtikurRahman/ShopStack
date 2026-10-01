@@ -4,7 +4,17 @@ import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 import type { PaymentMethod } from "@/generated/tenant";
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "card", "mobile", "other", "due"];
+const PAYMENT_METHODS: PaymentMethod[] = [
+  "cash",
+  "card",
+  "bkash",
+  "rocket",
+  "nagad",
+  "upay",
+  "banglaqr",
+  "other",
+  "due",
+];
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });

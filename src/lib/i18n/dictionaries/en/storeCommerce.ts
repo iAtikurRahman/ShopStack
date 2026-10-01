@@ -118,7 +118,11 @@
       due: "Due",
       cash: "Cash",
       card: "Card",
-      mobile: "Mobile",
+      bkash: "bKash",
+      rocket: "Rocket",
+      nagad: "Nagad",
+      upay: "Upay",
+      banglaqr: "BanglaQR",
       other: "Other",
       dueNotice:
         "Nothing is paid to the supplier now - the full total is added to what you owe them as due.",

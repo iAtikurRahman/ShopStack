@@ -21,7 +21,17 @@ type CartLine = { productId: number; name: string; unitPrice: number; taxRate: n
 // `due` is first in the list because it is the most consequential choice at the
 // till. It is deliberately NOT the default: an accidental credit sale is far
 // worse than an accidental cash sale, which the cashier can just change.
-const PAYMENT_METHODS = ["due", "cash", "card", "mobile", "other"] as const;
+const PAYMENT_METHODS = [
+  "due",
+  "cash",
+  "card",
+  "bkash",
+  "rocket",
+  "nagad",
+  "upay",
+  "banglaqr",
+  "other",
+] as const;
 type PaymentMethodOption = (typeof PAYMENT_METHODS)[number];
 
 function round2(value: number) {

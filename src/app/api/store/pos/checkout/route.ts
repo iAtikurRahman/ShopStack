@@ -4,7 +4,17 @@ import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore } from "@/lib/tenant-access";
 import type { PaymentMethod } from "@/generated/tenant";
 
-const PAYMENT_METHODS: PaymentMethod[] = ["cash", "card", "mobile", "other", "due"];
+const PAYMENT_METHODS: PaymentMethod[] = [
+  "cash",
+  "card",
+  "bkash",
+  "rocket",
+  "nagad",
+  "upay",
+  "banglaqr",
+  "other",
+  "due",
+];
 
 type CheckoutItem = { productId: number; quantity: number; discountAmount?: number };
 type CheckoutPayment = { method: PaymentMethod; amount: number; reference?: string };

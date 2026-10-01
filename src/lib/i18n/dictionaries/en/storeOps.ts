@@ -28,7 +28,13 @@
       due: "Due",
       cash: "Cash",
       card: "Card",
-      mobile: "Mobile",
+      // Brand names stay in Latin script in Bangla too - that is how they are
+      // printed on the merchant's own QR stand and banknote.
+      bkash: "bKash",
+      rocket: "Rocket",
+      nagad: "Nagad",
+      upay: "Upay",
+      banglaqr: "BanglaQR",
       other: "Other",
       dueNotice: "Nothing is charged now - the customer takes the goods and owes the full amount.",
       dueNeedsCustomer: "Enter a customer phone number first: a due has to belong to a customer.",
