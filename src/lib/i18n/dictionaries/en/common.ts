@@ -202,6 +202,13 @@ export const en = {
       "This account has past sales, purchases or payments - deactivate it instead":
         "This account has past sales, purchases or payments - deactivate it instead",
       "Nothing to update": "Nothing to update",
+      "Invalid withdrawal id": "Invalid withdrawal id",
+      "Withdrawal not found": "Withdrawal not found",
+      "Withdrawal is already voided": "Withdrawal is already voided",
+      "A voided withdrawal cannot be edited": "A voided withdrawal cannot be edited",
+      "personName is required": "personName is required",
+      "Invalid withdrawalDate": "Invalid withdrawalDate",
+      "withdrawalDate cannot be in the future": "withdrawalDate cannot be in the future",
       "Invalid bank id": "Invalid bank id",
     },
   },

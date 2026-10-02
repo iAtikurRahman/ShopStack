@@ -80,11 +80,44 @@ model BankInfo {
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  withdrawals      Withdrawal[]
 
   // The one table in this schema that is not PascalCase, and deliberately so -
   // "bank_info" is the name the business calls it. Every other table has no
   // @@map and takes its physical name straight from the model.
   @@map("bank_info")
+}
+
+// The owner taking cash out of an account into their own pocket.
+//
+// A real FK to BankInfo, unlike SalePayment.method / Purchase.paymentMethod /
+// Payment.paymentType - those three keep a *snapshot string* because they have
+// to stay readable after an account is deactivated or deleted. A withdrawal is
+// only ever about an account that exists right now, so it holds the id and the
+// bank row cannot disappear underneath it. That is also why a withdrawal has no
+// delete: voiding it restores the balance and keeps the row as the record of
+// what was handed over.
+//
+// isActive follows the same convention as everywhere else in this schema:
+// flipping it to false is the "remove" action, and it is what puts the amount
+// back on the account (see src/lib/withdrawals.ts).
+model Withdrawal {
+  id             Int      @id @default(autoincrement())
+  bankId         Int
+  bank           BankInfo @relation(fields: [bankId], references: [id])
+  withdrawalDate DateTime
+  personName     String
+  // Free text rather than typed: the same slip covers a bKash number, a bank
+  // account number and "none given", and they are all under 40 characters.
+  accountOrMobile String?
+  amount          Float
+  reason          String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([bankId])
+  @@index([withdrawalDate])
 }
 
 // Singleton (id always 1), seeded at provisioning time.

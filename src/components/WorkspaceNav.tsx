@@ -30,6 +30,7 @@ const COMPANY_LINKS: NavLink[] = [
   { href: "/company/suppliers", label: "nav.suppliers" },
   { href: "/company/payments", label: "nav.payments" },
   { href: "/company/banks", label: "nav.banks" },
+  { href: "/company/withdrawals", label: "nav.withdrawals" },
   { href: "/company/users", label: "nav.users" },
   { href: "/company/audit-log", label: "nav.auditLog" },
 ];

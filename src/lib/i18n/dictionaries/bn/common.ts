@@ -195,6 +195,13 @@ export const bn = {
       "This account has past sales, purchases or payments - deactivate it instead":
         "এই অ্যাকাউন্টের সাথে আগের বিক্রয়, ক্রয় বা পেমেন্ট জুড়ে আছে — বদলে নিষ্ক্রিয় করুন",
       "Nothing to update": "হালনাগাদ করার কিছু নেই",
+      "Invalid withdrawal id": "উইথড্রয়াল আইডি সঠিক নয়",
+      "Withdrawal not found": "উইথড্রয়াল পাওয়া যায়নি",
+      "Withdrawal is already voided": "উইথড্রয়ালটি ইতিমধ্যেই বাতিল করা হয়েছে",
+      "A voided withdrawal cannot be edited": "বাতিল করা উইথড্রয়াল সম্পাদনা করা যাবে না",
+      "personName is required": "personName আবশ্যক",
+      "Invalid withdrawalDate": "উইথড্রয়ালের তারিখ সঠিক নয়",
+      "withdrawalDate cannot be in the future": "ভবিষ্যতের তারিখ দেওয়া যাবে না",
       "Invalid bank id": "ব্যাংক আইডি সঠিক নয়",
     },
   },
