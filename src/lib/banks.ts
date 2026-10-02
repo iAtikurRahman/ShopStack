@@ -295,13 +295,16 @@ export async function updateBank(
 /**
  * Removes an account for good.
  *
- * Refuses once any sale, purchase or payment names it. Those three columns store
- * the name as text rather than a foreign key (see the schema comment on
- * BankInfo), so the row could be deleted and the history would keep rendering a
- * method that no longer exists anywhere - and its balance would silently vanish
- * from every total while the transactions that moved it are still on the books.
- * Deactivating is the reversible answer for an account that has been used, and
- * it already takes it out of every dropdown, which is the same visible result.
+ * Refuses once any sale, purchase, payment or bank transfer names it. The first
+ * three store the name as text rather than a foreign key (see the schema comment
+ * on BankInfo), so the row could be deleted and the history would keep rendering
+ * a method that no longer exists anywhere - and its balance would silently
+ * vanish from every total while the transactions that moved it are still on the
+ * books. A transfer holds a real foreign key and MySQL would refuse the delete
+ * anyway, so it is counted here too rather than left to surface as a database
+ * error the owner cannot act on. Deactivating is the reversible answer for an
+ * account that has been used, and it already takes it out of every dropdown,
+ * which is the same visible result.
  */
 export async function deleteBank(
   db: PrismaClient,
@@ -313,15 +316,17 @@ export async function deleteBank(
     throw new BankError(404, "Bank not found");
   }
 
-  const [sales, purchases, payments] = await Promise.all([
+  const [sales, purchases, payments, transfersOut, transfersIn] = await Promise.all([
     db.salePayment.count({ where: { method: bank.bankName } }),
     db.purchase.count({ where: { paymentMethod: bank.bankName } }),
     db.payment.count({ where: { paymentType: bank.bankName } }),
+    db.bankTransfer.count({ where: { fromBankId: id } }),
+    db.bankTransfer.count({ where: { toBankId: id } }),
   ]);
-  if (sales + purchases + payments > 0) {
+  if (sales + purchases + payments + transfersOut + transfersIn > 0) {
     throw new BankError(
       409,
-      "This account has past sales, purchases or payments - deactivate it instead"
+      "This account has past sales, purchases, payments or transfers - deactivate it instead"
     );
   }
 

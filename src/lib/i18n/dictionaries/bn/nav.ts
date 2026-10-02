@@ -22,6 +22,7 @@ export const bn = {
     suppliers: "সরবরাহকারী",
     users: "ব্যবহারকারী",
     banks: "ব্যাংক",
+    bankTransfers: "ব্যাংক ট্রান্সফার",
     withdrawals: "উইথড্রয়াল",
     payments: "পেমেন্ট",
     auditLog: "অডিট লগ",

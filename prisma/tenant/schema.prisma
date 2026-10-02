@@ -81,6 +81,11 @@ model BankInfo {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   withdrawals      Withdrawal[]
+  // Both sides of a transfer are relations to this table, so the two have to be
+  // told apart by name - an unnamed pair of relations between the same two
+  // models is ambiguous and Prisma rejects it.
+  transfersOut     BankTransfer[] @relation("BankTransferOut")
+  transfersIn      BankTransfer[] @relation("BankTransferIn")
 
   // The one table in this schema that is not PascalCase, and deliberately so -
   // "bank_info" is the name the business calls it. Every other table has no
@@ -118,6 +123,50 @@ model Withdrawal {
 
   @@index([bankId])
   @@index([withdrawalDate])
+}
+
+// The owner moving money out of one of their accounts and into another - cash
+// into the till to top it up, a balance shifted from bKash into a bank account
+// to pay a supplier from.
+//
+// Two real foreign keys to BankInfo, and the same reasoning as Withdrawal applies
+// to both of them: a transfer is only ever about accounts that exist right now,
+// so it holds their ids and neither row can be deleted underneath it. It is
+// also the one movement in the app that pushes TWO balances at once, in
+// opposite directions, inside a single transaction - which is exactly what
+// makes it impossible to half-apply.
+//
+// There is deliberately no date column: `createdAt` is when the transfer was
+// recorded and is what the statement orders by. Unlike a purchase or a payment -
+// which are often logged a day or two late, because the paperwork turns up after
+// the fact - a transfer is something the owner does on the spot, so backdating
+// it would only ever be an attempt to make the statement lie.
+//
+// isActive is the "delete": the amount has already moved between the two
+// accounts, so removing the row has to move it back (see
+// src/lib/bank-transfers.ts) or both accounts would be out by a sum nobody can
+// trace. A voided transfer stays visible as the correction it was.
+model BankTransfer {
+  id Int @id @default(autoincrement())
+  // Named relations, matching the two back-references on BankInfo.
+  fromBank   BankInfo @relation("BankTransferOut", fields: [fromBankId], references: [id])
+  fromBankId Int
+  toBank     BankInfo @relation("BankTransferIn", fields: [toBankId], references: [id])
+  toBankId   Int
+  // Always the size of the movement. The direction lives in the two columns
+  // above, so there is no sign to get wrong and no way to store a transfer that
+  // would add to both accounts or subtract from both.
+  amount  Float
+  // Why the money moved, or which reference it went out under. Optional: most
+  // transfers are obvious from the two account names.
+  remarks   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fromBankId])
+  @@index([toBankId])
+  @@index([createdAt])
 }
 
 // Singleton (id always 1), seeded at provisioning time.

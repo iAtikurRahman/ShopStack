@@ -192,7 +192,7 @@
         "These movements add up to {ledger}, but the current balance is {recorded}. The difference came from editing the balance on the Accounts screen, which is how a recount is recorded.",
       statementTitle: "Statement",
       statementHelper:
-        "Every sale, purchase, payment and withdrawal that named this account, newest first by date and time. Money in is on the left, money out on the right.",
+        "Every sale, purchase, payment, withdrawal and transfer that named this account, newest first by date and time. Money in is on the left, money out on the right.",
       searchPlaceholder: "Search by party, reference, note or date…",
       noMatch: 'No movements match "{search}".',
       noneYet: "Nothing has moved through this account yet.",
@@ -208,12 +208,16 @@
       purchaseEntry: "Purchase #{id}",
       paymentEntry: "Payment #{id}",
       withdrawalEntry: "Withdrawal #{id}",
+      transferInEntry: "Transfer in #{id}",
+      transferOutEntry: "Transfer out #{id}",
       kinds: {
         sale: "Sale",
         receive: "Payment received",
         purchase: "Purchase",
         payment: "Payment made",
         withdrawal: "Withdrawal",
+        transferIn: "Transfer in",
+        transferOut: "Transfer out",
       },
       voidedBadge: "voided",
       movementCountOne: "1 movement",
@@ -221,6 +225,43 @@
       totalsRow: "Totals",
       voidedHintOne: "1 voided movement is shown as the correction it was.",
       voidedHintMany: "{count} voided movements are shown as the corrections they were.",
+    },
+    bankTransfers: {
+      helper:
+        "Move money between your own accounts. The amount leaves one balance and reaches the other in the same moment, and both statements show the movement.",
+      // Voided transfers are excluded from the total on purpose: the money is
+      // back where it started, so counting it would overstate what has moved.
+      totalLabel: "{amount} moved so far",
+      allTitle: "Transfers",
+      searchPlaceholder: "Search by account, note or amount…",
+      noMatch: 'No transfers match "{search}".',
+      noneYet: "No transfers yet.",
+      // The two accounts joined by an arrow rather than split into two columns:
+      // a transfer is one movement between two accounts, and reading it as
+      // "from here to there" is what the row is for.
+      route: "From → To",
+      date: "Date",
+      amount: "Amount",
+      from: "From",
+      to: "To",
+      remarks: "Note",
+      remarksPlaceholder: "Optional - what it was for",
+      balanceAfter: "After this: {from} leaves, {to} arrives",
+      sameAccount: "Pick two different accounts.",
+      create: "Transfer money",
+      addTitle: "Move money between accounts",
+      addHelper:
+        "Pick the account the money leaves and the one it reaches. Both balances update the moment you save.",
+      createdMessage: "{amount} moved from {from} to {to}.",
+      savedMessage: "Transfer updated and both balances corrected.",
+      editTitle: "Edit transfer",
+      editHelper:
+        "Saving takes the old amount back out of both accounts and applies the new one, so both balances follow the change.",
+      deleteConfirm:
+        "Delete this {amount} transfer from {from} to {to}? The amount goes back onto {from} and comes off {to}.",
+      deletedMessage: "{amount} transfer deleted and the amount put back where it came from.",
+      viewStatement: "Statement of {name}",
+      inactive: "inactive",
     },
     withdrawals: {
       helper:
@@ -357,6 +398,9 @@
         withdrawalCreated: "Withdrawal recorded",
         withdrawalUpdated: "Withdrawal edited",
         withdrawalVoided: "Withdrawal deleted",
+        bankTransferCreated: "Transfer made",
+        bankTransferUpdated: "Transfer edited",
+        bankTransferDeleted: "Transfer deleted",
       },
       entities: {
         product: "Product",
@@ -369,6 +413,7 @@
         supplier: "Supplier",
         payment: "Payment",
         bank: "Bank",
+        bankTransfer: "Bank transfer",
         withdrawal: "Withdrawal",
       },
     },

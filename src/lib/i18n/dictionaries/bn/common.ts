@@ -194,6 +194,8 @@ export const bn = {
       "Bank not found": "ব্যাংক পাওয়া যায়নি",
       "This account has past sales, purchases or payments - deactivate it instead":
         "এই অ্যাকাউন্টের সাথে আগের বিক্রয়, ক্রয় বা পেমেন্ট জুড়ে আছে — বদলে নিষ্ক্রিয় করুন",
+      "This account has past sales, purchases, payments or transfers - deactivate it instead":
+        "এই অ্যাকাউন্টের সাথে আগের বিক্রয়, ক্রয়, পেমেন্ট বা ট্রান্সফার জুড়ে আছে — বদলে নিষ্ক্রিয় করুন",
       "Nothing to update": "হালনাগাদ করার কিছু নেই",
       "Invalid withdrawal id": "উইথড্রয়াল আইডি সঠিক নয়",
       "Withdrawal not found": "উইথড্রয়াল পাওয়া যায়নি",
@@ -203,6 +205,12 @@ export const bn = {
       "Invalid withdrawalDate": "উইথড্রয়ালের তারিখ সঠিক নয়",
       "withdrawalDate cannot be in the future": "ভবিষ্যতের তারিখ দেওয়া যাবে না",
       "Invalid bank id": "ব্যাংক আইডি সঠিক নয়",
+      "Invalid transfer id": "ট্রান্সফার আইডি সঠিক নয়",
+      "Transfer not found": "ট্রান্সফার পাওয়া যায়নি",
+      "Pick two different accounts": "দুইটি ভিন্ন অ্যাকাউন্ট বাছুন",
+      "amount must be greater than 0": "পরিমাণ ০-এর চেয়ে বেশি হতে হবে",
+      "Transfer is already voided": "ট্রান্সফারটি ইতিমধ্যে বাতিল হয়েছে",
+      "A voided transfer cannot be edited": "বাতিল হওয়া ট্রান্সফার সম্পাদনা করা যাবে না",
     },
   },
 };

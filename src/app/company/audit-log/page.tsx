@@ -45,6 +45,11 @@ const ACTION_KEYS: Record<string, TranslationKey> = {
   "withdrawal.created": "company.auditLog.actions.withdrawalCreated",
   "withdrawal.updated": "company.auditLog.actions.withdrawalUpdated",
   "withdrawal.voided": "company.auditLog.actions.withdrawalVoided",
+  "bankTransfer.created": "company.auditLog.actions.bankTransferCreated",
+  "bankTransfer.updated": "company.auditLog.actions.bankTransferUpdated",
+  // Named "deleted" rather than "voided" to match the button it comes from - the
+  // row is soft-deleted and the audit line says so, but the owner pressed Delete.
+  "bankTransfer.deleted": "company.auditLog.actions.bankTransferDeleted",
 };
 
 const ENTITY_KEYS: Record<string, TranslationKey> = {
@@ -59,6 +64,7 @@ const ENTITY_KEYS: Record<string, TranslationKey> = {
   Payment: "company.auditLog.entities.payment",
   BankInfo: "company.auditLog.entities.bank",
   Withdrawal: "company.auditLog.entities.withdrawal",
+  BankTransfer: "company.auditLog.entities.bankTransfer",
 };
 
 function actionLabel(t: Translate, action: string): string {

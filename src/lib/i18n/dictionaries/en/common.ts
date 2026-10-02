@@ -201,6 +201,8 @@ export const en = {
       "Bank not found": "Bank not found",
       "This account has past sales, purchases or payments - deactivate it instead":
         "This account has past sales, purchases or payments - deactivate it instead",
+      "This account has past sales, purchases, payments or transfers - deactivate it instead":
+        "This account has past sales, purchases, payments or transfers - deactivate it instead",
       "Nothing to update": "Nothing to update",
       "Invalid withdrawal id": "Invalid withdrawal id",
       "Withdrawal not found": "Withdrawal not found",
@@ -210,6 +212,12 @@ export const en = {
       "Invalid withdrawalDate": "Invalid withdrawalDate",
       "withdrawalDate cannot be in the future": "withdrawalDate cannot be in the future",
       "Invalid bank id": "Invalid bank id",
+      "Invalid transfer id": "Invalid transfer id",
+      "Transfer not found": "Transfer not found",
+      "Pick two different accounts": "Pick two different accounts",
+      "amount must be greater than 0": "amount must be greater than 0",
+      "Transfer is already voided": "Transfer is already voided",
+      "A voided transfer cannot be edited": "A voided transfer cannot be edited",
     },
   },
 };

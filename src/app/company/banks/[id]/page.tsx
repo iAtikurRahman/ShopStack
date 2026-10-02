@@ -5,7 +5,14 @@ import { use, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
-type StatementKind = "sale" | "receive" | "purchase" | "payment" | "withdrawal";
+type StatementKind =
+  | "sale"
+  | "receive"
+  | "purchase"
+  | "payment"
+  | "withdrawal"
+  | "transferIn"
+  | "transferOut";
 
 type StatementRow = {
   key: string;
@@ -46,12 +53,17 @@ type Statement = {
  * which sale ("Sale #12"). One map, two lookups, so the two can never drift
  * apart and leave a row labelled in one column and numbered in another.
  */
-const KIND_KEY: Record<StatementKind, "sale" | "receive" | "purchase" | "payment" | "withdrawal"> = {
+const KIND_KEY: Record<
+  StatementKind,
+  "sale" | "receive" | "purchase" | "payment" | "withdrawal" | "transferIn" | "transferOut"
+> = {
   sale: "sale",
   receive: "receive",
   purchase: "purchase",
   payment: "payment",
   withdrawal: "withdrawal",
+  transferIn: "transferIn",
+  transferOut: "transferOut",
 };
 
 export default function BankDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -270,7 +282,9 @@ export default function BankDetailPage({ params }: { params: Promise<{ id: strin
                           <span className="block truncate text-xs text-slate-500">
                             {[
                               // A POS sale with no customer attached is a walk-in
-                              // sale; naming that beats an empty second line.
+                              // sale; naming that beats an empty second line. On a
+                              // transfer the counterparty is always another account, which
+                              // is already in `party`, so there is never a gap to fill.
                               row.party ?? (row.kind === "sale" ? t("company.bankDetail.noParty") : null),
                               row.reference,
                               row.detail,

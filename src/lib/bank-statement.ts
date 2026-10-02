@@ -3,11 +3,24 @@ import { getBank, type BankRow } from "@/lib/banks";
 import { round2 } from "@/lib/returns";
 
 /**
- * The five things that can move money in or out of an account. Every one of
- * them ends up calling applyBankDelta, so every one of them belongs on the
- * statement - there is no sixth source to remember when this is extended.
+ * The things that can move money in or out of an account. Every one of them
+ * ends up calling applyBankDelta, so every one of them belongs on the statement
+ * - there is no sixth source to remember when this is extended.
+ *
+ * A transfer is two kinds rather than one, because one row here is one account's
+ * view of a movement: `transferOut` on the account the money left and
+ * `transferIn` on the one it reached. Collapsing them into a single kind with a
+ * sign would make the type column say "Transfer" on both statements while the
+ * amount column disagreed about which way it went.
  */
-export type StatementKind = "sale" | "receive" | "purchase" | "payment" | "withdrawal";
+export type StatementKind =
+  | "sale"
+  | "receive"
+  | "purchase"
+  | "payment"
+  | "withdrawal"
+  | "transferIn"
+  | "transferOut";
 
 export type BankStatementRow = {
   /** Stable across renders - "<kind>:<sourceId>", since ids repeat across tables. */
@@ -68,7 +81,9 @@ const KIND_ORDER: Record<StatementKind, number> = {
   sale: 1,
   purchase: 2,
   payment: 3,
-  withdrawal: 4,
+  transferIn: 4,
+  transferOut: 5,
+  withdrawal: 6,
 };
 
 /** Prisma hands Decimal columns back as strings; this is the only place that knows. */
@@ -114,20 +129,24 @@ async function loadPartyNames(
  * Builds the account statement for one bank: every movement that named it, in
  * date order, with a running balance carried forward from the opening figure.
  *
- * The four sources are read in parallel because none of them depends on
- * another, and the merge happens here rather than in the database - MySQL cannot
- * union four differently-shaped tables without a view, and a view would freeze
- * the current schema shape into the database.
+ * The six sources are read in parallel because none of them depends on another,
+ * and the merge happens here rather than in the database - MySQL cannot union
+ * six differently-shaped tables without a view, and a view would freeze the
+ * current schema shape into the database.
  *
  * Sale refunds are deliberately absent. A Return records stock going back and
  * money leaving the customer, but it never calls applyBankDelta, so it has
  * never moved this account's balance - listing it here would show a movement
  * that did not happen.
+ *
+ * A bank transfer appears here twice across the app's history - as a
+ * `transferOut` on one account and a `transferIn` on the other - but exactly once
+ * per statement, because each side is fetched by its own foreign key.
  */
 export async function getBankStatement(db: PrismaClient, bankId: number): Promise<BankStatement> {
   const bank = await getBank(db, bankId);
 
-  const [salePayments, purchases, payments, withdrawals] = await Promise.all([
+  const [salePayments, purchases, payments, withdrawals, transfersOut, transfersIn] = await Promise.all([
     // Money in: the tender on a POS sale. A `due` sale writes no SalePayment at
     // all, so every row here genuinely moved cash into this account.
     db.salePayment.findMany({
@@ -179,6 +198,35 @@ export async function getBankStatement(db: PrismaClient, bankId: number): Promis
         amount: true,
         reason: true,
         isActive: true,
+      },
+    }),
+    // A transfer names two accounts, so this one can be on the statement twice
+    // over the app's lifetime - once as the account it left, once as the one it
+    // reached. Only the half that involves THIS account is fetched, which is
+    // what keeps the other account's name out of the row entirely rather than
+    // relying on the client to hide it.
+    db.bankTransfer.findMany({
+      where: { fromBankId: bank.id },
+      select: {
+        id: true,
+        toBankId: true,
+        amount: true,
+        remarks: true,
+        isActive: true,
+        createdAt: true,
+        toBank: { select: { bankName: true } },
+      },
+    }),
+    db.bankTransfer.findMany({
+      where: { toBankId: bank.id },
+      select: {
+        id: true,
+        fromBankId: true,
+        amount: true,
+        remarks: true,
+        isActive: true,
+        createdAt: true,
+        fromBank: { select: { bankName: true } },
       },
     }),
   ]);
@@ -261,6 +309,44 @@ export async function getBankStatement(db: PrismaClient, bankId: number): Promis
   // Oldest first, so the running balance can be carried forward from the
   // opening figure. `at` is the full timestamp in milliseconds, not the date, so
   // two movements in the same afternoon stay in the order they were booked.
+  // Transfers only. Kept out of the party-name lookup because the counterparty
+  // here is always another account, never a person - `party` carries the other
+  // account's name so the row can say where the money went or came from, and
+  // `detail` carries the owner's remarks.
+  for (const transfer of transfersOut) {
+    drafts.push({
+      key: `transferOut:${transfer.id}`,
+      kind: "transferOut",
+      at: transfer.createdAt.getTime(),
+      order: transfer.id,
+      date: transfer.createdAt.toISOString(),
+      sourceId: transfer.id,
+      party: transfer.toBank.bankName,
+      reference: null,
+      detail: transfer.remarks,
+      // A voided transfer had its movement undone, so what this account saw was
+      // the money coming back - the opposite sign.
+      amount: round2(toAmount(transfer.amount) * (transfer.isActive ? -1 : 1)),
+      isVoided: !transfer.isActive,
+    });
+  }
+
+  for (const transfer of transfersIn) {
+    drafts.push({
+      key: `transferIn:${transfer.id}`,
+      kind: "transferIn",
+      at: transfer.createdAt.getTime(),
+      order: transfer.id,
+      date: transfer.createdAt.toISOString(),
+      sourceId: transfer.id,
+      party: transfer.fromBank.bankName,
+      reference: null,
+      detail: transfer.remarks,
+      amount: round2(toAmount(transfer.amount) * (transfer.isActive ? 1 : -1)),
+      isVoided: !transfer.isActive,
+    });
+  }
+
   drafts.sort((a, b) => a.at - b.at || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.order - b.order);
 
   // The running figure starts from the opening balance, so the last row's
