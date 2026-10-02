@@ -232,7 +232,7 @@
       // Voided transfers are excluded from the total on purpose: the money is
       // back where it started, so counting it would overstate what has moved.
       totalLabel: "{amount} moved so far",
-      allTitle: "Transfers",
+      allTitle: "Money Transfers",
       searchPlaceholder: "Search by account, note or amount…",
       noMatch: 'No transfers match "{search}".',
       noneYet: "No transfers yet.",
