@@ -21,6 +21,7 @@ export const en = {
     categories: "Categories",
     suppliers: "Suppliers",
     users: "Users",
+    banks: "Banks",
     payments: "Payments",
     auditLog: "Audit log",
     companies: "Companies",

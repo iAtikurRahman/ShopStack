@@ -27,28 +27,6 @@ enum SaleStatus {
   refunded
 }
 
-// How the customer handed the money over at the till.
-//
-// bkash/rocket/nagad/upay/banglaqr are the Bangladeshi mobile financial
-// services, named individually rather than lumped under one "mobile" value:
-// each carries its own reporting and reconciliation, and a shop that takes 200
-// bKash a day has no use for a figure that mixes it with Nagad.
-enum PaymentMethod {
-  cash
-  card
-  bkash
-  rocket
-  nagad
-  upay
-  banglaqr
-  other
-  // Nothing was handed over at the till. The whole amount is added to the
-  // party's dueAmount instead, so no SalePayment / purchase method row is
-  // written for it - a Payment row would read as "money received", which is
-  // exactly what did not happen. Settling it later is a separate movement.
-  due
-}
-
 // Money leaving or entering the business, recorded on a Payment row.
 // payment = we pay out (e.g. settling what we owe a supplier).
 // receive = we take in (e.g. collecting what a customer owes us).
@@ -57,26 +35,56 @@ enum TransactionType {
   receive
 }
 
-// How the money actually moved. Deliberately separate from PaymentMethod
-// (the POS tender types): no card terminal is in play for settling a due,
-// but a bank transfer or an MFS wallet transfer very much is.
-enum PaymentType {
-  bank
-  cash
-  bkash
-  rocket
-  nagad
-  upay
-  banglaqr
-  other
-}
-
 // Which side of the ledger the party sits on. Because customer_supplier_id is
 // a loose int rather than a foreign key, this discriminator is the only thing
 // that tells us which table the id points into - so it must always be set.
 enum PartyType {
   customer
   supplier
+}
+
+// A money account the business holds: the till drawer, a bank account, an MFS
+// wallet. This table is the single source of truth for the payment-method
+// dropdowns - adding a row here is all it takes for the name to appear on the
+// POS tender, the purchase method and the ledger's "paid by" list.
+//
+// It replaces what used to be two hard-coded enums (PaymentMethod for the POS
+// tender and PaymentType for the ledger). An enum cannot express "this shop
+// also takes Nagad via a partner merchant", which is exactly the kind of thing
+// that varies per business, so the vocabulary lives in the database instead.
+//
+// `bankName` is stored verbatim on SalePayment.method, Purchase.paymentMethod
+// and Payment.paymentType rather than as a foreign key to this row. Two
+// reasons: `due` is a legitimate value on the first two and is NOT an account
+// (no money ever moved), and a snapshot keeps history readable after a row is
+// deactivated. Every write path re-checks the name against this table, so the
+// loose string can never drift into a name that does not exist here.
+//
+// Balances:
+//   initialBalance   - the opening figure the owner declares. Set once, at
+//                      their convenience; never written by any other flow.
+//   remainingBalance - the running figure. Every money movement that names
+//                      this account adds to it (a sale, a receive) or subtracts
+//                      from it (a purchase, a pay-out), inside the same
+//                      transaction as the row that records the movement.
+//
+// Unlike Customer.dueAmount / Supplier.dueAmount this is deliberately NOT
+// floored at zero: an overdrawn account is a real, reportable state.
+model BankInfo {
+  id               Int      @id @default(autoincrement())
+  bankName         String   @unique
+  initialBalance   Float    @default(0)
+  remainingBalance Float    @default(0)
+  // A deactivated account disappears from the dropdowns but keeps its history,
+  // the same soft-delete convention Store/User/Category already use.
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // The one table in this schema that is not PascalCase, and deliberately so -
+  // "bank_info" is the name the business calls it. Every other table has no
+  // @@map and takes its physical name straight from the model.
+  @@map("bank_info")
 }
 
 // Singleton (id always 1), seeded at provisioning time.
@@ -250,11 +258,12 @@ model Purchase {
   receivedById  Int
   reference     String?
   totalCost     Decimal        @db.Decimal(12, 2)
-  // How the delivery was settled at the time it was booked. Nullable because
-  // rows written before this column existed have no recorded method. `due`
-  // means nothing was paid and the whole totalCost was added to
-  // Supplier.dueAmount instead.
-  paymentMethod PaymentMethod?
+  // The BankInfo.bankName this delivery was settled through, or "due" when
+  // nothing was paid and the whole totalCost went onto Supplier.dueAmount.
+  // Nullable because rows written before this column existed have no recorded
+  // method; it is a loose String rather than a foreign key for the reason
+  // given on BankInfo.
+  paymentMethod String?
   items         PurchaseItem[]
   // When the goods were actually received (editable - can backdate to
   // "bought yesterday"), separate from createdAt which is the audit
@@ -344,11 +353,14 @@ model SaleItem {
 }
 
 model SalePayment {
-  id        Int           @id @default(autoincrement())
-  sale      Sale          @relation(fields: [saleId], references: [id])
+  id        Int      @id @default(autoincrement())
+  sale      Sale     @relation(fields: [saleId], references: [id])
   saleId    Int
-  method    PaymentMethod
-  amount    Decimal       @db.Decimal(12, 2)
+  // BankInfo.bankName for a real tender. A `due` sale writes no SalePayment
+  // row at all - a payment row reads as "money received", and none was - so
+  // this column only ever holds a real account name.
+  method    String
+  amount    Decimal  @db.Decimal(12, 2)
   reference String?
 }
 
@@ -369,7 +381,11 @@ model Payment {
   // this is the guard against a double-submitted form posting the money again.
   transactionId      String          @unique
   transactionType    TransactionType
-  paymentType        PaymentType
+  // BankInfo.bankName - the account the money moved through, so the ledger can
+  // be reconciled against that account's remainingBalance. Deliberately
+  // separate from the POS tender (SalePayment.method): no card terminal is in
+  // play for settling a due, but a bank transfer very much is.
+  paymentType        String
   type               PartyType
   // Points at Customer.id when type = customer, Supplier.id when
   // type = supplier. NOT a foreign key (see above).

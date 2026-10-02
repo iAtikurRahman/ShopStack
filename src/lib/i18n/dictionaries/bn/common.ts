@@ -9,7 +9,8 @@ export const bn = {
     clear: "মুছে ফেলুন",
     add: "যোগ করুন",
     edit: "সম্পাদনা",
-    delete: "মুছে ফেলুন",
+    delete: "মুছুন",
+      deleting: "মুছে ফেলা হচ্ছে।",
     close: "বন্ধ করুন",
     back: "ফিরে যান",
     all: "সব",
@@ -70,16 +71,7 @@ export const bn = {
       balanceAfter: "এরপর ব্যালেন্স: {amount}",
       balanceCleared: "এতে ব্যালেন্স পুরো শূন্য হয়ে যাবে।",
       stillDue: "{amount} এখনো বাকি",
-      methods: {
-        cash: "নগদ",
-        bank: "ব্যাংক",
-        bkash: "bKash",
-        rocket: "Rocket",
-        nagad: "Nagad",
-        upay: "Upay",
-        banglaqr: "BanglaQR",
-        other: "অন্যান্য",
-      },
+      noMethods: "এখনো কোনো পেমেন্ট পদ্ধতি নেই — পেমেন্ট লেখার আগে ব্যাংক অংশে একটি অ্যাকাউন্ট যোগ করুন।",
       settledMessage: "{party} থেকে {amount} আদায় হয়েছে — তাঁর বাকি পুরো শূন্য।",
       recordedMessage: "{party}-এর বিপরীতে {amount} লেখা হয়েছে।",
       voidedMessage: "পেমেন্ট {ref} বাতিল করা হয়েছে এবং ব্যালেন্স ফেরত দেওয়া হয়েছে।",
@@ -94,6 +86,7 @@ export const bn = {
       partially_refunded: "আংশিক ফেরত",
       refunded: "ফেরত হয়েছে",
       cash: "নগদ",
+      bank: "ব্যাংক",
       card: "কার্ড",
       bkash: "bKash",
       rocket: "Rocket",
@@ -179,8 +172,6 @@ export const bn = {
       "A customer is required to record a due sale": "বাকি বিক্রয় লিখতে একজন গ্রাহক আবশ্যক",
       "previousDue must be zero or greater": "আগের বাকি 0-এর চেয়ে ছোট হতে পারবে না",
       "transactionType must be receive or payment": "চলাচল অবশ্যই receive বা payment হতে হবে",
-      "paymentType must be bank, cash, bkash, rocket, nagad, upay, banglaqr or other":
-        "পেমেন্টের ধরন অবশ্যই bank, cash, bkash, rocket, nagad, upay, banglaqr বা other হতে হবে",
       "type must be customer or supplier": "ধরন অবশ্যই customer বা supplier হতে হবে",
       "customerSupplierId must be a positive whole number":
         "customerSupplierId অবশ্যই একটি ধনাত্মক পূর্ণসংখ্যা হতে হবে",
@@ -194,6 +185,17 @@ export const bn = {
       "A voided payment cannot be edited": "বাতিল করা পেমেন্ট সম্পাদনা করা যাবে না",
       "Invalid payment id": "পেমেন্ট আইডি সঠিক নয়",
       "Customer not found": "গ্রাহক পাওয়া যায়নি",
+      "Unknown payment method": "অজানা পেমেন্ট মাধ্যম",
+      "bankName is required": "bankName আবশ্যক",
+      "'due' is reserved - it means no money was paid":
+        "'due' সংরক্ষিত — এটি মানে কোনো টাকা দেওয়া হয়নি",
+      "A bank or payment method with this name already exists":
+        "এই নামে একটি ব্যাংক বা পেমেন্ট মাধ্যম ইতিমধ্যেই আছে",
+      "Bank not found": "ব্যাংক পাওয়া যায়নি",
+      "This account has past sales, purchases or payments - deactivate it instead":
+        "এই অ্যাকাউন্টের সাথে আগের বিক্রয়, ক্রয় বা পেমেন্ট জুড়ে আছে — বদলে নিষ্ক্রিয় করুন",
+      "Nothing to update": "হালনাগাদ করার কিছু নেই",
+      "Invalid bank id": "ব্যাংক আইডি সঠিক নয়",
     },
   },
 };

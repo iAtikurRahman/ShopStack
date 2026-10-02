@@ -115,15 +115,8 @@
       selectSupplier: "সরবরাহকারী নির্বাচন করুন",
       referenceOptional: "রেফারেন্স / ইনভয়েস নম্বর (ঐচ্ছিক)",
       paymentMethod: "পরিশোধের মাধ্যম",
+      // bank_info টেবিলের বাইরের একমাত্র মাধ্যম — দেখুন storeOps.pos.due।
       due: "বাকি",
-      cash: "নগদ",
-      card: "কার্ড",
-      bkash: "bKash",
-      rocket: "Rocket",
-      nagad: "Nagad",
-      upay: "Upay",
-      banglaqr: "BanglaQR",
-      other: "অন্যান্য",
       dueNotice:
         "এখন সরবরাহকারীকে কিছু দেওয়া হচ্ছে না — পুরো টাকা আপনার বাকি হিসেবে যোগ হবে।",
       itemsCount: "আইটেম ({count})",

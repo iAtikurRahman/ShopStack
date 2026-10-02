@@ -3,13 +3,13 @@
 import { useI18n } from "@/components/LocaleProvider";
 
 type TransactionType = "receive" | "payment";
-type PaymentType = "bank" | "cash" | "bkash" | "rocket" | "nagad" | "upay" | "banglaqr" | "other";
 
 export type PartyPayment = {
   id: number;
   transactionId: string;
   transactionType: TransactionType;
-  paymentType: PaymentType;
+  /** The BankInfo.bankName the money moved through. */
+  paymentType: string;
   paymentDate: string;
   paymentAmount: number;
   description: string | null;
@@ -31,7 +31,7 @@ function direction(transactionType: TransactionType): 1 | -1 {
  * customer and supplier detail screens.
  */
 export function PartyPayments({ payments }: { payments: PartyPayment[] }) {
-  const { t, fmt } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
 
   const totals = payments.reduce(
     (acc, payment) => {
@@ -82,7 +82,7 @@ export function PartyPayments({ payments }: { payments: PartyPayment[] }) {
                         : "common.payments.payOut"
                     )}
                     {" · "}
-                    {t(`common.payments.methods.${payment.paymentType}`)}
+                    {tEnum(payment.paymentType)}
                     {payment.isActive ? null : ` · ${t("common.payments.voided")}`}
                   </p>
                   {payment.description ? (

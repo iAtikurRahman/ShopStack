@@ -39,6 +39,9 @@ const ACTION_KEYS: Record<string, TranslationKey> = {
   "payment.created": "company.auditLog.actions.paymentCreated",
   "payment.updated": "company.auditLog.actions.paymentUpdated",
   "payment.voided": "company.auditLog.actions.paymentVoided",
+  "bank.created": "company.auditLog.actions.bankCreated",
+  "bank.updated": "company.auditLog.actions.bankUpdated",
+  "bank.deleted": "company.auditLog.actions.bankDeleted",
 };
 
 const ENTITY_KEYS: Record<string, TranslationKey> = {
@@ -51,6 +54,7 @@ const ENTITY_KEYS: Record<string, TranslationKey> = {
   Category: "company.auditLog.entities.category",
   Supplier: "company.auditLog.entities.supplier",
   Payment: "company.auditLog.entities.payment",
+  BankInfo: "company.auditLog.entities.bank",
 };
 
 function actionLabel(t: Translate, action: string): string {

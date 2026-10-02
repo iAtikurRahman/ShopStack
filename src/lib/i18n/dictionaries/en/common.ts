@@ -9,7 +9,8 @@ export const en = {
     clear: "Clear",
     add: "Add",
     edit: "Edit",
-    delete: "Delete",
+      delete: "Delete",
+      deleting: "Deleting.",
     close: "Close",
     back: "Back",
     all: "All",
@@ -71,16 +72,8 @@ export const en = {
       balanceAfter: "Balance after this: {amount}",
       balanceCleared: "This clears the balance.",
       stillDue: "{amount} still due",
-      methods: {
-        cash: "Cash",
-        bank: "Bank",
-        bkash: "bKash",
-        rocket: "Rocket",
-        nagad: "Nagad",
-        upay: "Upay",
-        banglaqr: "BanglaQR",
-        other: "Other",
-      },
+      noMethods:
+        "No payment methods yet - add an account under Banks before recording payments.",
       settledMessage: "{amount} received from {party} - their due is cleared.",
       recordedMessage: "Recorded {amount} against {party}.",
       voidedMessage: "Payment {ref} voided and the balance put back.",
@@ -98,6 +91,7 @@ export const en = {
       partially_refunded: "partially_refunded",
       refunded: "refunded",
       cash: "cash",
+      bank: "Bank",
       card: "card",
       bkash: "bKash",
       rocket: "Rocket",
@@ -186,8 +180,6 @@ export const en = {
       "A customer is required to record a due sale": "A customer is required to record a due sale",
       "previousDue must be zero or greater": "previousDue must be zero or greater",
       "transactionType must be receive or payment": "transactionType must be receive or payment",
-      "paymentType must be bank, cash, bkash, rocket, nagad, upay, banglaqr or other":
-        "paymentType must be bank, cash, bkash, rocket, nagad, upay, banglaqr or other",
       "type must be customer or supplier": "type must be customer or supplier",
       "customerSupplierId must be a positive whole number":
         "customerSupplierId must be a positive whole number",
@@ -200,6 +192,17 @@ export const en = {
       "A voided payment cannot be edited": "A voided payment cannot be edited",
       "Invalid payment id": "Invalid payment id",
       "Customer not found": "Customer not found",
+      "Unknown payment method": "Unknown payment method",
+      "bankName is required": "bankName is required",
+      "'due' is reserved - it means no money was paid":
+        "'due' is reserved - it means no money was paid",
+      "A bank or payment method with this name already exists":
+        "A bank or payment method with this name already exists",
+      "Bank not found": "Bank not found",
+      "This account has past sales, purchases or payments - deactivate it instead":
+        "This account has past sales, purchases or payments - deactivate it instead",
+      "Nothing to update": "Nothing to update",
+      "Invalid bank id": "Invalid bank id",
     },
   },
 };

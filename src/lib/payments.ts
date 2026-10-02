@@ -1,7 +1,8 @@
-import type { PartyType, PaymentType, Prisma, PrismaClient, TransactionType } from "@/generated/tenant";
+import type { PartyType, Prisma, PrismaClient, TransactionType } from "@/generated/tenant";
 import type { TenantSession } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { round2 } from "@/lib/returns";
+import { applyBankDelta, requireActiveBank } from "@/lib/banks";
 
 /**
  * The Payment table is a single ledger covering both sides of the business:
@@ -29,17 +30,21 @@ const DUE_DIRECTION: Record<TransactionType, Record<PartyType, -1 | 1>> = {
 };
 
 const TRANSACTION_TYPES = new Set<string>(["receive", "payment"]);
-const PAYMENT_TYPES = new Set<string>([
-  "bank",
-  "cash",
-  "bkash",
-  "rocket",
-  "nagad",
-  "upay",
-  "banglaqr",
-  "other",
-]);
 const PARTY_TYPES = new Set<string>(["customer", "supplier"]);
+
+/**
+ * Which way a movement pushes the account it went through (BankInfo).
+ * receive = money landed in the account, payment = money left it.
+ *
+ * Deliberately a single axis, unlike DUE_DIRECTION above: a party's due and an
+ * account's balance are not the same question. "Receive from a supplier" adds
+ * to what we owe them AND credits the account - one sign table per balance, two
+ * independent meanings for one movement.
+ */
+const BANK_DIRECTION: Record<TransactionType, 1 | -1> = {
+  receive: 1,
+  payment: -1,
+};
 
 export type PaymentParty = { id: number; name: string; dueAmount: number };
 
@@ -47,7 +52,12 @@ export type PaymentRow = {
   id: number;
   transactionId: string;
   transactionType: TransactionType;
-  paymentType: PaymentType;
+  /**
+   * The BankInfo.bankName the money moved through. A loose string rather than a
+   * foreign key (see the schema comment on BankInfo) so it stays readable after
+   * the account is deactivated.
+   */
+  paymentType: string;
   type: PartyType;
   customerSupplierId: number;
   paymentDate: string;
@@ -137,7 +147,7 @@ export type UpdatePaymentInput = CreatePaymentInput;
 type ValidPayment = {
   transactionId: string;
   transactionType: TransactionType;
-  paymentType: PaymentType;
+  paymentType: string;
   type: PartyType;
   customerSupplierId: number;
   paymentDate: Date;
@@ -152,12 +162,12 @@ function validate(input: CreatePaymentInput): ValidPayment {
     throw new PaymentError(400, "transactionType must be receive or payment");
   }
 
-  const paymentType = String(input.paymentType ?? "");
-  if (!PAYMENT_TYPES.has(paymentType)) {
-    // This exact string is a lookup key in both dictionaries (see
-    // common.serverMessages) - change it and the Bangla translation of this
-    // error silently stops matching.
-    throw new PaymentError(400, "paymentType must be bank, cash, bkash, rocket, nagad, upay, banglaqr or other");
+  // The payment method is a BankInfo.bankName, so it cannot be checked against a
+  // fixed list here - requireActiveBank resolves it against the database just
+  // before the transaction opens, and rejects a deactivated account too.
+  const paymentType = String(input.paymentType ?? "").trim();
+  if (!paymentType) {
+    throw new PaymentError(400, "Unknown payment method");
   }
 
   const type = String(input.type ?? "");
@@ -202,7 +212,7 @@ function validate(input: CreatePaymentInput): ValidPayment {
   return {
     transactionId: reference,
     transactionType: transactionType as TransactionType,
-    paymentType: paymentType as PaymentType,
+    paymentType,
     type: type as PartyType,
     customerSupplierId: partyId,
     paymentDate,
@@ -223,8 +233,11 @@ export async function createPayment(
   db: PrismaClient,
   session: TenantSession,
   input: CreatePaymentInput
-): Promise<{ payment: PaymentRow; dueAmount: number; settled: boolean }> {
+): Promise<{ payment: PaymentRow; dueAmount: number; settled: boolean; bankBalance: number }> {
   const data = validate(input);
+  // Resolved outside the transaction so a bad method name is rejected before
+  // any locks are taken. See requireActiveBank.
+  data.paymentType = await requireActiveBank(db, data.paymentType);
 
   const result = await db.$transaction(async (tx) => {
     const party = await findParty(tx, data.type, data.customerSupplierId);
@@ -264,6 +277,15 @@ export async function createPayment(
       }
     }
 
+    // The same movement also has to land on the account it went through. Inside
+    // this transaction so a Payment row can never exist with its balance effect
+    // missing - and vice versa.
+    const bank = await applyBankDelta(
+      tx,
+      data.paymentType,
+      BANK_DIRECTION[data.transactionType] * data.paymentAmount
+    );
+
     await writeAuditLog(tx, session, {
       action: "payment.created",
       entityType: "Payment",
@@ -279,10 +301,17 @@ export async function createPayment(
         paymentAmount: payment.paymentAmount,
         dueBefore: party.dueAmount,
         dueAfter: dueAmount,
+        bankBalanceAfter: bank,
       },
     });
 
-    return { payment, dueAmount, dueBefore: party.dueAmount, partyName: party.name };
+    return {
+      payment,
+      dueAmount,
+      dueBefore: party.dueAmount,
+      partyName: party.name,
+      bankBalance: bank,
+    };
   });
 
   return {
@@ -297,6 +326,7 @@ export async function createPayment(
     // Overpaying (or paying ahead of any due) is allowed; the flag lets the UI
     // say so instead of silently reporting a full settlement.
     settled: result.dueAmount <= 0 && result.dueBefore > 0,
+    bankBalance: result.bankBalance,
   };
 }
 
@@ -310,7 +340,7 @@ export async function voidPayment(
   db: PrismaClient,
   session: TenantSession,
   id: number
-): Promise<{ payment: PaymentRow; dueAmount: number }> {
+): Promise<{ payment: PaymentRow; dueAmount: number; bankBalance: number }> {
   return db.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { id } });
     if (!payment) {
@@ -338,6 +368,14 @@ export async function voidPayment(
       await tx.supplier.update({ where: { id: party.id }, data: { dueAmount } });
     }
 
+    // ...and invert the account movement too, or the balance would keep the
+    // money that just stopped having moved.
+    const bankBalance = await applyBankDelta(
+      tx,
+      payment.paymentType,
+      -BANK_DIRECTION[payment.transactionType] * payment.paymentAmount
+    );
+
     await writeAuditLog(tx, session, {
       action: "payment.voided",
       entityType: "Payment",
@@ -351,6 +389,7 @@ export async function voidPayment(
         transactionId: payment.transactionId,
         isActive: false,
         dueAfter: dueAmount,
+        bankBalanceAfter: bankBalance,
       },
     });
 
@@ -363,6 +402,7 @@ export async function voidPayment(
         partyDueAmount: dueAmount,
       },
       dueAmount,
+      bankBalance,
     };
   });
 }
@@ -379,13 +419,19 @@ export async function voidPayment(
  * an edit indistinguishable from void-then-record, including when the operator
  * moved the money to a different party entirely - the old party gets its old
  * delta back and the new one is applied fresh.
+ *
+ * The account's balance gets the same two-step treatment, with one addition:
+ * when the correction names a *different* account, the old account is only
+ * debited back - never checked for being active. An account deactivated since
+ * the payment was booked still holds that posting, and this row is the only
+ * thing that can undo it.
  */
 export async function updatePayment(
   db: PrismaClient,
   session: TenantSession,
   id: number,
   input: UpdatePaymentInput
-): Promise<{ payment: PaymentRow; dueAmount: number }> {
+): Promise<{ payment: PaymentRow; dueAmount: number; bankBalance: number }> {
   return db.$transaction(async (tx) => {
     const existing = await tx.payment.findUnique({ where: { id } });
     if (!existing) {
@@ -408,6 +454,11 @@ export async function updatePayment(
           ? existing.transactionId
           : input.transactionId,
     });
+    // Only the corrected method has to be selectable; the old one just has to
+    // still exist so it can be credited back below. Read through the
+    // transaction rather than a second connection, so this cannot block on a
+    // lock the same transaction is about to take.
+    data.paymentType = await requireActiveBank(tx, data.paymentType);
 
     const sameParty =
       existing.type === data.type && existing.customerSupplierId === data.customerSupplierId;
@@ -461,6 +512,20 @@ export async function updatePayment(
       await applyDueAmount(tx, data.type, data.customerSupplierId, dueAmount);
     }
 
+    // The account balance follows the same undo-then-apply order as the party's
+    // due. Correcting a payment that named the wrong account therefore moves
+    // the money from where it was actually booked to where it should have been.
+    await applyBankDelta(
+      tx,
+      existing.paymentType,
+      -BANK_DIRECTION[existing.transactionType] * existing.paymentAmount
+    );
+    const bankBalance = await applyBankDelta(
+      tx,
+      data.paymentType,
+      BANK_DIRECTION[data.transactionType] * data.paymentAmount
+    );
+
     await writeAuditLog(tx, session, {
       action: "payment.updated",
       entityType: "Payment",
@@ -484,6 +549,7 @@ export async function updatePayment(
         customerSupplierId: updated.customerSupplierId,
         paymentAmount: updated.paymentAmount,
         dueAmount,
+        bankBalanceAfter: bankBalance,
       },
     });
 
@@ -496,6 +562,7 @@ export async function updatePayment(
         partyDueAmount: dueAmount,
       },
       dueAmount,
+      bankBalance,
     };
   });
 }

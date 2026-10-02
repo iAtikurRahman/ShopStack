@@ -115,15 +115,8 @@
       selectSupplier: "Select supplier",
       referenceOptional: "Reference / invoice no. (optional)",
       paymentMethod: "Payment method",
+      // The only method that is not a bank_info row - see storeOps.pos.due.
       due: "Due",
-      cash: "Cash",
-      card: "Card",
-      bkash: "bKash",
-      rocket: "Rocket",
-      nagad: "Nagad",
-      upay: "Upay",
-      banglaqr: "BanglaQR",
-      other: "Other",
       dueNotice:
         "Nothing is paid to the supplier now - the full total is added to what you owe them as due.",
       itemsCount: "Items ({count})",

@@ -2,18 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
+import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
 
 type PartyType = "customer" | "supplier";
 type TransactionType = "receive" | "payment";
-type PaymentType = "bank" | "cash" | "bkash" | "rocket" | "nagad" | "upay" | "banglaqr" | "other";
 
 type Party = { id: number; name: string; dueAmount: number };
 type Payment = {
   id: number;
   transactionId: string;
   transactionType: TransactionType;
-  paymentType: PaymentType;
+  /**
+   * A BankInfo.bankName, rendered through tEnum so a company-specific account
+   * shows its own name and the seeded ones get a real translation.
+   */
+  paymentType: string;
   type: PartyType;
   customerSupplierId: number;
   paymentDate: string;
@@ -36,7 +40,7 @@ type PaymentDraft = {
   type: PartyType;
   customerSupplierId: string;
   paymentAmount: string;
-  paymentType: PaymentType;
+  paymentType: string;
   paymentDate: string;
   transactionId: string;
   description: string;
@@ -47,26 +51,11 @@ const EMPTY_DRAFT: PaymentDraft = {
   type: "customer",
   customerSupplierId: "",
   paymentAmount: "",
-  paymentType: "cash",
+  paymentType: "",
   paymentDate: "",
   transactionId: "",
   description: "",
 };
-
-// The ledger's PaymentType values in display order. Both the create form and
-// the inline edit form render from this one list, so a method added here can
-// never show up in one and be missing from the other. `satisfies` fails the
-// build if an entry is not a real PaymentType member.
-const PAYMENT_TYPE_OPTIONS = [
-  "cash",
-  "bank",
-  "bkash",
-  "rocket",
-  "nagad",
-  "upay",
-  "banglaqr",
-  "other",
-] as const satisfies readonly PaymentType[];
 
 /**
  * Mirrors the server's rule (see DUE_DIRECTION in src/lib/payments.ts) so the
@@ -122,8 +111,9 @@ function previewEditedDue(payment: Payment, draft: PaymentDraft, parties: Party[
 }
 
 export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
-  const { t, fmt } = useI18n();
+  const { t, tEnum, fmt } = useI18n();
   const base = scope === "company" ? "/api/company/payments" : "/api/store/payments";
+  const { banks } = useBanks();
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [customers, setCustomers] = useState<Party[]>([]);
@@ -144,7 +134,7 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
   const [partyType, setPartyType] = useState<PartyType>("customer");
   const [partyChoice, setPartyChoice] = useState("");
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentType>("cash");
+  const [method, setMethod] = useState<string>("");
   const [paymentDate, setPaymentDate] = useState(todayInputValue);
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
@@ -205,6 +195,25 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
 
   const partyOptions = partyType === "customer" ? customers : suppliers;
 
+  // The account list is the bank_info table, so a company-specific method shows
+  // up here the moment an owner adds it - no second list to keep in step.
+  const methodOptions = useMemo(() => banks.map((bank) => bank.bankName), [banks]);
+
+  // Never submit a method the dropdown is not offering: a deactivated account
+  // would otherwise leave the stored value pointing at a missing option.
+  const activeMethod = methodOptions.includes(method) ? method : methodOptions[0] ?? "";
+
+  // The open edit form needs its own list. A payment booked through an account
+  // that has since been deactivated still has to be correctable, so its method
+  // stays on the list instead of the select snapping to something else - the
+  // server rejects saving against it, which is the honest answer.
+  const draftMethodOptions = useMemo(() => {
+    if (draft.paymentType && !methodOptions.includes(draft.paymentType)) {
+      return [draft.paymentType, ...methodOptions];
+    }
+    return methodOptions;
+  }, [methodOptions, draft.paymentType]);
+
   // The open edit form drives its own party type, so it needs its own option
   // list - the create form's is keyed off `partyType`.
   const draftParties = draft.type === "customer" ? customers : suppliers;
@@ -252,7 +261,7 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
     try {
       const result = await apiFetch<{ dueAmount: number; settled: boolean }>(base, "POST", {
         transactionType,
-        paymentType: method,
+        paymentType: activeMethod,
         type: partyType,
         customerSupplierId: Number(partyId),
         paymentDate,
@@ -465,7 +474,7 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
                         {fmt.money(payment.paymentAmount)}
                       </span>
                       <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                        {t(`common.payments.methods.${payment.paymentType}` as const)}
+                        {tEnum(payment.paymentType)}
                       </span>
                     </div>
                   </div>
@@ -601,12 +610,12 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
                             </span>
                             <select
                               value={draft.paymentType}
-                              onChange={(e) => patchDraft("paymentType", e.target.value as PaymentType)}
+                              onChange={(e) => patchDraft("paymentType", e.target.value)}
                               className="mt-1 block h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-slate-900"
                             >
-                              {PAYMENT_TYPE_OPTIONS.map((value) => (
+                              {draftMethodOptions.map((value) => (
                                 <option key={value} value={value}>
-                                  {t(`common.payments.methods.${value}`)}
+                                  {tEnum(value)}
                                 </option>
                               ))}
                             </select>
@@ -785,12 +794,16 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
 
             <label className="block">
               <span className="text-sm font-medium text-slate-700">{t("common.payments.methodLabel")}</span>
-              <select value={method} onChange={(e) => setMethod(e.target.value as PaymentType)} className={inputClass}>
-                {PAYMENT_TYPE_OPTIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`common.payments.methods.${value}`)}
-                  </option>
-                ))}
+              <select value={activeMethod} onChange={(e) => setMethod(e.target.value)} className={inputClass}>
+                {methodOptions.length === 0 ? (
+                  <option value="">{t("common.payments.noMethods")}</option>
+                ) : (
+                  methodOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {tEnum(value)}
+                    </option>
+                  ))
+                )}
               </select>
             </label>
 
@@ -830,7 +843,7 @@ export function PaymentPanel({ scope }: { scope: "company" | "store" }) {
 
             <button
               type="submit"
-              disabled={saving || !amountValid || !selectedParty}
+              disabled={saving || !amountValid || !selectedParty || !activeMethod}
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {saving ? t("common.saving") : t("common.payments.submit")}

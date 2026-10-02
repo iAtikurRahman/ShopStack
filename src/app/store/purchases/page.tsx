@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
+import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
 
 type Warehouse = { id: number; name: string };
@@ -34,21 +35,11 @@ type Line = {
   warehouseId: string;
 };
 
-// Same list, same order, as the till's payment method - one vocabulary for
-// "how did the money move" across the whole app. `due` leads for the same
-// reason: it is the choice with a lasting balance-sheet consequence.
-const PAYMENT_METHODS = [
-  "due",
-  "cash",
-  "card",
-  "bkash",
-  "rocket",
-  "nagad",
-  "upay",
-  "banglaqr",
-  "other",
-] as const;
-type PaymentMethodOption = (typeof PAYMENT_METHODS)[number];
+// The "nothing was paid" marker. It leads the list for the same reason as at
+// the till - it is the choice with a lasting balance-sheet consequence - and
+// every real method after it comes from the bank_info table at runtime, so this
+// screen, the POS and the ledger can never drift onto different vocabularies.
+const DUE_METHOD = "due";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -64,6 +55,7 @@ function subtotalOf(items: PurchaseItem[]): number {
 
 export default function StorePurchasesPage() {
   const { t, tEnum, fmt } = useI18n();
+  const { banks, loading: banksLoading } = useBanks();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -73,7 +65,7 @@ export default function StorePurchasesPage() {
 
   const [supplierId, setSupplierId] = useState("");
   const [reference, setReference] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodOption>("cash");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [purchasedAt, setPurchasedAt] = useState(today());
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([
@@ -103,6 +95,15 @@ export default function StorePurchasesPage() {
     () => lines.reduce((sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitCost) || 0), 0),
     [lines]
   );
+
+  // A deactivated account leaves the stored selection pointing at an option the
+  // dropdown no longer offers, which would render blank and submit a blank
+  // method. Resolved at render, so what the form submits is always on the list.
+  const methodOptions = useMemo(() => banks.map((bank) => bank.bankName), [banks]);
+  const activeMethod =
+    paymentMethod === DUE_METHOD || methodOptions.includes(paymentMethod)
+      ? paymentMethod
+      : methodOptions[0] ?? DUE_METHOD;
 
   async function loadAll() {
     try {
@@ -189,7 +190,7 @@ export default function StorePurchasesPage() {
         supplierId: Number(supplierId),
         reference: reference || null,
         purchasedAt,
-        paymentMethod,
+        paymentMethod: activeMethod,
         items: payloadItems,
       });
       setLines((current) =>
@@ -260,7 +261,7 @@ export default function StorePurchasesPage() {
                     {purchase.paymentMethod ? (
                       <span
                         className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
-                          purchase.paymentMethod === "due"
+                          purchase.paymentMethod === DUE_METHOD
                             ? "bg-amber-100 text-amber-800"
                             : "bg-slate-200 text-slate-700"
                         }`}
@@ -360,18 +361,24 @@ export default function StorePurchasesPage() {
                 {t("storeCommerce.purchases.paymentMethod")}
               </span>
               <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethodOption)}
+                value={activeMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
-                {PAYMENT_METHODS.map((method) => (
-                  <option key={method} value={method}>
-                    {t(`storeCommerce.purchases.${method}`)}
+                {/* The account's running balance rides along, because paying for
+                    stock is what actually drains it. */}
+                <option value={DUE_METHOD}>{tEnum(DUE_METHOD)}</option>
+                {banks.map((bank) => (
+                  <option key={bank.id} value={bank.bankName}>
+                    {`${tEnum(bank.bankName)} — ${fmt.money(bank.remainingBalance)}`}
                   </option>
                 ))}
               </select>
             </label>
-            {paymentMethod === "due" ? (
+            {banksLoading ? (
+              <p className="text-xs text-slate-500">{t("common.loading")}</p>
+            ) : null}
+            {activeMethod === DUE_METHOD ? (
               <p className="rounded-2xl bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
                 {t("storeCommerce.purchases.dueNotice", {
                   amount: fmt.number(formTotal, { decimals: 2 }),

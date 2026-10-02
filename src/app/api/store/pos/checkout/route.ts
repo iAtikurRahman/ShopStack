@@ -2,22 +2,10 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore } from "@/lib/tenant-access";
-import type { PaymentMethod } from "@/generated/tenant";
-
-const PAYMENT_METHODS: PaymentMethod[] = [
-  "cash",
-  "card",
-  "bkash",
-  "rocket",
-  "nagad",
-  "upay",
-  "banglaqr",
-  "other",
-  "due",
-];
+import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
 
 type CheckoutItem = { productId: number; quantity: number; discountAmount?: number };
-type CheckoutPayment = { method: PaymentMethod; amount: number; reference?: string };
+type CheckoutPayment = { method: string; amount: number; reference?: string };
 
 function round2(value: number) {
   return Math.round(value * 100) / 100;
@@ -46,14 +34,21 @@ export const POST = withAuth(async (request, { session, db }) => {
     );
   }
 
-  const unknownMethod = payments.find((p) => !PAYMENT_METHODS.includes(p.method));
-  if (unknownMethod) {
-    return NextResponse.json({ message: `Unknown payment method: ${unknownMethod.method}` }, { status: 400 });
-  }
-
   const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
   if (!warehouse || !canAccessStore(session, warehouse.storeId)) {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
+  }
+
+  // A payment method is a BankInfo.bankName (or "due"), so it is resolved
+  // against the database rather than a hard-coded list - this is what lets a
+  // company add its own methods. Done before the transaction so an unknown name
+  // costs nothing.
+  let methods: string[];
+  try {
+    methods = await Promise.all(payments.map((p) => requireSettlementMethod(db, p.method)));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown payment method";
+    return NextResponse.json({ message }, { status: 400 });
   }
 
   try {
@@ -116,8 +111,13 @@ export const POST = withAuth(async (request, { session, db }) => {
       // the customer and lands on Customer.dueAmount. Mixing it with a real
       // tender in one sale is rejected rather than guessed at, because the two
       // halves would have to settle against different balances.
-      const duePayments = payments.filter((p) => p.method === "due");
-      const settledPayments = payments.filter((p) => p.method !== "due");
+      //
+      // `methods[i]` is the database-confirmed name for `payments[i]`, so the
+      // two arrays are zipped once here and every branch below reads the
+      // resolved name rather than the client's raw string.
+      const tenders = payments.map((p, i) => ({ ...p, method: methods[i] }));
+      const duePayments = tenders.filter((p) => p.method === DUE_METHOD);
+      const settledPayments = tenders.filter((p) => p.method !== DUE_METHOD);
       const isDueSale = duePayments.length > 0;
 
       if (isDueSale && settledPayments.length > 0) {
@@ -178,6 +178,15 @@ export const POST = withAuth(async (request, { session, db }) => {
         });
       }
 
+      // Money handed over at the till lands in the account it was tendered
+      // through. Inside the sale's transaction, so stock cannot be decremented
+      // without the cash that paid for it being recorded, and vice versa.
+      // A due sale adds nothing - the money has not arrived, it is owed.
+      const bankBalances: Record<string, number> = {};
+      for (const tender of settledPayments) {
+        bankBalances[tender.method] = await applyBankDelta(tx, tender.method, Number(tender.amount));
+      }
+
       await writeAuditLog(tx, session, {
         action: "sale.created",
         entityType: "Sale",
@@ -185,8 +194,9 @@ export const POST = withAuth(async (request, { session, db }) => {
         after: {
           totalAmount,
           itemCount: saleItemsData.length,
-          paymentMethod: isDueSale ? "due" : settledPayments[0]?.method,
+          paymentMethod: isDueSale ? DUE_METHOD : settledPayments[0]?.method,
           dueAdded: isDueSale ? totalAmount : 0,
+          bankBalances,
         },
       });
 

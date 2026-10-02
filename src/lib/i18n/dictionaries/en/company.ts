@@ -142,6 +142,38 @@
       selectStore: "Select a store",
       create: "Create user",
     },
+    banks: {
+      helper:
+        "Every payment method in the app is an account on this list. Sales, purchases and payments all pick from it, and the balance moves by itself.",
+      totalLabel: "{amount} across all active accounts",
+      allTitle: "Accounts",
+      searchPlaceholder: "Search by name…",
+      noMatch: 'No accounts match "{search}".',
+      noneYet: "No accounts yet.",
+      bankName: "Name",
+      initialBalance: "Opening balance",
+      remainingBalance: "Current balance",
+      // Editing overwrites the live balance, which is how a recount is recorded.
+      // The automatic postings are kept in the sale, purchase and payment rows,
+      // so this form is for the "we counted the drawer and it is wrong" case.
+      editTitle: "Edit {name}",
+      editHelper:
+        "Editing overwrites the current balance with what you type. Use it when the counted balance differs from the recorded one.",
+      offerInDropdowns: "Offer this account in the payment method dropdowns",
+      activate: "Activate",
+      deactivate: "Deactivate",
+      addTitle: "Add an account",
+      addHelper:
+        "Only the name is needed. The two balances are optional and default to 0 - fill them in whenever you know them, and the account is usable as soon as it exists.",
+      bankNamePlaceholder: "e.g. dbbl, City Bank, cash drawer",
+      reservedHint:
+        "\"due\" cannot be added - it is not an account but the marker for \"nothing was paid\", which every screen adds for you.",
+      create: "Create account",
+      createdMessage: "{name} added.",
+      savedMessage: "{name} saved.",
+      deleteConfirm: "Delete {name} for good? Deactivate keeps its history and also removes it from the payment method lists.",
+      deletedMessage: "{name} deleted.",
+    },
     customers: {
       allTitle: "All customers",
       noneYet: "No customers yet.",
@@ -240,6 +272,9 @@
         paymentCreated: "Payment recorded",
         paymentUpdated: "Payment edited",
         paymentVoided: "Payment voided",
+        bankCreated: "Account added",
+        bankUpdated: "Account updated",
+        bankDeleted: "Account deleted",
       },
       entities: {
         product: "Product",
@@ -251,6 +286,7 @@
         category: "Category",
         supplier: "Supplier",
         payment: "Payment",
+        bank: "Bank",
       },
     },
   },

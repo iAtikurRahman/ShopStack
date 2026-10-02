@@ -2,6 +2,7 @@ import { centralDb } from "@/lib/central-db";
 import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { hashPassword } from "@/lib/auth";
 import { PERMISSION_CATALOG } from "@/lib/permission-catalog";
+import { DEFAULT_BANK_NAMES } from "@/lib/banks";
 import { createTenantDatabase, dropTenantDatabase, buildTenantDbUrl } from "@/lib/provisioning/create-database";
 import { runTenantMigrations } from "@/lib/provisioning/run-tenant-migrations";
 
@@ -116,6 +117,15 @@ async function seedTenantDatabase(
 
     await tenantDb.permission.createMany({
       data: PERMISSION_CATALOG.map(({ key, label, description }) => ({ key, label, description })),
+    });
+
+    // The payment-method vocabulary the POS tender, the purchase form and the
+    // ledger all read from. Seeded with zero balances on purpose: the owner
+    // declares what each account already holds on the Banks screen, whenever
+    // they get to it. Without these rows the POS would open with an empty
+    // dropdown and every sale would be rejected as an unknown method.
+    await tenantDb.bankInfo.createMany({
+      data: DEFAULT_BANK_NAMES.map((bankName) => ({ bankName })),
     });
 
     const mainStore = await tenantDb.store.create({

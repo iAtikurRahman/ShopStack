@@ -2,19 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
-import type { PaymentMethod } from "@/generated/tenant";
-
-const PAYMENT_METHODS: PaymentMethod[] = [
-  "cash",
-  "card",
-  "bkash",
-  "rocket",
-  "nagad",
-  "upay",
-  "banglaqr",
-  "other",
-  "due",
-];
+import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -46,7 +34,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { supplierId, warehouseId, reference, items, purchasedAt, paymentMethod = "cash" } = body ?? {};
+  const { supplierId, warehouseId, reference, items, purchasedAt } = body ?? {};
 
   if (!supplierId || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json(
@@ -55,8 +43,15 @@ export const POST = withAuth(async (request, { session, db }) => {
     );
   }
 
-  if (!PAYMENT_METHODS.includes(paymentMethod)) {
-    return NextResponse.json({ message: `Unknown payment method: ${paymentMethod}` }, { status: 400 });
+  // The payment method is a BankInfo.bankName (or "due"), resolved against the
+  // database before the transaction opens - a typo costs nothing and an account
+  // the owner has deactivated cannot be used for new stock.
+  let paymentMethod: string;
+  try {
+    paymentMethod = await requireSettlementMethod(db, body?.paymentMethod ?? "cash");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown payment method";
+    return NextResponse.json({ message }, { status: 400 });
   }
 
   const supplier = await db.supplier.findUnique({ where: { id: Number(supplierId) } });
@@ -154,12 +149,20 @@ export const POST = withAuth(async (request, { session, db }) => {
       // hands, so the whole total goes onto what we owe this supplier. Inside
       // the same transaction as the purchase, so a failure here rolls the
       // stock increments back rather than leaving stock with no due behind it.
-      if (paymentMethod === "due" && totalCost > 0) {
+      if (paymentMethod === DUE_METHOD && totalCost > 0) {
         await tx.supplier.update({
           where: { id: Number(supplierId) },
           data: { dueAmount: { increment: totalCost } },
         });
       }
+
+      // The mirror image of the POS: paying a supplier takes the money out of
+      // the account the delivery was paid through. A `due` purchase deducts
+      // nothing, because the money has not left yet.
+      const bankBalance =
+        paymentMethod === DUE_METHOD
+          ? null
+          : await applyBankDelta(tx, paymentMethod, -totalCost);
 
       await writeAuditLog(tx, session, {
         action: "purchase.created",
@@ -168,7 +171,8 @@ export const POST = withAuth(async (request, { session, db }) => {
         after: {
           totalCost,
           paymentMethod,
-          dueAdded: paymentMethod === "due" ? totalCost : 0,
+          dueAdded: paymentMethod === DUE_METHOD ? totalCost : 0,
+          bankBalanceAfter: bankBalance,
         },
       });
 
