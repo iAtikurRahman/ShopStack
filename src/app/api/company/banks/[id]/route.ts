@@ -1,6 +1,27 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { BankError, deleteBank, updateBank } from "@/lib/banks";
+import { getBankStatement } from "@/lib/bank-statement";
+
+// The account statement: every sale, purchase, payment and withdrawal that named
+// this account, with a running balance carried forward from the opening figure.
+//
+// Read-only, so it is open to the same roles as the Banks list - a cashier
+// checking what went through the till needs it as much as a manager does.
+export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => {
+  const id = Number(params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return NextResponse.json({ message: "Invalid bank id" }, { status: 400 });
+  }
+  try {
+    return NextResponse.json(await getBankStatement(db, id));
+  } catch (err) {
+    if (err instanceof BankError) {
+      return NextResponse.json({ message: err.message }, { status: err.status });
+    }
+    throw err;
+  }
+}, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 // Editing balances is a bookkeeping act, so it takes the same permission as
 // recording a payment. The name is not editable here - see updateBank.

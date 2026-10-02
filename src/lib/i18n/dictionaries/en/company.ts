@@ -160,6 +160,7 @@
       editHelper:
         "Editing overwrites the current balance with what you type. Use it when the counted balance differs from the recorded one.",
       offerInDropdowns: "Offer this account in the payment method dropdowns",
+      viewDetails: "Statement",
       activate: "Activate",
       deactivate: "Deactivate",
       addTitle: "Add an account",
@@ -173,6 +174,53 @@
       savedMessage: "{name} saved.",
       deleteConfirm: "Delete {name} for good? Deactivate keeps its history and also removes it from the payment method lists.",
       deletedMessage: "{name} deleted.",
+    },
+    bankDetail: {
+      backToBanks: "← Back to accounts",
+      notFound: "Account not found",
+      accountSince: "Account added {date}",
+      openingBalance: "Opening balance",
+      currentBalance: "Current balance",
+      totalIn: "Total money in",
+      totalOut: "Total money out",
+      lastMovementOn: "Last movement {date}",
+      // The stored balance is what every other screen shows; this one is what
+      // the movements actually add up to. A gap between them is a recount the
+      // owner typed in, not an error - so it is reported, never corrected.
+      adjustedTitle: "The recorded balance has been set by hand",
+      adjustedHint:
+        "These movements add up to {ledger}, but the current balance is {recorded}. The difference came from editing the balance on the Accounts screen, which is how a recount is recorded.",
+      statementTitle: "Statement",
+      statementHelper:
+        "Every sale, purchase, payment and withdrawal that named this account, newest first by date and time. Money in is on the left, money out on the right.",
+      searchPlaceholder: "Search by party, reference, note or date…",
+      noMatch: 'No movements match "{search}".',
+      noneYet: "Nothing has moved through this account yet.",
+      date: "Date",
+      type: "Type",
+      details: "Details",
+      in: "In",
+      out: "Out",
+      balance: "Balance",
+      noParty: "Walk-in",
+      saleEntry: "Sale #{id}",
+      receiveEntry: "Receipt #{id}",
+      purchaseEntry: "Purchase #{id}",
+      paymentEntry: "Payment #{id}",
+      withdrawalEntry: "Withdrawal #{id}",
+      kinds: {
+        sale: "Sale",
+        receive: "Payment received",
+        purchase: "Purchase",
+        payment: "Payment made",
+        withdrawal: "Withdrawal",
+      },
+      voidedBadge: "voided",
+      movementCountOne: "1 movement",
+      movementCountMany: "{count} movements",
+      totalsRow: "Totals",
+      voidedHintOne: "1 voided movement is shown as the correction it was.",
+      voidedHintMany: "{count} voided movements are shown as the corrections they were.",
     },
     withdrawals: {
       helper:

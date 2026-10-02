@@ -106,6 +106,19 @@ export async function listActiveBanks(db: PrismaClient): Promise<BankRow[]> {
 }
 
 /**
+ * One account by id, for the statement screen. Includes deactivated rows: an
+ * account can be switched off and its history still has to be readable, since
+ * the movements that named it stay on the books either way.
+ */
+export async function getBank(db: PrismaClient, id: number): Promise<BankRow> {
+  const row = await db.bankInfo.findUnique({ where: { id } });
+  if (!row) {
+    throw new BankError(404, "Bank not found");
+  }
+  return toBankRow(row);
+}
+
+/**
  * Validates that `name` is an active account. Throws BankError(400) with a
  * client-safe message otherwise.
  *

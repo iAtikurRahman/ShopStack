@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
@@ -212,20 +213,22 @@ export default function CompanyBanksPage() {
             </p>
           ) : (
             <div className="mt-4 divide-y divide-slate-100">
-              {/* The two action buttons are wider than their column, and a
+              {/* The action buttons are wider than their column, and a
                   flex row that overflows a fixed column spills out of its start
                   edge - which is what used to push the buttons left on top of
                   the balance. So the column is sized to actually hold them and
                   the whole table keeps a floor width inside a scroll container
-                  instead of being squeezed when the card narrows.
+                  instead of being squeezed when the card narrows. Four of them
+                  now (statement, edit, activate/deactivate, delete), so the
+                  column is a little wider than when it held three.
 
                   The floor is set just under the card's own width at the widest
                   breakpoint, so the name column does not stretch into a long
                   empty run before the balances, and no scrollbar appears on a
                   desktop. */}
               <div className="overflow-x-auto">
-                <div className="min-w-[33rem]">
-                  <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_10.5rem] gap-2 pb-2 text-xs font-medium uppercase leading-tight tracking-wide text-slate-500">
+                <div className="min-w-[35.5rem]">
+                  <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_13rem] gap-2 pb-2 text-xs font-medium uppercase leading-tight tracking-wide text-slate-500">
                     <span>{t("company.banks.bankName")}</span>
                     <span className="text-right">{t("company.banks.initialBalance")}</span>
                     <span className="text-right">{t("company.banks.remainingBalance")}</span>
@@ -235,7 +238,7 @@ export default function CompanyBanksPage() {
                     const editing = editingId === bank.id;
                     return (
                       <div key={bank.id} className="py-3">
-                        <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_10.5rem] items-center gap-2 text-sm">
+                        <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_13rem] items-center gap-2 text-sm">
                           <div className="min-w-0">
                             <p className="truncate font-medium text-slate-950">{tEnum(bank.bankName)}</p>
                             {bank.isActive ? null : (
@@ -255,6 +258,17 @@ export default function CompanyBanksPage() {
                             {fmt.money(bank.remainingBalance)}
                           </span>
                           <div className="flex flex-wrap justify-end gap-1.5">
+                            {/* A Link rather than a button+router.push: the
+                                statement is a real URL, so it can be shared,
+                                bookmarked and opened in a new tab - and the
+                                prefetcher warms it while the owner is still
+                                reading this row. */}
+                            <Link
+                              href={`/company/banks/${bank.id}`}
+                              className="shrink-0 rounded-xl border border-slate-900 bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-slate-800"
+                            >
+                              {t("company.banks.viewDetails")}
+                            </Link>
                             <button
                               type="button"
                               onClick={() => startEdit(bank)}
