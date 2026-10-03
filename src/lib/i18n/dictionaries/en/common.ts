@@ -213,6 +213,7 @@ export const en = {
       "withdrawalDate cannot be in the future": "withdrawalDate cannot be in the future",
       "Invalid bank id": "Invalid bank id",
       "Invalid transfer id": "Invalid transfer id",
+      "Invalid date": "Invalid date",
       "Transfer not found": "Transfer not found",
       "Pick two different accounts": "Pick two different accounts",
       "amount must be greater than 0": "amount must be greater than 0",

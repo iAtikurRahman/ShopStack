@@ -206,6 +206,7 @@ export const bn = {
       "withdrawalDate cannot be in the future": "ভবিষ্যতের তারিখ দেওয়া যাবে না",
       "Invalid bank id": "ব্যাংক আইডি সঠিক নয়",
       "Invalid transfer id": "ট্রান্সফার আইডি সঠিক নয়",
+      "Invalid date": "তারিখ সঠিক নয়",
       "Transfer not found": "ট্রান্সফার পাওয়া যায়নি",
       "Pick two different accounts": "দুইটি ভিন্ন অ্যাকাউন্ট বাছুন",
       "amount must be greater than 0": "পরিমাণ ০-এর চেয়ে বেশি হতে হবে",

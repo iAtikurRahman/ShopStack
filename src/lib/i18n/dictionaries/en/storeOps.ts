@@ -4,7 +4,15 @@
       welcome: "Welcome, {name}",
       workingFrom: "You are working from {store}.",
       companyWideAccess: "You have company-wide access to every store.",
-      posLaterPhase: "POS checkout lands in a later phase.",
+      fullReports: "See the full reports",
+      // Shown instead of the figures to anyone without can_view_reports, so the
+      // absence of numbers reads as a permission rather than a broken screen.
+      reportsHidden: "Sales figures need the View reports permission.",
+      relativeToPeak: "vs peak ({percent}%)",
+      todayTitle: "Today's report",
+      todaySales: "Sales today",
+      todayRefunds: "Refunds today",
+      allReportsTitle: "All reports",
     },
     pos: {
       searchPlaceholder: "Search by name or SKU…",
@@ -75,6 +83,17 @@
       soldMeta: "{qty} sold · ৳{revenue}",
       lowStock: "Low stock",
       nothingLow: "Nothing low on stock.",
+      // Chart, day panel and the click-through beneath the dashboard's figures.
+      trendTitle: "Sales over the last {days} days",
+      salesLegend: "Sales",
+      refundsLegend: "Refunds",
+      clickBarHint: "Click a day to see its sales",
+      dayDetails: "Details for {date}",
+      noSalesOnDay: "No sales on this day.",
+      saleNumber: "Sale #{id}",
+      itemCount: "{count} items",
+      walkIn: "Walk-in",
+      andMoreSales: "More sales that day are not listed here.",
     },
     inventory: {
       manageProducts: "Manage products",

@@ -3,18 +3,14 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import type { StoreReport } from "@/lib/reports";
 
-type Report = {
-  totalSales: string | number;
-  totalRefunds: string | number;
-  salesCount: number;
-  topProducts: { product: { sku: string; name: string } | null; quantitySold: number; revenue: string | number }[];
-  lowStockItems: { product: { sku: string; name: string }; quantity: number; lowStockThreshold: number }[];
-};
-
+// The dashboard renders these same figures server-side from lib/reports. Sharing
+// the type means a change to the report shape breaks both screens at compile
+// time rather than leaving one silently stale.
 export default function StoreReportsPage() {
   const { t, fmt } = useI18n();
-  const [report, setReport] = useState<Report | null>(null);
+  const [report, setReport] = useState<StoreReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +18,7 @@ export default function StoreReportsPage() {
     async function load() {
       setLoading(true);
       try {
-        const data = await apiFetch<Report>("/api/store/reports");
+        const data = await apiFetch<StoreReport>("/api/store/reports");
         setReport(data);
       } catch (err) {
         setError((err as Error).message);
