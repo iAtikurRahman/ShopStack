@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
@@ -40,7 +40,7 @@ type Expenditure = {
  *  A line says what the money was spent ON. How the voucher was paid belongs to
  *  the voucher, so there is nothing about payment here. */
 type LineDraft = {
-  key: number;
+  key: string;
   headId: string;
   description: string;
   billNo: string;
@@ -63,7 +63,20 @@ type VoucherDraft = {
   lines: LineDraft[];
 };
 
-let nextLineKey = 1;
+/** A line's identity while it is being typed, never sent to the server.
+ *
+ *  Deliberately not a plain module counter: this file is re-evaluated on every
+ *  fast refresh, which would restart such a counter at 1 and hand a newly added
+ *  line the same key as one already on screen. React answers colliding keys by
+ *  dropping or duplicating children, so the line the owner just added would
+ *  silently not appear. The random tail means a reloaded module cannot reissue a
+ *  key that is still in use. */
+let lineKeySeq = 0;
+
+function newLineKey(): string {
+  lineKeySeq += 1;
+  return `${lineKeySeq}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /** An empty account means "whatever the first account turns out to be".
  *
@@ -75,7 +88,7 @@ let nextLineKey = 1;
  */
 function newLine(): LineDraft {
   return {
-    key: nextLineKey++,
+    key: newLineKey(),
     headId: "",
     description: "",
     billNo: "",
@@ -123,7 +136,7 @@ function draftOf(expenditure: Expenditure): VoucherDraft {
     // account yet, and picking one here would claim it had.
     paymentMethod: expenditure.paymentMethod ?? "",
     lines: expenditure.items.map((item) => ({
-      key: nextLineKey++,
+      key: newLineKey(),
       headId: String(item.headId),
       description: item.description ?? "",
       billNo: item.billNo ?? "",
@@ -169,6 +182,30 @@ export default function CompanyExpendituresPage() {
   // this the "balance after" preview would keep showing a figure the server has
   // already moved on from, until a reload.
   const [balanceOverrides, setBalanceOverrides] = useState<Record<string, number>>({});
+
+  // The list lives beside the form on a wide screen and below it on a narrow
+  // one, where the form is far taller than the viewport. Saving used to leave the
+  // owner staring at a success line at the top of the page with their new voucher
+  // - and its edit and delete buttons - somewhere off-screen, so the list is
+  // scrolled into view and the voucher that was just saved is ringed for a
+  // moment to say "this one".
+  const listRef = useRef<HTMLDivElement>(null);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function revealVoucher(id: number) {
+    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setHighlightId(id);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightId(null), 2500);
+  }
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    },
+    []
+  );
 
   async function load() {
     try {
@@ -257,7 +294,7 @@ export default function CompanyExpendituresPage() {
     setDraft((current) => ({ ...current, ...patch }));
   }
 
-  function patchLine(key: number, patch: Partial<LineDraft>) {
+  function patchLine(key: string, patch: Partial<LineDraft>) {
     setDraft((current) => ({
       ...current,
       lines: current.lines.map((line) => (line.key === key ? { ...line, ...patch } : line)),
@@ -271,7 +308,7 @@ export default function CompanyExpendituresPage() {
     }));
   }
 
-  function removeLine(key: number) {
+  function removeLine(key: string) {
     setDraft((current) => {
       const lines = current.lines.filter((line) => line.key !== key);
       // Never leave the voucher with zero rows: the form would have nothing to
@@ -332,6 +369,7 @@ export default function CompanyExpendituresPage() {
       setDraft(emptyVoucher());
       await load();
       setSuccess(t("company.expenditures.createdMessage", { amount: fmt.money(result.expenditure.totalAmount) }));
+      revealVoucher(result.expenditure.id);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -355,6 +393,7 @@ export default function CompanyExpendituresPage() {
       setDraft(emptyVoucher());
       await load();
       setSuccess(t("company.expenditures.savedMessage"));
+      revealVoucher(result.expenditure.id);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -365,7 +404,7 @@ export default function CompanyExpendituresPage() {
   async function handleVoid(expenditure: Expenditure) {
     if (
       !window.confirm(
-        t("company.expenditures.deleteConfirm", { amount: fmt.money(expenditure.paidAmount) })
+        t("company.expenditures.deleteConfirm", { amount: fmt.money(expenditure.totalAmount) })
       )
     ) {
       return;
@@ -382,8 +421,9 @@ export default function CompanyExpendituresPage() {
       setBalanceOverrides((current) => ({ ...current, ...result.bankBalances }));
       await load();
       setSuccess(
-        t("company.expenditures.deletedMessage", { amount: fmt.money(expenditure.paidAmount) })
+        t("company.expenditures.deletedMessage", { amount: fmt.money(expenditure.totalAmount) })
       );
+      revealVoucher(expenditure.id);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -446,10 +486,23 @@ export default function CompanyExpendituresPage() {
       <div className="flex flex-wrap items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold text-slate-950">{t("nav.expenditures")}</h1>
         {expenditures.length > 0 ? (
-          <p className="text-sm text-slate-600">
-            {t("company.expenditures.paidLabel")}: {fmt.money(totalPaid)} ·{" "}
-            {t("company.expenditures.totalLabel")}: {fmt.money(totalActive)}
-          </p>
+          <div className="flex flex-wrap items-baseline gap-4">
+            <p className="text-sm text-slate-600">
+              {t("company.expenditures.paidLabel")}: {fmt.money(totalPaid)} ·{" "}
+              {t("company.expenditures.totalLabel")}: {fmt.money(totalActive)}
+            </p>
+            {/* On a narrow screen the list sits below the whole form, so without
+                this there is no way to tell it is down there at all. */}
+            <button
+              type="button"
+              onClick={() =>
+                listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+              className="text-sm font-semibold text-slate-900 underline underline-offset-4"
+            >
+              {t("company.expenditures.jumpToList", { count: expenditures.length })}
+            </button>
+          </div>
         ) : null}
       </div>
       <p className="-mt-4 text-sm text-slate-600">{t("company.expenditures.helper")}</p>
@@ -759,10 +812,25 @@ export default function CompanyExpendituresPage() {
 
         {/* --------------------------------------------------- the list */}
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              {t("company.expenditures.allTitle")}
-            </h2>
+          <div
+            ref={listRef}
+            className="scroll-mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold text-slate-950">
+                {t("company.expenditures.allTitle")}
+              </h2>
+              {filtered.length > 0 ? (
+                <span className="text-xs text-slate-500">
+                  {filtered.length}{" "}
+                  {t(
+                    filtered.length === 1
+                      ? "company.expenditures.voucherCountOne"
+                      : "company.expenditures.voucherCountMany"
+                  )}
+                </span>
+              ) : null}
+            </div>
             <input
               type="text"
               value={search}
@@ -783,10 +851,12 @@ export default function CompanyExpendituresPage() {
                 {filtered.map((expenditure) => (
                   <div
                     key={expenditure.id}
-                    className={`rounded-2xl border p-3 ${
-                      expenditure.isActive
-                        ? "border-slate-200 bg-slate-50"
-                        : "border-slate-100 bg-slate-50/60"
+                    className={`rounded-2xl border p-3 transition-shadow ${
+                      highlightId === expenditure.id
+                        ? "border-emerald-500 ring-2 ring-emerald-500/40"
+                        : expenditure.isActive
+                          ? "border-slate-200 bg-slate-50"
+                          : "border-slate-100 bg-slate-50/60"
                     }`}
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -305,8 +305,11 @@
     },
     expenditures: {
       helper:
-        "One voucher can hold several lines - a month's salary, the fuel and the lunch all under one date. Each line names what it was for and which account paid it, and only the paid lines come out of that account's balance.",
+        "One voucher can hold several lines - a month's salary, the fuel and the lunch all under one date. The lines say what the money was for; once they are added up you pick one account to pay the whole total from, and the list below is where every voucher can be edited or voided.",
       allTitle: "Expenditures",
+      voucherCountOne: "voucher",
+      voucherCountMany: "vouchers",
+      jumpToList: "See the list ({count})",
       searchPlaceholder: "Search by note, head, bill number or account.",
       noMatch: 'No expenditures match "{search}".',
       noneYet: "No expenditures yet.",
