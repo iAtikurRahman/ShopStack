@@ -510,14 +510,21 @@ export default function CompanyExpendituresPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+      {/* Wide screen: list on the left, the add form on the right, and the heads
+          under the form - the heads are a maintenance panel, not something the
+          owner needs in view while reading vouchers.
+          The three cards are placed into grid cells explicitly rather than left
+          to source order, because the source order is deliberately the opposite
+          on a narrow screen: the two stack, and there the form should come first
+          (add a voucher, then find the list). */}
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         {/* ------------------------------------------------------ the form */}
         <form
           onSubmit={editingId === null ? handleCreate : (event) => {
             event.preventDefault();
             void saveEdit();
           }}
-          className="h-fit space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="h-fit space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-2 lg:row-start-1"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-slate-950">
@@ -811,194 +818,192 @@ export default function CompanyExpendituresPage() {
         </form>
 
         {/* --------------------------------------------------- the list */}
-        <div className="space-y-6">
-          <div
-            ref={listRef}
-            className="scroll-mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold text-slate-950">
-                {t("company.expenditures.allTitle")}
-              </h2>
-              {filtered.length > 0 ? (
-                <span className="text-xs text-slate-500">
-                  {filtered.length}{" "}
-                  {t(
-                    filtered.length === 1
-                      ? "company.expenditures.voucherCountOne"
-                      : "company.expenditures.voucherCountMany"
-                  )}
-                </span>
-              ) : null}
-            </div>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("company.expenditures.searchPlaceholder")}
-              className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
-            />
-            {loading ? (
-              <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
-            ) : filtered.length === 0 ? (
-              <p className="mt-6 text-sm text-slate-600">
-                {search.trim()
-                  ? t("company.expenditures.noMatch", { search: search.trim() })
-                  : t("company.expenditures.noneYet")}
-              </p>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {filtered.map((expenditure) => (
-                  <div
-                    key={expenditure.id}
-                    className={`rounded-2xl border p-3 transition-shadow ${
-                      highlightId === expenditure.id
-                        ? "border-emerald-500 ring-2 ring-emerald-500/40"
-                        : expenditure.isActive
-                          ? "border-slate-200 bg-slate-50"
-                          : "border-slate-100 bg-slate-50/60"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <div className="min-w-0">
-                        <p
-                          className={`truncate text-sm font-semibold ${
-                            expenditure.isActive ? "text-slate-950" : "text-slate-500 line-through"
-                          }`}
-                        >
-                          {expenditure.note || t("company.expenditures.nothingToShow")}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {fmt.date(expenditure.expenditureDate)} · {expenditure.items.length}{" "}
-                          {t("company.expenditures.lineHead")}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold tabular-nums text-slate-950">
-                          {fmt.money(expenditure.totalAmount)}
-                        </p>
-                        {expenditure.unpaidAmount > 0 ? (
-                          <p className="text-xs tabular-nums text-amber-700">
-                            {t("company.expenditures.unpaidLabel")}{" "}
-                            {fmt.money(expenditure.unpaidAmount)}
-                          </p>
-                        ) : null}
-                      </div>
+        <div
+          ref={listRef}
+          className="scroll-mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-1 lg:row-start-1"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold text-slate-950">
+              {t("company.expenditures.allTitle")}
+            </h2>
+            {filtered.length > 0 ? (
+              <span className="text-xs text-slate-500">
+                {filtered.length}{" "}
+                {t(
+                  filtered.length === 1
+                    ? "company.expenditures.voucherCountOne"
+                    : "company.expenditures.voucherCountMany"
+                )}
+              </span>
+            ) : null}
+          </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("company.expenditures.searchPlaceholder")}
+            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
+          {loading ? (
+            <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
+          ) : filtered.length === 0 ? (
+            <p className="mt-6 text-sm text-slate-600">
+              {search.trim()
+                ? t("company.expenditures.noMatch", { search: search.trim() })
+                : t("company.expenditures.noneYet")}
+            </p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {filtered.map((expenditure) => (
+                <div
+                  key={expenditure.id}
+                  className={`rounded-2xl border p-3 transition-shadow ${
+                    highlightId === expenditure.id
+                      ? "border-emerald-500 ring-2 ring-emerald-500/40"
+                      : expenditure.isActive
+                        ? "border-slate-200 bg-slate-50"
+                        : "border-slate-100 bg-slate-50/60"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="min-w-0">
+                      <p
+                        className={`truncate text-sm font-semibold ${
+                          expenditure.isActive ? "text-slate-950" : "text-slate-500 line-through"
+                        }`}
+                      >
+                        {expenditure.note || t("company.expenditures.nothingToShow")}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {fmt.date(expenditure.expenditureDate)} · {expenditure.items.length}{" "}
+                        {t("company.expenditures.lineHead")}
+                      </p>
                     </div>
-
-                    <ul className="mt-2 space-y-0.5">
-                      {expenditure.items.map((item) => (
-                        <li key={item.id} className="flex justify-between gap-2 text-xs text-slate-600">
-                          <span className="truncate">
-                            {tEnum(item.headName)}
-                            {item.billNo ? ` · ${item.billNo}` : ""}
-                          </span>
-                          <span className="shrink-0 tabular-nums">{fmt.money(item.amount)}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* The payment belongs to the voucher, so it is stated once here
-                        rather than repeated on every head. */}
-                    <p className="mt-2 text-xs text-slate-600">
-                      {expenditure.isPaid && expenditure.paymentMethod
-                        ? t("company.expenditures.paidVia", {
-                            bank: tEnum(expenditure.paymentMethod),
-                            amount: fmt.money(expenditure.paidAmount),
-                          })
-                        : t("company.expenditures.unpaidVia", {
-                            amount: fmt.money(expenditure.unpaidAmount),
-                          })}
-                    </p>
-
-                    {!expenditure.isActive ? (
-                      <span className="mt-2 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                        {t("common.payments.voided")}
-                      </span>
-                    ) : null}
-
-                    <div className="mt-2 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => startEdit(expenditure)}
-                        disabled={!expenditure.isActive}
-                        className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-40"
-                      >
-                        {t("common.edit")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleVoid(expenditure)}
-                        disabled={!expenditure.isActive || voidingId === expenditure.id}
-                        className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-40"
-                      >
-                        {voidingId === expenditure.id ? t("common.deleting") : t("common.delete")}
-                      </button>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold tabular-nums text-slate-950">
+                        {fmt.money(expenditure.totalAmount)}
+                      </p>
+                      {expenditure.unpaidAmount > 0 ? (
+                        <p className="text-xs tabular-nums text-amber-700">
+                          {t("company.expenditures.unpaidLabel")}{" "}
+                          {fmt.money(expenditure.unpaidAmount)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* --------------------------------------------------- the heads */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-950">
-              {t("company.expenditures.headsTitle")}
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">{t("company.expenditures.headsHelper")}</p>
-            <form onSubmit={handleAddHead} className="mt-4 flex gap-2">
-              <input
-                required
-                value={newHead}
-                onChange={(e) => setNewHead(e.target.value)}
-                placeholder={t("company.expenditures.headNamePlaceholder")}
-                className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-slate-900"
-              />
-              <button
-                type="submit"
-                disabled={addingHead || newHead.trim() === ""}
-                className="shrink-0 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                {t("company.expenditures.addHead")}
-              </button>
-            </form>
-            {heads.length === 0 ? (
-              <p className="mt-4 text-sm text-slate-600">{t("company.expenditures.noneYet")}</p>
-            ) : (
-              <ul className="mt-4 divide-y divide-slate-100">
-                {heads.map((head) => (
-                  <li key={head.id} className="flex items-center justify-between gap-2 py-2">
-                    <span
-                      className={`truncate text-sm ${
-                        head.isActive ? "text-slate-900" : "text-slate-400 line-through"
-                      }`}
+                  <ul className="mt-2 space-y-0.5">
+                    {expenditure.items.map((item) => (
+                      <li key={item.id} className="flex justify-between gap-2 text-xs text-slate-600">
+                        <span className="truncate">
+                          {tEnum(item.headName)}
+                          {item.billNo ? ` · ${item.billNo}` : ""}
+                        </span>
+                        <span className="shrink-0 tabular-nums">{fmt.money(item.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* The payment belongs to the voucher, so it is stated once here
+                      rather than repeated on every head. */}
+                  <p className="mt-2 text-xs text-slate-600">
+                    {expenditure.isPaid && expenditure.paymentMethod
+                      ? t("company.expenditures.paidVia", {
+                          bank: tEnum(expenditure.paymentMethod),
+                          amount: fmt.money(expenditure.paidAmount),
+                        })
+                      : t("company.expenditures.unpaidVia", {
+                          amount: fmt.money(expenditure.unpaidAmount),
+                        })}
+                  </p>
+
+                  {!expenditure.isActive ? (
+                    <span className="mt-2 inline-block rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                      {t("common.payments.voided")}
+                    </span>
+                  ) : null}
+
+                  <div className="mt-2 flex justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(expenditure)}
+                      disabled={!expenditure.isActive}
+                      className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-40"
                     >
-                      {tEnum(head.name)}
-                    </span>
-                    <span className="flex shrink-0 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleHead(head)}
-                        className="rounded-xl border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
-                      >
-                        {head.isActive
-                          ? t("company.expenditures.headDeactivate")
-                          : t("company.expenditures.headReactivate")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteHead(head)}
-                        className="rounded-xl border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
-                      >
-                        {t("company.expenditures.deleteHead")}
-                      </button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                      {t("common.edit")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleVoid(expenditure)}
+                      disabled={!expenditure.isActive || voidingId === expenditure.id}
+                      className="rounded-xl border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-900 transition hover:bg-white disabled:opacity-40"
+                    >
+                      {voidingId === expenditure.id ? t("common.deleting") : t("common.delete")}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* --------------------------------------------------- the heads */}
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-start-2 lg:row-start-2">
+          <h2 className="text-lg font-semibold text-slate-950">
+            {t("company.expenditures.headsTitle")}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">{t("company.expenditures.headsHelper")}</p>
+          <form onSubmit={handleAddHead} className="mt-4 flex gap-2">
+            <input
+              required
+              value={newHead}
+              onChange={(e) => setNewHead(e.target.value)}
+              placeholder={t("company.expenditures.headNamePlaceholder")}
+              className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-slate-900"
+            />
+            <button
+              type="submit"
+              disabled={addingHead || newHead.trim() === ""}
+              className="shrink-0 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            >
+              {t("company.expenditures.addHead")}
+            </button>
+          </form>
+          {heads.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-600">{t("company.expenditures.noneYet")}</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-slate-100">
+              {heads.map((head) => (
+                <li key={head.id} className="flex items-center justify-between gap-2 py-2">
+                  <span
+                    className={`truncate text-sm ${
+                      head.isActive ? "text-slate-900" : "text-slate-400 line-through"
+                    }`}
+                  >
+                    {tEnum(head.name)}
+                  </span>
+                  <span className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleHead(head)}
+                      className="rounded-xl border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
+                    >
+                      {head.isActive
+                        ? t("company.expenditures.headDeactivate")
+                        : t("company.expenditures.headReactivate")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteHead(head)}
+                      className="rounded-xl border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-900 transition hover:bg-slate-50"
+                    >
+                      {t("company.expenditures.deleteHead")}
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </main>
