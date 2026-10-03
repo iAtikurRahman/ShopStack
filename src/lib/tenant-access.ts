@@ -15,6 +15,15 @@ export function storeScopeWhere(session: TenantSession): { storeId?: number } {
   return session.storeId !== null ? { storeId: session.storeId } : {};
 }
 
+/** Same scoping, for queries on `Store` itself - where the store's primary key
+ * is the scope, because the row *is* the store. Without this a store manager
+ * is handed every store in the company on the list route while canAccessStore
+ * still refuses all but their own, so clicking Edit on a neighbour answers
+ * "Store not found" instead of an honest 403. */
+export function storeListWhere(session: TenantSession): { id?: number } {
+  return isGlobalStoreAccess(session) ? {} : { id: session.storeId as number };
+}
+
 /** Ownership guard: allowed to touch a warehouse/sale belonging to a store. */
 export function canAccessStore(session: TenantSession, storeId: number | null): boolean {
   return isGlobalStoreAccess(session) || storeId === session.storeId;

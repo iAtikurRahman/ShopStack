@@ -212,6 +212,12 @@ export const bn = {
       "amount must be greater than 0": "পরিমাণ ০-এর চেয়ে বেশি হতে হবে",
       "Transfer is already voided": "ট্রান্সফারটি ইতিমধ্যে বাতিল হয়েছে",
       "A voided transfer cannot be edited": "বাতিল হওয়া ট্রান্সফার সম্পাদনা করা যাবে না",
+      "Invalid store id": "দোকান আইডি সঠিক নয়",
+      "An image file is required": "একটি ছবির ফাইল আবশ্যক",
+      "Image must be a JPG, PNG, WebP or GIF file":
+        "ছবি অবশ্যই JPG, PNG, WebP বা GIF ফরম্যাটে হতে হবে",
+      "The chosen file is empty": "বাছাই করা ফাইলটি ফাঁকা",
+      "Image must be 2 MB or smaller": "ছবির আকার ২ এমবি বা তার কম হতে হবে",
     },
   },
 };

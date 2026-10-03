@@ -222,6 +222,10 @@ model Store {
   name       String
   address    String?
   phone      String?
+  // Public path of the store's picture/logo, written to disk under
+  // public/uploads/company-<companyId>/stores/ and served as a static file.
+  // Null until an image is uploaded.
+  imageUrl   String?
   isActive   Boolean     @default(true)
   warehouses Warehouse[]
   users      User[]

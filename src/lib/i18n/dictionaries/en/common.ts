@@ -219,6 +219,11 @@ export const en = {
       "amount must be greater than 0": "amount must be greater than 0",
       "Transfer is already voided": "Transfer is already voided",
       "A voided transfer cannot be edited": "A voided transfer cannot be edited",
+      "Invalid store id": "Invalid store id",
+      "An image file is required": "An image file is required",
+      "Image must be a JPG, PNG, WebP or GIF file": "Image must be a JPG, PNG, WebP or GIF file",
+      "The chosen file is empty": "The chosen file is empty",
+      "Image must be 2 MB or smaller": "Image must be 2 MB or smaller",
     },
   },
 };
