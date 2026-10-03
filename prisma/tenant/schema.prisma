@@ -81,6 +81,9 @@ model BankInfo {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   withdrawals      Withdrawal[]
+  // No back-reference for expenditures: like SalePayment.method and
+  // Purchase.paymentMethod, ExpenditureItem.paymentMethod is a snapshot string
+  // rather than a foreign key, so there is no relation to point back from.
   // Both sides of a transfer are relations to this table, so the two have to be
   // told apart by name - an unnamed pair of relations between the same two
   // models is ambiguous and Prisma rejects it.
@@ -123,6 +126,128 @@ model Withdrawal {
 
   @@index([bankId])
   @@index([withdrawalDate])
+}
+
+// What the money was spent ON - "Salary", "Entertainment", "Rent".
+//
+// A plain vocabulary table, on the same footing as BankInfo.bankName: the owner
+// types the heads their own business uses and they appear in the dropdown.
+// Nothing here is hard-coded, because what counts as an expense is exactly the
+// thing that varies per shop; the migration seeds a starter set so a brand new
+// tenant is not staring at an empty box.
+//
+// `name` is unique so the same head cannot be added twice under two spellings
+// that would then split a report in half. isActive is the "remove" action and
+// follows the soft-delete convention Store/User/Withdrawal use: a head that has
+// been spent against keeps its history, it just leaves the dropdown.
+model ExpenditureHead {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  isActive  Boolean          @default(true)
+  items     ExpenditureItem[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([isActive])
+}
+
+// One expense voucher: a header the owner dates and annotates, holding several
+// ExpenditureItem lines that were settled together.
+//
+// The payment is made once, for the voucher, and never line by line: the lines
+// answer "what was this spent on", and the total answers "and how was it paid".
+// That is the whole reason there is no isPaid on ExpenditureItem.
+//
+// Company-wide, like Withdrawal and BankTransfer, because the thing it moves
+// money through (an account in bank_info) is company-wide too. There is no
+// storeId on purpose - see BankInfo for the same reasoning.
+//
+// The three optional extras are header-level rather than lines because they
+// belong to the whole voucher, not to any one head: transport for the trip that
+// covered all of it, a top-up that was not tied to a single item, and a discount
+// the supplier gave back. All three default to 0 so a voucher with none of them
+// is the ordinary case. `discount` reduces the voucher total, and therefore what
+// comes out of the account - a discount the owner records but that does not
+// change the money is not a discount, it is a note.
+//
+// totalAmount / paidAmount are stored rather than derived on read, because they
+// are the figures the list sorts and sums by and a voucher is immutable history:
+// recomputing them per row on every list request would mean summing every line
+// of every voucher in the company each time. Both are written by the same code
+// that moves the balances, in the same transaction, so they cannot drift from
+// the money.
+//
+// isActive is the "delete": the money has already moved, so removing the voucher
+// has to move it back (see src/lib/expenditures.ts). There is no hard delete on
+// purpose, for the same reason Withdrawal has none.
+model Expenditure {
+  id           Int              @id @default(autoincrement())
+  expenditureDate DateTime
+  note         String?          @db.Text
+  // The optional header-level extras. Zero means "not recorded", not "free".
+  transportationCost Float        @default(0)
+  additionalCost     Float        @default(0)
+  discount           Float        @default(0)
+  // lineSum + transportationCost + additionalCost - discount.
+  totalAmount Float @default(0)
+  // What actually left an account. Equal to totalAmount once the voucher is
+  // settled, and 0 while it is still outstanding.
+  paidAmount  Float            @default(0)
+  // The payment is a property of the whole voucher, not of each line: the heads
+  // say what the money was spent ON, and only once they have all been added up
+  // is there a single answer to "and how was it paid". So one account for the
+  // entire voucher, and one paid/unpaid switch covering all of it.
+  //
+  // paymentMethod is a BankInfo.bankName snapshot, not a foreign key, for the
+  // same reason SalePayment.method is: an account can be deactivated or deleted
+  // afterwards and the voucher still has to say which account it went through.
+  // Every write path re-checks the name against bank_info, so the loose string
+  // cannot drift into an account that does not exist.
+  paymentMethod String?
+  // Whether the voucher has been settled. Unpaid costs nothing - no balance
+  // moves - which is what makes "recorded, not yet paid" a legitimate state.
+  isPaid      Boolean          @default(true)
+  isActive    Boolean          @default(true)
+  items       ExpenditureItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([expenditureDate])
+  @@index([createdAt])
+  // One account per voucher, so paymentMethod is the only payment column left
+  // worth an index on - it is what the balance filters and reports read.
+  @@index([paymentMethod])
+}
+
+// One line of a voucher: this much money, spent on this head.
+//
+// A line carries no payment information at all. What the money was spent ON is
+// the line's business; how the total was paid belongs to the voucher, because
+// the owner settles one amount in one go rather than paying each head
+// separately (see Expenditure.paymentMethod).
+//
+// A real FK to ExpenditureHead - a line can only ever be booked against a head
+// that exists right now, so the head row cannot disappear underneath it. That
+// is also why a head that has been spent against cannot be deleted, only
+// deactivated.
+model ExpenditureItem {
+  id            Int            @id @default(autoincrement())
+  expenditure   Expenditure    @relation(fields: [expenditureId], references: [id])
+  expenditureId Int
+  head          ExpenditureHead @relation(fields: [headId], references: [id])
+  headId        Int
+  // Optional free text for the line itself, on top of the head it is filed
+  // under - "March overtime", "client dinner".
+  description String?
+  // Whether this line had a bill of its own, and which one. A number or memo
+  // the owner can type, not an uploaded scan: the paperwork lives in a file
+  // cabinet, the number is what has to be searchable later.
+  billNo    String?
+  amount    Float
+  createdAt DateTime @default(now())
+
+  @@index([expenditureId])
+  @@index([headId])
 }
 
 // The owner moving money out of one of their accounts and into another - cash

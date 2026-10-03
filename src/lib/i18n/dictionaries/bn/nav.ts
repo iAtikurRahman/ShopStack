@@ -24,6 +24,7 @@ export const bn = {
     banks: "ব্যাংক",
     bankTransfers: "ব্যাংক ট্রান্সফার",
     withdrawals: "উইথড্রয়াল",
+    expenditures: "খরচ",
     payments: "পেমেন্ট",
     auditLog: "অডিট লগ",
     companies: "কোম্পানিসমূহ",

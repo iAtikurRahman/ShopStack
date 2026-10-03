@@ -3,6 +3,7 @@ import { PrismaClient as TenantPrismaClient } from "@/generated/tenant";
 import { hashPassword } from "@/lib/auth";
 import { PERMISSION_CATALOG } from "@/lib/permission-catalog";
 import { DEFAULT_BANK_NAMES } from "@/lib/banks";
+import { DEFAULT_EXPENDITURE_HEADS } from "@/lib/expenditures";
 import { createTenantDatabase, dropTenantDatabase, buildTenantDbUrl } from "@/lib/provisioning/create-database";
 import { runTenantMigrations } from "@/lib/provisioning/run-tenant-migrations";
 
@@ -126,6 +127,15 @@ async function seedTenantDatabase(
     // dropdown and every sale would be rejected as an unknown method.
     await tenantDb.bankInfo.createMany({
       data: DEFAULT_BANK_NAMES.map((bankName) => ({ bankName })),
+    });
+
+    // The "what was this money spent on" vocabulary the Expenditure screen's line
+    // dropdown is built from. Seeded for the same reason as the accounts above:
+    // without a single row the dropdown would open empty and every voucher would
+    // be rejected. The owner can rename, deactivate or add to this list, and the
+    // migration of the same name fills it in for tenants that already exist.
+    await tenantDb.expenditureHead.createMany({
+      data: DEFAULT_EXPENDITURE_HEADS.map((name) => ({ name })),
     });
 
     const mainStore = await tenantDb.store.create({

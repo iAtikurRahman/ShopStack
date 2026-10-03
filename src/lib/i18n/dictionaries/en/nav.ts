@@ -24,6 +24,7 @@ export const en = {
     banks: "Banks",
     bankTransfers: "Bank Transfers",
     withdrawals: "Withdrawals",
+    expenditures: "Expenditure",
     payments: "Payments",
     auditLog: "Audit log",
     companies: "Companies",
