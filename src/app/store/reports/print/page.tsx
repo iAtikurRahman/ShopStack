@@ -85,9 +85,11 @@ export default async function ReportPrintPage({
           from: fmt.date(report.period.from),
           to: fmt.date(report.period.to),
         })}
-        issuedLine={t("reports.ui.printedBy", { name: printedBy })}
       />
       <ReportResultView report={report} scrollable={false} summary={false} />
+      <div className="mt-6 text-left text-xs text-slate-500">
+        {t("reports.ui.printedBy", { name: printedBy })}
+      </div>
     </main>
   );
 }

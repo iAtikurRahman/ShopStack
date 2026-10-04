@@ -22,7 +22,6 @@ export function ReportLetterheadView({
   contact,
   title,
   periodLine,
-  issuedLine,
 }: {
   logoUrl: string | null;
   logoAlt: string;
@@ -32,7 +31,6 @@ export function ReportLetterheadView({
   contact: string;
   title: string;
   periodLine: string;
-  issuedLine: string;
 }) {
   return (
     <header className="print-letterhead mb-6 border-2 border-slate-800 p-4 text-center">
