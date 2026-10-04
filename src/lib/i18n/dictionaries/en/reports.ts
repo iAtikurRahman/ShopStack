@@ -40,7 +40,7 @@ export const en = {
     },
     ui: {
       title: "Reports",
-      subtitle: "{count} reports · {unavailable} more need tables this schema does not have",
+      subtitle: "{count} reports",
       searchPlaceholder: "Search reports…",
       noMatch: 'No report matches "{search}".',
       periodLabel: "Period",

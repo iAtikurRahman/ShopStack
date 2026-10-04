@@ -31,7 +31,7 @@ export const bn = {
     },
     ui: {
       title: "রিপোর্ট",
-      subtitle: "{count}টি রিপোর্ট · আরও {unavailable}টির জন্য এই স্কিমায় টেবিল নেই",
+      subtitle: "{count} reports",
       searchPlaceholder: "রিপোর্ট খুঁজুন…",
       noMatch: '"{search}" কোনো রিপোর্টের সঙ্গে মেলেনি।',
       periodLabel: "সময়",

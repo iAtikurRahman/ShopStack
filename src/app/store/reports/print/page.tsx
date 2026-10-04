@@ -76,8 +76,16 @@ export default async function ReportPrintPage({
   });
 
   return (
-    <main className="mx-auto max-w-5xl bg-white p-6 print-root">
-      <PrintButton label={t("reports.ui.print")} />
+        <main className="mx-auto max-w-5xl bg-white p-6 print-root">
+          <div className="no-print mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+            >
+              {t("reports.ui.print")}
+            </button>
+          </div>
           <ReportLetterheadView
             logoUrl={letterhead.imageUrl}
             logoAlt={heading}

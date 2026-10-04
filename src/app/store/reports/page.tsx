@@ -253,9 +253,6 @@ function ReportsWorkspace() {
     <main className="mx-auto max-w-[100rem] p-6 print-root">
       <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold text-slate-950">{t("reports.ui.title")}</h1>
-        <p className="text-xs text-slate-500">
-          {t("reports.ui.subtitle", { count: catalog.count, unavailable: catalog.unavailable.length })}
-        </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
