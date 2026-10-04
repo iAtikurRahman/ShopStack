@@ -4,7 +4,8 @@ import pdfMake, { type PdfContent, type PdfDocument, type PdfTableCell } from "p
 import { getDictionary, translate, type Dictionary } from "@/lib/i18n/dictionaries";
 import { createFormatters, type Formatters } from "@/lib/i18n/format";
 import type { Locale } from "@/lib/i18n/locale";
-import type { ReportBlock, ReportColumn, ReportMetric, ReportResult, ReportRow } from "./types";
+import type { ReportBlock, ReportColumn, ReportResult, ReportRow } from "./types";
+import { letterheadLines, type ReportLetterhead } from "./letterhead";
 
 /**
  * Turning a finished report into a PDF.
@@ -56,6 +57,9 @@ export type PdfMeta = {
   /** Whether the figures cover one store or all of them. Translated here, so
    *  the route does not have to know the label. */
   scope: { kind: "all" } | { kind: "store"; name: string };
+  /** The same letterhead the print page opens with, so the downloaded file and
+   *  the printout carry the same shop's name, address and logo. */
+  letterhead: ReportLetterhead;
 };
 
 /** One cell, formatted the way its column says it should be read. */
@@ -92,19 +96,6 @@ function cell(
     default:
       return typeof value === "boolean" ? yesNo(value) : String(value);
   }
-}
-
-/** A headline figure. A `text` metric carries a word, so it is printed as it is
- *  rather than pushed through a number formatter. */
-function metricText(metric: ReportMetric, fmt: Formatters): string {
-  if (metric.type === "text") return String(metric.value);
-  return metric.type === "money"
-    ? fmt.money(Number(metric.value))
-    : metric.type === "percent"
-      ? fmt.percent(Number(metric.value))
-      : metric.type === "quantity"
-        ? fmt.quantity(Number(metric.value))
-        : fmt.number(Number(metric.value));
 }
 
 /** The totals line, only for the columns a report marked as summable. */
@@ -229,6 +220,78 @@ function blocks(groups: ReportBlock[], t: (key: string) => string, fmt: Formatte
   return out;
 }
 
+/** The store's picture as a data URI, or null when it is missing or unreadable. */
+function readLogoData(imageUrl: string): string | null {
+  // imageUrl is a public path (`/uploads/company-1/stores/x.png`); anything
+  // else is not ours to read.
+  if (!imageUrl.startsWith("/uploads/")) return null;
+  const file = path.join(process.cwd(), "public", imageUrl.replace(/^\//, ""));
+  try {
+    const bytes = readFileSync(file);
+    const extension = path.extname(file).toLowerCase();
+    const mime = extension === ".png" ? "image/png" : extension === ".gif" ? "image/gif" : "image/jpeg";
+    return `data:${mime};base64,${bytes.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The head of the document, read top to bottom like a bill: which report this
+ * is, then whose figures they are - the shop's picture, the shop's name, where
+ * the shop is - and only then the table. Stacked rather than side by side so a
+ * long Bengali shop name or address gets the full page width, and the same
+ * order the print view draws.
+ *
+ * The logo is read off disk rather than fetched, because local-access and URL
+ * access are both closed for the document definition; a missing or unreadable
+ * file simply leaves the text below it, which is still a usable letterhead.
+ */
+function letterheadBlock(
+  report: ReportResult,
+  meta: PdfMeta,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): PdfContent {
+  const { letterhead } = meta;
+  const { heading, contact } = letterheadLines(letterhead, { allStores: t("reports.ui.allStores") });
+
+  const stack: PdfContent[] = [
+    { text: t(report.title), fontSize: 15, bold: true, alignment: "center", color: "#0f172a" },
+    {
+      text: `${t("reports.ui.periodLabel")}: ${report.period.from} → ${report.period.to}`,
+      fontSize: 9,
+      alignment: "center",
+      color: "#475569",
+      margin: [0, 2, 0, 0],
+    },
+  ];
+
+  if (letterhead.imageUrl) {
+    const logo = readLogoData(letterhead.imageUrl);
+    if (logo) stack.push({ image: logo, width: 62, alignment: "center", margin: [0, 8, 0, 0] } as PdfContent);
+  }
+
+  stack.push({ text: heading, fontSize: 14, bold: true, alignment: "center", color: "#0f172a", margin: [0, 6, 0, 0] });
+  if (contact) {
+    stack.push({ text: contact, fontSize: 9, alignment: "center", color: "#475569", margin: [0, 2, 0, 0] });
+  }
+
+  // One centred column between two rules: a ruled header like a bill's, with no
+  // vertical lines to cut through a long address.
+  return {
+    table: { widths: ["*"], body: [[{ stack }]] },
+    layout: {
+      hLineWidth: (row: number) => (row === 0 || row === 1 ? 1.5 : 0),
+      vLineWidth: () => 0,
+      paddingTop: () => 8,
+      paddingBottom: () => 8,
+      paddingLeft: () => 6,
+      paddingRight: () => 6,
+    },
+    margin: [0, 0, 0, 10],
+  } as unknown as PdfContent;
+}
+
 /** Builds the document. Exported so it can be inspected without rendering. */
 export function reportDocument(report: ReportResult, locale: Locale, meta: PdfMeta): PdfDocument {
   const dictionary: Dictionary = getDictionary(locale);
@@ -236,42 +299,9 @@ export function reportDocument(report: ReportResult, locale: Locale, meta: PdfMe
   const t = (key: string, vars?: Record<string, string | number>) =>
     translate(dictionary, key as Parameters<typeof translate>[1], vars);
 
-  const content: PdfContent[] = [
-    { text: t(report.title), fontSize: 15, bold: true, margin: [0, 0, 0, 2] },
-    {
-      text: `${t("reports.ui.periodLabel")}: ${report.period.from} → ${report.period.to}`,
-      fontSize: 9,
-      color: "#64748b",
-      margin: [0, 0, 0, 1],
-    },
-    {
-      text: `${meta.scope.kind === "all" ? t("reports.ui.allStores") : meta.scope.name} · ${meta.requestedBy}`,
-      fontSize: 8,
-      color: "#64748b",
-      margin: [0, 0, 0, 8],
-    },
-  ];
-
-  if (report.metrics.length > 0) {
-    content.push({
-      table: {
-        widths: ["auto", "auto", "auto", "auto"],
-        body: [
-          report.metrics
-            .slice(0, 4)
-            .map((metric) => [
-              {
-                text: `${t(metric.label)}\n${metricText(metric, fmt)}`,
-                fontSize: 9,
-                margin: [0, 4, 12, 0],
-              },
-            ]),
-        ].flat(),
-      },
-      layout: "noBorders",
-      margin: [0, 0, 0, 10],
-    } as unknown as PdfContent);
-  }
+  // The table is the report; the headline figures stay on the screen, where they
+  // help, and off the page, where they only crowd the rows being read.
+  const content: PdfContent[] = [letterheadBlock(report, meta, t)];
 
   if (report.blocks && report.blocks.length > 0) {
     content.push(...blocks(report.blocks, t, fmt));
@@ -291,12 +321,32 @@ export function reportDocument(report: ReportResult, locale: Locale, meta: PdfMe
       margin: [0, 6, 0, 0],
     });
   }
-  if (report.notes && report.notes.length > 0) {
-    content.push({ text: t("reports.ui.notes"), fontSize: 10, bold: true, margin: [0, 10, 0, 3] });
-    content.push({
-      ul: report.notes.map((note) => ({ text: t(note), fontSize: 8, color: "#475569" })),
-    } as unknown as PdfContent);
-  }
+
+  // Who printed it is a signature, not a heading: it belongs under everything,
+  // on the left, the way it is signed on a bill. A table rather than a rule drawn
+  // by hand, so the line spans the page in either orientation.
+  content.push({
+    table: {
+      widths: ["*"],
+      body: [
+        [
+          {
+            text: t("reports.ui.printedBy", { name: meta.requestedBy }),
+            fontSize: 8,
+            alignment: "left",
+            color: "#64748b",
+          },
+        ],
+      ],
+    },
+    layout: {
+      hLineWidth: (row: number) => (row === 0 ? 0.5 : 0),
+      vLineWidth: () => 0,
+      paddingTop: () => 6,
+      paddingBottom: () => 0,
+    },
+    margin: [0, 10, 0, 0],
+  } as unknown as PdfContent);
 
   return {
     content,

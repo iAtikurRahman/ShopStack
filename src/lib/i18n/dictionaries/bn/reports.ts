@@ -49,6 +49,7 @@ export const bn = {
       truncatedUi: "{total}টির মধ্যে প্রথম {shown}টি দেখানো হচ্ছে।",
       truncatedPdf: "{total}টির মধ্যে প্রথম {shown}টি দেখানো হচ্ছে। বাকিগুলোর জন্য সময় ছোট করুন।",
       generatedAt: "{at} তারিখে তৈরি",
+      printedBy: "{name} কর্তৃক প্রিন্ট করা হয়েছে",
       page: "পৃষ্ঠা",
       range: "{from} থেকে {to}",
       allStores: "সব দোকান",

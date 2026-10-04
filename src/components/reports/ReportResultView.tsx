@@ -136,7 +136,20 @@ function Tile({ item }: { item: ReportBlockItem }) {
   );
 }
 
-export function ReportResultView({ report, scrollable = true }: { report: ReportResult; scrollable?: boolean }) {
+/**
+ * `scrollable` is for the screen (the table scrolls inside a fixed height) and
+ * `summary` is for it too: on paper the headline figures are noise in front of
+ * the table, which is the part anyone reads, so the print view leaves them out.
+ */
+export function ReportResultView({
+  report,
+  scrollable = true,
+  summary = true,
+}: {
+  report: ReportResult;
+  scrollable?: boolean;
+  summary?: boolean;
+}) {
   const { t, fmt } = useI18n();
   const tx = (key: string) => t(key as TranslationKey);
 
@@ -160,7 +173,7 @@ export function ReportResultView({ report, scrollable = true }: { report: Report
         </section>
       ))}
 
-      {report.metrics.length > 0 ? (
+      {summary && report.metrics.length > 0 ? (
         <section>
           <h3 className="mb-2 text-sm font-semibold text-slate-700">{t("reports.ui.summary")}</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -58,6 +58,7 @@ export const en = {
       truncatedUi: "Showing the first {shown} of {total} rows.",
       truncatedPdf: "Showing the first {shown} of {total} rows. Narrow the period to see the rest.",
       generatedAt: "Generated {at}",
+      printedBy: "Printed by {name}",
       page: "Page",
       range: "{from} to {to}",
       allStores: "All stores",

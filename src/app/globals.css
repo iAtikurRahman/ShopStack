@@ -29,3 +29,77 @@ select,
 textarea {
   font: inherit;
 }
+
+/**
+ * What a printed page is allowed to contain.
+ *
+ * Without this the printer takes the whole application with it - the workspace
+ * header, the navigation, the buttons - which is not what anyone means by
+ * "print this report". So: chrome is dropped, the report gets a real page
+ * margin, and a table that runs past one page repeats its header instead of
+ * continuing as a list of unlabelled cells.
+ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+  }
+
+  /* Navigation, and anything a component marks as chrome rather than content
+     (the workspace header). Deliberately not `header`: a report's own
+     letterhead is a <header> and has to reach the paper. */
+  body nav,
+  .no-print,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* The report sheet is the only thing left, so give it the whole page. */
+  .print-root {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-letterhead {
+    /* A letterhead that is itself split across a page break reads as two
+       unrelated pieces of paper. */
+    break-inside: avoid;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  /* Repeat the column names on every page of a long table... */
+  thead {
+    display: table-header-group;
+  }
+
+  /* ...and never leave half a row at the foot of a sheet. */
+  tr {
+    break-inside: avoid;
+  }
+
+  tfoot {
+    display: table-row-group;
+  }
+
+  /* Screens hide overflow by scrolling; a printer has no second chance to
+     show what was cut off. */
+  .overflow-auto,
+  .max-h-\[34rem\] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  a[href]::after {
+    content: "";
+  }
+}

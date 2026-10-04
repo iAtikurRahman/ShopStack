@@ -252,67 +252,74 @@ function ReportsWorkspace() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
-        <aside className="space-y-4">
+        {/* The catalog is far longer than the screen, so the option list gets its
+         *  own scrollbar and the page itself does not scroll past it: the search
+         *  box stays put, the reports move. On a wide window the column is also
+         *  pinned, so the report on the right can be read to its end while the
+         *  list stays beside it. */}
+        <aside className="flex max-h-[70vh] flex-col space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t("reports.ui.searchPlaceholder")}
             aria-label={t("reports.ui.searchPlaceholder")}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+            className="w-full shrink-0 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
           />
 
-          <nav className="space-y-4">
-            {groups.length === 0 ? (
-              <p className="text-sm text-slate-600">{t("reports.ui.noMatch", { search: search.trim() })}</p>
-            ) : null}
-            {groups.map((group) => (
-              <section key={group.family}>
-                <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  {t(`reports.family.${group.family}`)}
-                </h2>
-                <ul className="mt-1 space-y-0.5">
-                  {group.reports.map((entry: ReportCatalogEntry) => {
-                    const active = entry.key === scope.key;
-                    return (
-                      <li key={entry.key}>
-                        <button
-                          type="button"
-                          onClick={() => select({ key: entry.key })}
-                          aria-current={active ? "true" : undefined}
-                          className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
-                            active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span className="block font-medium">{label(entry.title)}</span>
-                          <span className={`block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                            {label(entry.description)}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </nav>
-
-          <section>
-            <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t("reports.ui.unavailableTitle")}
-            </h2>
-            <p className="px-1 pt-1 text-xs text-slate-500">{t("reports.ui.unavailableIntro")}</p>
-            <ul className="mt-2 space-y-1.5">
-              {catalog.unavailable.map((entry) => (
-                <li key={entry.key} className="rounded-lg border border-dashed border-slate-300 px-3 py-2">
-                  <p className="text-sm text-slate-600">{label(entry.title)}</p>
-                  <p className="text-xs text-slate-500">
-                    {t("reports.ui.whyNot")} {label(entry.reason)}
-                  </p>
-                </li>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+            <nav className="space-y-4">
+              {groups.length === 0 ? (
+                <p className="text-sm text-slate-600">{t("reports.ui.noMatch", { search: search.trim() })}</p>
+              ) : null}
+              {groups.map((group) => (
+                <section key={group.family}>
+                  <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t(`reports.family.${group.family}`)}
+                  </h2>
+                  <ul className="mt-1 space-y-0.5">
+                    {group.reports.map((entry: ReportCatalogEntry) => {
+                      const active = entry.key === scope.key;
+                      return (
+                        <li key={entry.key}>
+                          <button
+                            type="button"
+                            onClick={() => select({ key: entry.key })}
+                            aria-current={active ? "true" : undefined}
+                            className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
+                              active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                            }`}
+                          >
+                            <span className="block font-medium">{label(entry.title)}</span>
+                            <span className={`block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                              {label(entry.description)}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </nav>
+
+            <section className="mt-4">
+              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {t("reports.ui.unavailableTitle")}
+              </h2>
+              <p className="px-1 pt-1 text-xs text-slate-500">{t("reports.ui.unavailableIntro")}</p>
+              <ul className="mt-2 space-y-1.5">
+                {catalog.unavailable.map((entry) => (
+                  <li key={entry.key} className="rounded-lg border border-dashed border-slate-300 px-3 py-2">
+                    <p className="text-sm text-slate-600">{label(entry.title)}</p>
+                    <p className="text-xs text-slate-500">
+                      {t("reports.ui.whyNot")} {label(entry.reason)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
           </section>
+          </div>
         </aside>
 
         <section className="space-y-4">

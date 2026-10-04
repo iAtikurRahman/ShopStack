@@ -1,100 +1,93 @@
-"use client";
-
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { requireTenantSession } from "@/lib/session";
+import { getDictionary, translate } from "@/lib/i18n/dictionaries";
+import { readLocaleCookie } from "@/lib/i18n/server-locale";
+import { createFormatters } from "@/lib/i18n/format";
+import { runReport } from "@/lib/reports/run";
+import { reportLetterhead, letterheadLines } from "@/lib/reports/letterhead";
+import { REPORT_PERIOD_PRESETS, type ReportPeriodPreset } from "@/lib/reports/types";
 import { ReportResultView } from "@/components/reports/ReportResultView";
-import { useI18n } from "@/components/LocaleProvider";
-import { localizeServerMessage } from "@/lib/i18n/active-dictionary";
-import type { TranslationKey } from "@/lib/i18n/dictionaries";
-import { REPORT_PERIOD_PRESETS, type ReportPeriodPreset, type ReportResult } from "@/lib/reports/types";
+import { ReportLetterheadView } from "@/components/reports/ReportLetterheadView";
+import { PrintButton } from "@/components/reports/PrintButton";
+import { ApiError } from "@/lib/session";
 
 /**
- * The print view.
+ * The print view: one report as a document, on its own.
  *
- * A separate route rather than a stylesheet on the report screen, because a
- * printed report has to be the report on its own - no picker, no buttons, no
- * half-scrolled table. It takes the same key and period from the URL, fetches
- * the same JSON, and renders through the same component as the screen, so what
- * comes out of the printer is what was on the display.
+ * Server-rendered rather than fetched from the API after mount, because a
+ * printed report should arrive whole - the letterhead, the figures and the
+ * table in one document, with no flash of an empty page in front of the print
+ * dialog - and because building it here can read the session's store directly,
+ * which is where the letterhead comes from.
  *
- * (The PDF download is a third rendering of the same data, built server-side by
- * pdfmake. Three renderers is only safe because all three read one contract.)
+ * It asks `runReport` for the same answer the screen and the PDF get, so the
+ * three cannot disagree. The app's own navigation never reaches the paper: the
+ * print stylesheet in globals.css drops the chrome, and what is left is the
+ * letterhead, the report and its notes.
  */
-
-function PrintView() {
-  const { t, fmt } = useI18n();
-  const params = useSearchParams();
-  const [report, setReport] = useState<ReportResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const key = params.get("key") ?? "";
-  const presetParam = params.get("preset") ?? "last30days";
+export default async function ReportPrintPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const key = typeof params.key === "string" ? params.key : "";
+  const presetParam = typeof params.preset === "string" ? params.preset : "last30days";
   const preset = (REPORT_PERIOD_PRESETS as readonly string[]).includes(presetParam)
     ? (presetParam as ReportPeriodPreset)
     : "last30days";
+  const from = typeof params.from === "string" ? params.from : undefined;
+  const to = typeof params.to === "string" ? params.to : undefined;
 
-  useEffect(() => {
-    if (!key) return;
-    const query = new URLSearchParams({ preset });
-    const from = params.get("from");
-    const to = params.get("to");
-    if (preset === "custom") {
-      if (from) query.set("from", from);
-      if (to) query.set("to", to);
+  const locale = await readLocaleCookie();
+  const dictionary = getDictionary(locale);
+  const t = (key_: string, vars?: Record<string, string | number>) =>
+    translate(dictionary, key_ as Parameters<typeof translate>[1], vars);
+  const fmt = createFormatters(locale);
+
+  let report;
+  let letterhead;
+  let printedBy: string;
+  try {
+    const { session, db } = await requireTenantSession({
+      roles: ["company_admin", "store_manager"],
+      permission: "can_view_reports",
+    });
+    [report, letterhead] = await Promise.all([
+      runReport(db, session, key, { preset, from, to }),
+      reportLetterhead(db, session),
+    ]);
+    printedBy = session.name;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return (
+        <main className="mx-auto max-w-5xl p-6 text-sm text-slate-600">
+          {t("reports.ui.pickReport")}
+        </main>
+      );
     }
-    let cancelled = false;
-    fetch(`/api/store/reports/${key}?${query.toString()}`)
-      .then(async (response) => {
-        const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(localizeServerMessage(data?.message ?? "Request failed"));
-        return data as ReportResult;
-      })
-      .then((data) => {
-        if (!cancelled) setReport(data);
-      })
-      .catch((fetchError: Error) => {
-        if (!cancelled) setError(fetchError.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [key, preset, params]);
+    throw error;
+  }
 
-  // Open the print dialog once the figures are on screen; the button is there
-  // for the second attempt if the browser blocked the first.
-  useEffect(() => {
-    if (!report) return;
-    const timer = window.setTimeout(() => window.print(), 250);
-    return () => window.clearTimeout(timer);
-  }, [report]);
-
-  if (error) return <main className="p-8 text-sm text-red-600">{error}</main>;
-  if (!report) return <main className="p-8" aria-hidden />;
+  const { heading, contact } = letterheadLines(letterhead, {
+    allStores: t("reports.ui.allStores"),
+  });
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <style>{`@media print { .no-print { display: none } body { background: #fff } }`}</style>
-      <div className="no-print mb-4 flex justify-end">
-        <button type="button" onClick={() => window.print()} className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white">
-          {t("reports.ui.print")}
-        </button>
-      </div>
-      <header className="mb-6 border-b border-slate-200 pb-3">
-        <h1 className="text-xl font-semibold text-slate-950">{t(report.title as TranslationKey)}</h1>
-        <p className="text-xs text-slate-500">
-          {t("reports.ui.range", { from: fmt.date(report.period.from), to: fmt.date(report.period.to) })} ·{" "}
-          {t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}
-        </p>
-      </header>
-      <ReportResultView report={report} scrollable={false} />
+    <main className="mx-auto max-w-5xl bg-white p-6 print-root">
+      <PrintButton label={t("reports.ui.print")} />
+      <ReportLetterheadView
+        logoUrl={letterhead.imageUrl}
+        logoAlt={heading}
+        heading={heading}
+        contact={contact}
+        title={t(report.title)}
+        periodLine={t("reports.ui.range", {
+          from: fmt.date(report.period.from),
+          to: fmt.date(report.period.to),
+        })}
+        issuedLine={t("reports.ui.printedBy", { name: printedBy })}
+      />
+      <ReportResultView report={report} scrollable={false} summary={false} />
     </main>
-  );
-}
-
-export default function ReportPrintPage() {
-  return (
-    <Suspense fallback={<main className="p-8" aria-hidden />}>
-      <PrintView />
-    </Suspense>
   );
 }

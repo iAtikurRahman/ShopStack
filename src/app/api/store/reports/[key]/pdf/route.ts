@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { pdfFilename, renderReportPdf } from "@/lib/reports/pdf";
 import { runReport } from "@/lib/reports/run";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 import { ReportError } from "@/lib/reports/types";
 
 // pdfmake and the font files are Node-only, so this route must not be bundled
@@ -20,24 +21,26 @@ export const GET = withAuth<{ key: string }>(async (request: NextRequest, { db, 
   const { key } = params;
   const search = request.nextUrl.searchParams;
   try {
-    const report = await runReport(db, session, key, {
-      preset: search.get("preset"),
-      from: search.get("from"),
-      to: search.get("to"),
-    });
+    const [report, letterhead] = await Promise.all([
+      runReport(db, session, key, {
+        preset: search.get("preset"),
+        from: search.get("from"),
+        to: search.get("to"),
+      }),
+      reportLetterhead(db, session),
+    ]);
     const scope =
       session.storeId === null
         ? ({ kind: "all" } as const)
         : ({
             kind: "store",
-            name: (
-              await db.store.findMany({ where: { id: session.storeId }, select: { name: true } })
-            )[0]?.name ?? `#${session.storeId}`,
+            name: letterhead.name ?? `#${session.storeId}`,
           } as const);
 
     const pdf = await renderReportPdf(report, session.language, {
       requestedBy: session.name,
       scope,
+      letterhead,
     });
     return new NextResponse(new Uint8Array(pdf), {
       status: 200,

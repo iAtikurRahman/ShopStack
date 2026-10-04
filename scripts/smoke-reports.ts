@@ -146,6 +146,19 @@ async function main() {
             const pdf = await renderReportPdf(report, language, {
               requestedBy: language === "bn" ? "স্মোক টেস্ট" : "Smoke test",
               scope: scope === null ? { kind: "all" } : { kind: "store", name: `Store ${scope}` },
+              letterhead:
+                scope === null
+                  ? { kind: "all", companyName: "Smoke Co", name: null, address: null, phone: null, imageUrl: null }
+                  : {
+                      kind: "store",
+                      companyName: "Smoke Co",
+                      name: `Store ${scope}`,
+                      address: "1 Test Road, Dhaka",
+                      phone: "+880 1700 000000",
+                      // A path that is not there on purpose: the letterhead has to
+                      // survive a store with no picture.
+                      imageUrl: "/uploads/smoke-missing.png",
+                    },
             });
             const header = pdf.subarray(0, 5).toString("latin1");
             if (header !== "%PDF-") failures.push(`${label}: PDF did not start with %PDF- (got "${header}")`);

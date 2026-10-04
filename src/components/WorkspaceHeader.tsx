@@ -22,7 +22,9 @@ type WorkspaceHeaderProps = {
 
 export function WorkspaceHeader({ role, title, name, homeHref }: WorkspaceHeaderProps) {
   return (
-    <header className="border-b border-slate-200 bg-white">
+    // `print-hide`: the navigation is screen furniture. It has no business on
+    // a printed report, which carries its own letterhead instead.
+    <header className="print-hide border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4">
         <div className="flex items-center justify-between gap-4">
           <Link href={homeHref} className="flex items-center gap-3">
