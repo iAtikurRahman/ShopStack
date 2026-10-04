@@ -191,6 +191,8 @@ export type UnavailableReport = {
  * about, say, whether `scope.storeId` is there, because adding a field to one
  * without the other is a compile error rather than an undefined in the browser.
  */
+import type { ReportLetterhead } from "./letterhead";
+
 export type ReportCatalogResponse = {
   presets: ReportPeriodPreset[];
   families: { family: ReportFamily; reports: ReportCatalogEntry[] }[];
@@ -199,6 +201,10 @@ export type ReportCatalogResponse = {
   limits: { maxRangeDays: number; maxRows: number };
   /** Whether the caller's figures cover one store or all of them. */
   scope: { storeId: number | null; allStores: boolean };
+/** The letterhead the screen prints from, so paper needs no second page. */
+  letterhead: ReportLetterhead;
+  /** Who asked for the report - the line the print sheet signs off with. */
+  viewer: { name: string };
 };
 
 /** Thrown for a request the report cannot answer - an unknown key, a period

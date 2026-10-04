@@ -174,7 +174,7 @@ export function ReportResultView({
       ))}
 
       {summary && report.metrics.length > 0 ? (
-        <section>
+        <section className="print-hide">
           <h3 className="mb-2 text-sm font-semibold text-slate-700">{t("reports.ui.summary")}</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {report.metrics.map((metric) => (
@@ -234,7 +234,7 @@ export function ReportResultView({
       ) : null}
 
       {report.notes && report.notes.length > 0 ? (
-        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <section className="print-hide rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <h3 className="mb-2 text-sm font-semibold text-slate-700">{t("reports.ui.notes")}</h3>
           <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
             {report.notes.map((note) => (

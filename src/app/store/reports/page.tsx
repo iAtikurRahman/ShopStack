@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ReportResultView } from "@/components/reports/ReportResultView";
+import { ReportLetterheadView } from "@/components/reports/ReportLetterheadView";
+import { letterheadLines } from "@/lib/reports/letterhead";
 import { useI18n } from "@/components/LocaleProvider";
 import { localizeServerMessage } from "@/lib/i18n/active-dictionary";
 import type { TranslationKey } from "@/lib/i18n/dictionaries";
@@ -114,6 +116,12 @@ function ReportsWorkspace() {
         : PRESET_MAX_DAYS[scope.preset];
     return span !== null && span > maxRangeDays;
   }, [scope, maxRangeDays]);
+
+  /** The two strings the paper's letterhead prints, worked out once. */
+  const letterheadText = useMemo(() => {
+    if (!catalog) return null;
+    return letterheadLines(catalog.letterhead, { allStores: t("reports.ui.allStores") });
+  }, [catalog, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -242,7 +250,7 @@ function ReportsWorkspace() {
   }
 
   return (
-    <main className="mx-auto max-w-[100rem] p-6">
+    <main className="mx-auto max-w-[100rem] p-6 print-root">
       <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold text-slate-950">{t("reports.ui.title")}</h1>
         <p className="text-xs text-slate-500">
@@ -257,7 +265,7 @@ function ReportsWorkspace() {
          *  box stays put, the reports move. On a wide window the column is also
          *  pinned, so the report on the right can be read to its end while the
          *  list stays beside it. */}
-        <aside className="flex max-h-[70vh] flex-col space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+        <aside className="print-hide flex max-h-[70vh] flex-col space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
           <input
             type="search"
             value={search}
@@ -323,7 +331,7 @@ function ReportsWorkspace() {
         </aside>
 
         <section className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="print-hide flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
             <label className="text-xs font-medium text-slate-600">
               <span className="block pb-1">{t("reports.ui.periodLabel")}</span>
               <select
@@ -383,7 +391,7 @@ function ReportsWorkspace() {
               </button>
               <button
                 type="button"
-                onClick={() => window.open(`/store/reports/print?key=${encodeURIComponent(scope.key)}&${query}`, "_blank")}
+                onClick={() => window.print()}
                 disabled={!report}
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 disabled:opacity-40"
               >
@@ -413,7 +421,7 @@ function ReportsWorkspace() {
 
           {report ? (
             <>
-              <div>
+              <div className="print-hide">
                 <h2 className="text-lg font-semibold text-slate-950">
                   {label(report.title)}
                 </h2>
@@ -424,7 +432,25 @@ function ReportsWorkspace() {
                   })}
                 </p>
               </div>
+              {letterheadText ? (
+                <div className="hidden print:block">
+                  <ReportLetterheadView
+                    logoUrl={catalog.letterhead.imageUrl}
+                    logoAlt={letterheadText.heading}
+                    heading={letterheadText.heading}
+                    contact={letterheadText.contact}
+                    title={label(report.title)}
+                    periodLine={t("reports.ui.range", {
+                      from: fmt.date(report.period.from),
+                      to: fmt.date(report.period.to),
+                    })}
+                  />
+                </div>
+              ) : null}
               <ReportResultView report={report} />
+              <p className="hidden text-left text-xs text-slate-500 print:block">
+                {t("reports.ui.printedBy", { name: catalog.viewer.name })}
+              </p>
             </>
           ) : null}
         </section>

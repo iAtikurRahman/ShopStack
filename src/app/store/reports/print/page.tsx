@@ -1,10 +1,13 @@
+export const dynamic = "force-dynamic";
+
 import { requireTenantSession } from "@/lib/session";
 import { getDictionary, translate } from "@/lib/i18n/dictionaries";
 import { readLocaleCookie } from "@/lib/i18n/server-locale";
 import { createFormatters } from "@/lib/i18n/format";
 import { runReport } from "@/lib/reports/run";
 import { reportLetterhead, letterheadLines } from "@/lib/reports/letterhead";
-import { REPORT_PERIOD_PRESETS, type ReportPeriodPreset } from "@/lib/reports/types";
+import { REPORT_PERIOD_PRESETS } from "@/lib/reports/types";
+import type { ReportPeriodPreset } from "@/lib/reports/types";
 import { ReportResultView } from "@/components/reports/ReportResultView";
 import { ReportLetterheadView } from "@/components/reports/ReportLetterheadView";
 import { PrintButton } from "@/components/reports/PrintButton";
@@ -19,7 +22,7 @@ import { ApiError } from "@/lib/session";
  * dialog - and because building it here can read the session's store directly,
  * which is where the letterhead comes from.
  *
- * It asks `runReport` for the same answer the screen and the PDF get, so the
+ * It asks unReport for the same answer the screen and the PDF get, so the
  * three cannot disagree. The app's own navigation never reaches the paper: the
  * print stylesheet in globals.css drops the chrome, and what is left is the
  * letterhead, the report and its notes.
