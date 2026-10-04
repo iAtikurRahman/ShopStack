@@ -232,17 +232,6 @@ export function ReportResultView({
           {t("reports.ui.truncatedUi", { shown: report.rows.length, total: report.totalRows ?? 0 })}
         </p>
       ) : null}
-
-      {report.notes && report.notes.length > 0 ? (
-        <section className="print-hide rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-slate-700">{t("reports.ui.notes")}</h3>
-          <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
-            {report.notes.map((note) => (
-              <li key={note}>{tx(note)}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </div>
   );
 }

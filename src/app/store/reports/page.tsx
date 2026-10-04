@@ -251,17 +251,13 @@ function ReportsWorkspace() {
 
   return (
     <main className="mx-auto max-w-[100rem] p-6 print-root">
-      <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-2xl font-semibold text-slate-950">{t("reports.ui.title")}</h1>
-      </header>
-
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
         {/* The catalog is far longer than the screen, so the option list gets its
          *  own scrollbar and the page itself does not scroll past it: the search
          *  box stays put, the reports move. On a wide window the column is also
          *  pinned, so the report on the right can be read to its end while the
          *  list stays beside it. */}
-        <aside className="print-hide flex max-h-[70vh] flex-col space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)]">
+        <aside className="print-hide flex max-h-[70vh] flex-col space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)]">
           <input
             type="search"
             value={search}
@@ -306,23 +302,6 @@ function ReportsWorkspace() {
                 </section>
               ))}
             </nav>
-
-            <section className="mt-4">
-              <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t("reports.ui.unavailableTitle")}
-              </h2>
-              <p className="px-1 pt-1 text-xs text-slate-500">{t("reports.ui.unavailableIntro")}</p>
-              <ul className="mt-2 space-y-1.5">
-                {catalog.unavailable.map((entry) => (
-                  <li key={entry.key} className="rounded-lg border border-dashed border-slate-300 px-3 py-2">
-                    <p className="text-sm text-slate-600">{label(entry.title)}</p>
-                    <p className="text-xs text-slate-500">
-                      {t("reports.ui.whyNot")} {label(entry.reason)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-          </section>
           </div>
         </aside>
 
