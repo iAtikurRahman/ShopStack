@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
+import { round2 } from "@/lib/returns";
 
 type Head = { id: number; name: string; isActive: boolean };
 
@@ -170,6 +171,11 @@ export default function CompanyExpendituresPage() {
   const [draft, setDraft] = useState<VoucherDraft>(emptyVoucher);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  // The voucher being edited exactly as the server has it posted - the version
+  // whose money is ALREADY out of its account. Kept beside editingId rather than
+  // looked up in `expenditures` so a reload halfway through an edit cannot
+  // change what the balance preview thinks it has to undo.
+  const [editingPosted, setEditingPosted] = useState<Expenditure | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [voidingId, setVoidingId] = useState<number | null>(null);
 
@@ -284,11 +290,29 @@ export default function CompanyExpendituresPage() {
   const needsAccount = draft.isPaid && draftTotal > 0 && !methodFor(draft.paymentMethod);
   const canSubmit = usable.length > 0 && draft.date !== "" && !needsAccount && !saving;
 
-  // What the chosen account reads once this voucher's whole total has left it -
-  // one preview for the voucher, not one per line.
-  const chosenBalance = draft.isPaid ? balanceOf(methodFor(draft.paymentMethod)) : undefined;
+  // What the chosen account reads once this voucher is saved - one preview for
+  // the voucher, not one per line.
+  //
+  // Editing is the subtle case. The stored balance has ALREADY had this voucher's
+  // old total taken out of it, so subtracting the new total straight off it charges
+  // for the same voucher twice. So the preview undoes the old posting first and
+  // applies the new one after it - the same undo-then-apply order
+  // updateExpenditure() uses on the server, which makes the figure on screen the
+  // figure the account actually ends on.
+  const chosenMethod = methodFor(draft.paymentMethod);
+  const chosenBalance = draft.isPaid ? balanceOf(chosenMethod) : undefined;
+  // Only money that really left THIS account has to go back: a voucher recorded
+  // unpaid never moved anything, and one settled through another account has to be
+  // put back over there - which is why switching the method mid-edit shows the new
+  // account's untouched balance less the new total.
+  const undoOnChosenAccount =
+    editingPosted?.isPaid && editingPosted.paymentMethod === chosenMethod
+      ? editingPosted.paidAmount
+      : 0;
   const afterBalance =
-    chosenBalance !== undefined ? chosenBalance - Math.max(draftTotal, 0) : undefined;
+    chosenBalance !== undefined
+      ? round2(chosenBalance + undoOnChosenAccount - Math.max(draftTotal, 0))
+      : undefined;
 
   function patchDraft(patch: Partial<VoucherDraft>) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -321,6 +345,7 @@ export default function CompanyExpendituresPage() {
     setError(null);
     setSuccess(null);
     setEditingId(null);
+    setEditingPosted(null);
     setDraft(emptyVoucher());
   }
 
@@ -328,6 +353,7 @@ export default function CompanyExpendituresPage() {
     setError(null);
     setSuccess(null);
     setEditingId(expenditure.id);
+    setEditingPosted(expenditure);
     setDraft(draftOf(expenditure));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -390,6 +416,7 @@ export default function CompanyExpendituresPage() {
       );
       setBalanceOverrides((current) => ({ ...current, ...result.bankBalances }));
       setEditingId(null);
+      setEditingPosted(null);
       setDraft(emptyVoucher());
       await load();
       setSuccess(t("company.expenditures.savedMessage"));
