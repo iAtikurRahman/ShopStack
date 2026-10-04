@@ -78,21 +78,24 @@ export default async function ReportPrintPage({
   return (
     <main className="mx-auto max-w-5xl bg-white p-6 print-root">
       <PrintButton label={t("reports.ui.print")} />
-      <ReportLetterheadView
-        logoUrl={letterhead.imageUrl}
-        logoAlt={heading}
-        heading={heading}
-        contact={contact}
-        title={t(report.title)}
-        periodLine={t("reports.ui.range", {
-          from: fmt.date(report.period.from),
-          to: fmt.date(report.period.to),
-        })}
-      />
+          <ReportLetterheadView
+            logoUrl={letterhead.imageUrl}
+            logoAlt={heading}
+            heading={heading}
+            contact={contact}
+            company={letterhead.companyName}
+            storeName={letterhead.name}
+            title={t(report.title)}
+            periodLine={t("reports.ui.range", {
+              from: fmt.date(report.period.from),
+              to: fmt.date(report.period.to),
+            })}
+          />
       <ReportResultView report={report} scrollable={false} summary={false} />
-      <div className="mt-6 text-left text-xs text-slate-500">
-        {t("reports.ui.printedBy", { name: printedBy })}
-      </div>
+          <div className="mt-4 text-right text-xs text-slate-500">
+            <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
+            <p>{t("reports.ui.printedBy", { name: printedBy })}</p>
+          </div>
     </main>
   );
 }

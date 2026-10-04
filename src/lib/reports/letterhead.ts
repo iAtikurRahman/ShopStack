@@ -74,13 +74,12 @@ export async function reportLetterhead(
 export function letterheadLines(
   letterhead: ReportLetterhead,
   labels: { allStores: string }
-): { heading: string; contact: string } {
-  const heading =
-    letterhead.kind === "store" && letterhead.name
-      ? letterhead.companyName
-        ? `${letterhead.companyName} (${letterhead.name})`
-        : letterhead.name
-      : letterhead.companyName || labels.allStores;
+): { heading: string; contact: string; company: string; store: string | null } {
+  const company = letterhead.companyName || labels.allStores;
+  const store = letterhead.kind === "store" && letterhead.name ? letterhead.name : null;
+  const headingMain = company;
+  const headingSub = store;
+  const heading = store ? `${company} (${store})` : company;
 
   const contact = [
     letterhead.kind === "all" ? labels.allStores : null,
@@ -89,5 +88,5 @@ export function letterheadLines(
     .filter(Boolean)
     .join(" · ");
 
-  return { heading, contact };
+  return { heading, contact, company, store };
 }

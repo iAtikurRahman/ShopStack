@@ -253,23 +253,30 @@ function letterheadBlock(
   t: (key: string, vars?: Record<string, string | number>) => string
 ): PdfContent {
   const { letterhead } = meta;
-  const { heading, contact } = letterheadLines(letterhead, { allStores: t("reports.ui.allStores") });
+  const { heading, contact, company, store } = letterheadLines(letterhead, { allStores: t("reports.ui.allStores") });
 
-  const stack: PdfContent[] = [
-    { text: t(report.title), fontSize: 15, bold: true, alignment: "center", color: "#0f172a" },
-    {
-      text: `${t("reports.ui.periodLabel")}: ${report.period.from} → ${report.period.to}`,
-      fontSize: 9,
-      alignment: "center",
-      color: "#475569",
-      margin: [0, 2, 0, 0],
-    },
-  ];
+  const stack: PdfContent[] = [];
 
   if (letterhead.imageUrl) {
     const logo = readLogoData(letterhead.imageUrl);
-    if (logo) stack.push({ image: logo, width: 62, alignment: "center", margin: [0, 8, 0, 0] } as PdfContent);
+    if (logo) stack.push({ image: logo, width: 62, alignment: "center", margin: [0, 0, 0, 0] } as PdfContent);
   }
+
+  const comp = company ?? heading;
+  stack.push({ text: comp, fontSize: 16, bold: true, alignment: "center", color: "#0f172a", margin: [0, 6, 0, 0] });
+  if (store) {
+    stack.push({ text: store, fontSize: 12, alignment: "center", color: "#1e293b", margin: [0, 2, 0, 0] });
+  }
+
+  const titleText = t(report.title);
+  const periodText = `${t("reports.ui.range", { from: report.period.from, to: report.period.to })}`;
+  stack.push({
+    columns: [
+      { text: titleText, fontSize: 12, bold: true, color: "#0f172a", margin: [0, 10, 0, 0] },
+      { text: periodText, fontSize: 10, alignment: "right", color: "#1e293b", margin: [0, 10, 0, 0] },
+    ],
+    margin: [0, 6, 0, 4],
+  });
 
   stack.push({ text: heading, fontSize: 14, bold: true, alignment: "center", color: "#0f172a", margin: [0, 6, 0, 0] });
   if (contact) {
@@ -331,10 +338,21 @@ export function reportDocument(report: ReportResult, locale: Locale, meta: PdfMe
       body: [
         [
           {
-            text: t("reports.ui.printedBy", { name: meta.requestedBy }),
-            fontSize: 8,
-            alignment: "left",
-            color: "#64748b",
+            stack: [
+              {
+                text: t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) }),
+                fontSize: 8,
+                alignment: "right",
+                color: "#475569",
+              },
+              {
+                text: t("reports.ui.printedBy", { name: meta.requestedBy }),
+                fontSize: 8,
+                alignment: "right",
+                color: "#475569",
+                margin: [0, 1, 0, 0],
+              },
+            ],
           },
         ],
       ],

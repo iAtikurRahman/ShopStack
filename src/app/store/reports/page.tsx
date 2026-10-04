@@ -254,8 +254,7 @@ function ReportsWorkspace() {
       <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold text-slate-950">{t("reports.ui.title")}</h1>
         <p className="text-xs text-slate-500">
-          {t("reports.ui.subtitle", { count: catalog.count, unavailable: catalog.unavailable.length })} Â·{" "}
-          {catalog.scope.allStores ? t("reports.ui.allStores") : t("reports.ui.myStore")}
+          {t("reports.ui.subtitle", { count: catalog.count, unavailable: catalog.unavailable.length })}
         </p>
       </header>
 
@@ -439,6 +438,8 @@ function ReportsWorkspace() {
                     logoAlt={letterheadText.heading}
                     heading={letterheadText.heading}
                     contact={letterheadText.contact}
+                    company={letterheadText.company}
+                    storeName={letterheadText.store}
                     title={label(report.title)}
                     periodLine={t("reports.ui.range", {
                       from: fmt.date(report.period.from),
@@ -448,9 +449,10 @@ function ReportsWorkspace() {
                 </div>
               ) : null}
               <ReportResultView report={report} />
-              <p className="hidden text-left text-xs text-slate-500 print:block">
-                {t("reports.ui.printedBy", { name: catalog.viewer.name })}
-              </p>
+              <div className="hidden print:block text-right text-xs text-slate-500">
+                <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
+                <p>{t("reports.ui.printedBy", { name: catalog.viewer.name })}</p>
+              </div>
             </>
           ) : null}
         </section>

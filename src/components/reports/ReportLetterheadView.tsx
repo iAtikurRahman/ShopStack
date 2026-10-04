@@ -22,6 +22,8 @@ export function ReportLetterheadView({
   contact,
   title,
   periodLine,
+  company,
+  storeName,
 }: {
   logoUrl: string | null;
   logoAlt: string;
@@ -31,12 +33,11 @@ export function ReportLetterheadView({
   contact: string;
   title: string;
   periodLine: string;
+  company?: string;
+  storeName?: string | null;
 }) {
   return (
     <header className="print-letterhead mb-6 border-2 border-slate-800 p-4 text-center">
-      <h1 className="text-xl font-semibold text-slate-950">{title}</h1>
-      <p className="mt-1 text-xs text-slate-600">{periodLine}</p>
-
       {logoUrl ? (
         <Image
           src={logoUrl}
@@ -47,8 +48,12 @@ export function ReportLetterheadView({
         />
       ) : null}
 
-      <p className="mt-4 text-lg font-semibold uppercase tracking-wide text-slate-900">{heading}</p>
-      {contact ? <p className="text-xs text-slate-600">{contact}</p> : null}
+      <h2 className="text-lg font-semibold text-slate-950">{company ?? heading}</h2>
+      {storeName ? <p className="text-sm font-medium text-slate-800">{storeName}</p> : null}
+      <div className="mt-2 flex items-start justify-between border-t border-slate-300 pt-2">
+        <p className="text-sm font-semibold text-slate-950">{title}</p>
+        <p className="text-sm text-slate-700">{periodLine}</p>
+      </div>
     </header>
   );
 }
