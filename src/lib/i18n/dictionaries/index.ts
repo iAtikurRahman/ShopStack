@@ -5,6 +5,7 @@ import { en as storeOps } from "./en/storeOps";
 import { en as storeCommerce } from "./en/storeCommerce";
 import { en as company } from "./en/company";
 import { en as admin } from "./en/admin";
+import { en as reports } from "./en/reports";
 import { bn as commonBn } from "./bn/common";
 import { bn as navBn } from "./bn/nav";
 import { bn as authBn } from "./bn/auth";
@@ -12,6 +13,7 @@ import { bn as storeOpsBn } from "./bn/storeOps";
 import { bn as storeCommerceBn } from "./bn/storeCommerce";
 import { bn as companyBn } from "./bn/company";
 import { bn as adminBn } from "./bn/admin";
+import { bn as reportsBn } from "./bn/reports";
 import type { Locale } from "../locale";
 import { interpolate } from "../interpolate";
 import { resolveValue } from "../resolve";
@@ -29,6 +31,7 @@ const en = {
   ...storeCommerce,
   ...company,
   ...admin,
+  ...reports,
 };
 
 export type Dictionary = typeof en;
@@ -41,6 +44,7 @@ const bn: Dictionary = {
   ...storeCommerceBn,
   ...companyBn,
   ...adminBn,
+  ...reportsBn,
 };
 
 type Leaves<T> = {

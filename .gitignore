@@ -46,3 +46,6 @@ next-env.d.ts
 
 # user-uploaded files (payment screenshots, etc.)
 /public/uploads
+
+# report smoke-test output (regenerate with npm run check:reports -- --pdf)
+/.report-smoke

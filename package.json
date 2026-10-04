@@ -9,6 +9,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "postinstall": "npm run prisma:generate",
     "check:route-guards": "node scripts/check-route-guards.mjs",
+    "check:report-dictionary": "tsx scripts/check-report-dictionary.ts",
+    "check:reports": "tsx --env-file=.env scripts/smoke-reports.ts",
     "prisma:generate:central": "prisma generate --schema=prisma/central/schema.prisma",
     "prisma:generate:tenant": "prisma generate --schema=prisma/tenant/schema.prisma",
     "prisma:generate": "npm run prisma:generate:central && npm run prisma:generate:tenant",
@@ -29,6 +31,7 @@
     "lru-cache": "^11.5.2",
     "mysql2": "^3.23.2",
     "next": "16.2.4",
+    "pdfmake": "^0.3.11",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
