@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 import { round2 } from "@/lib/returns";
 
@@ -73,7 +74,7 @@ export const POST = withAuth(async (request, { session, db }) => {
         data: { quantity: { decrement: parsedQuantity } },
       });
 
-      return tx.supplierReturn.create({
+      const supplierReturn = await tx.supplierReturn.create({
         data: {
           supplierId: Number(supplierId),
           warehouseId: Number(warehouseId),
@@ -88,6 +89,31 @@ export const POST = withAuth(async (request, { session, db }) => {
           product: { select: { id: true, sku: true, name: true } },
         },
       });
+
+      // Sending goods back means the supplier owes us that credit back, so
+      // what we still owe them comes down by the return amount - whether the
+      // original delivery was bought on credit or already paid for. The
+      // balance can go negative, which just means the supplier now owes us.
+      await tx.supplier.update({
+        where: { id: supplier.id },
+        data: { dueAmount: { decrement: creditAmount } },
+      });
+
+      await writeAuditLog(tx, session, {
+        action: "supplierReturn.created",
+        entityType: "SupplierReturn",
+        entityId: supplierReturn.id,
+        after: {
+          supplierId: supplier.id,
+          warehouseId: Number(warehouseId),
+          productId: Number(productId),
+          quantity: parsedQuantity,
+          amount: creditAmount,
+          dueReduced: creditAmount,
+        },
+      });
+
+      return supplierReturn;
     });
 
     return NextResponse.json({ supplierReturn }, { status: 201 });
