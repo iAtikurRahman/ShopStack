@@ -291,9 +291,6 @@ function ReportsWorkspace() {
                             }`}
                           >
                             <span className="block font-medium">{label(entry.title)}</span>
-                            <span className={`block text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                              {label(entry.description)}
-                            </span>
                           </button>
                         </li>
                       );
