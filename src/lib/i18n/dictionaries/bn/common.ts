@@ -131,6 +131,7 @@ export const bn = {
         "সেটআপ ইতিমধ্যে সম্পন্ন হয়েছে। বদলে /admin/login-এ সাইন ইন করুন।",
       "slug must be lowercase letters, numbers, and hyphens only":
         "স্লাগ-এ শুধু ছোট হাতের অক্ষর, সংখ্যা ও হাইফেন থাকতে পারে",
+      "A company with this slug already exists": "এই স্লাগ নিয়ে একটি কোম্পানি আগে থেকেই আছে",
       "Company slug is required": "কোম্পানির স্লাগ আবশ্যক",
       "Company not found": "কোম্পানি পাওয়া যায়নি",
       "Store not found": "দোকান পাওয়া যায়নি",

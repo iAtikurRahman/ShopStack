@@ -138,6 +138,7 @@ export const en = {
         "Setup has already been completed. Sign in at /admin/login instead.",
       "slug must be lowercase letters, numbers, and hyphens only":
         "slug must be lowercase letters, numbers, and hyphens only",
+      "A company with this slug already exists": "A company with this slug already exists",
       "Company slug is required": "Company slug is required",
       "Company not found": "Company not found",
       "Store not found": "Store not found",
