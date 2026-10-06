@@ -1,111 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
+import { ApiError, requireTenantSession } from "@/lib/session";
+import ReportsClient from "./ReportsClient";
 
-import { useEffect, useState } from "react";
-import { useI18n } from "@/components/LocaleProvider";
-import { apiFetch } from "@/services/api";
-
-type Report = {
-  totalSales: string | number;
-  totalRefunds: string | number;
-  salesCount: number;
-  lowStockCount: number;
-  byStore: { storeId: number; storeName: string; totalSales: string | number; salesCount: number }[];
-  staffPerformance: { cashierId: number; cashierName: string; totalSales: string | number; salesCount: number }[];
-  topProducts: { product: { name: string } | null; quantitySold: number; revenue: string | number }[];
-};
-
-export default function CompanyReportsPage() {
-  const { t, fmt } = useI18n();
-  const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await apiFetch<Report>("/api/company/reports");
-        setReport(data);
-      } catch (err) {
-        setError((err as Error).message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  if (loading) return <main className="p-8 text-sm text-slate-600">{t("common.loading")}</main>;
-  if (error || !report) {
-    return <main className="p-8 text-sm text-red-600">{error ?? t("company.reports.notAvailable")}</main>;
+export default async function CompanyReportsPage() {
+  try {
+    await requireTenantSession({ roles: ["company_admin"] });
+  } catch (err) {
+    if (err instanceof ApiError) redirect(err.status === 401 ? "/login" : "/store");
+    throw err;
   }
-
-  return (
-    <main className="mx-auto max-w-6xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">{t("company.reports.title")}</h1>
-
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">{t("company.reports.totalSales")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(report.totalSales)}</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">{t("company.reports.totalRefunds")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.money(report.totalRefunds)}</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">{t("company.reports.salesCount")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(report.salesCount)}</p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">{t("company.reports.lowStockItems")}</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{fmt.number(report.lowStockCount)}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.byStore")}</h2>
-          <div className="mt-4 space-y-2">
-            {report.byStore.map((row) => (
-              <div key={row.storeId} className="flex justify-between text-sm">
-                <span className="text-slate-950">{row.storeName}</span>
-                <span className="text-slate-600">
-                  {fmt.money(row.totalSales)} · {fmt.number(row.salesCount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.staffPerformance")}</h2>
-          <div className="mt-4 space-y-2">
-            {report.staffPerformance.map((row) => (
-              <div key={row.cashierId} className="flex justify-between text-sm">
-                <span className="text-slate-950">{row.cashierName}</span>
-                <span className="text-slate-600">
-                  {fmt.money(row.totalSales)} · {fmt.number(row.salesCount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-950">{t("company.reports.topProducts")}</h2>
-          <div className="mt-4 space-y-2">
-            {report.topProducts.map((p, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-slate-950">{p.product?.name ?? t("company.reports.unknown")}</span>
-                <span className="text-slate-600">
-                  {fmt.quantity(p.quantitySold)} · {fmt.money(p.revenue)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </main>
-  );
+  return <ReportsClient />;
 }

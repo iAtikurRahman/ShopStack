@@ -38,4 +38,4 @@ export const PATCH = withAuth<{ id: string }>(async (request, { session, db, par
   });
 
   return NextResponse.json({ store });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });

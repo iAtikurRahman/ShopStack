@@ -21,10 +21,12 @@ const STORE_LINKS: NavLink[] = [
   { href: "/store/payments", label: "nav.payments" },
 ];
 
-const MANAGER_ONLY_LINKS: NavLink[] = [{ href: "/store/reports", label: "nav.reports" }];
+const MANAGER_ONLY_LINKS: NavLink[] = [
+  { href: "/store/reports", label: "nav.reports" },
+];
 
+// Company workspace links both levels can use.
 const COMPANY_LINKS: NavLink[] = [
-  { href: "/company/stores", label: "nav.stores" },
   { href: "/company/products", label: "nav.products" },
   { href: "/company/categories", label: "nav.categories" },
   { href: "/company/suppliers", label: "nav.suppliers" },
@@ -33,6 +35,11 @@ const COMPANY_LINKS: NavLink[] = [
   { href: "/company/bank-transfers", label: "nav.bankTransfers" },
   { href: "/company/withdrawals", label: "nav.withdrawals" },
   { href: "/company/expenditures", label: "nav.expenditures" },
+];
+
+// Company-wide management surfaces reserved for the company admin.
+const COMPANY_ADMIN_ONLY_LINKS: NavLink[] = [
+  { href: "/company/stores", label: "nav.stores" },
   { href: "/company/users", label: "nav.users" },
   { href: "/company/audit-log", label: "nav.auditLog" },
 ];
@@ -47,10 +54,15 @@ function isActive(pathname: string, href: string): boolean {
 export function WorkspaceNav({ role }: { role: Role }) {
   const pathname = usePathname();
   const { t } = useI18n();
-  const isManagerOrAdmin = role === "company_admin" || role === "store_manager";
-  const links = isManagerOrAdmin
-    ? [...STORE_LINKS, ...MANAGER_ONLY_LINKS, ...COMPANY_LINKS]
-    : [...STORE_LINKS];
+  // Users, stores, reports and audit log are company-admin surfaces. A store
+  // manager gets the operational links plus the shared company workspace, but
+  // not the management pages.
+  const links =
+    role === "company_admin"
+      ? [...STORE_LINKS, ...MANAGER_ONLY_LINKS, ...COMPANY_LINKS, ...COMPANY_ADMIN_ONLY_LINKS]
+      : role === "store_manager"
+        ? [...STORE_LINKS, ...COMPANY_LINKS]
+        : [...STORE_LINKS];
 
   return (
     <nav className="flex w-full flex-wrap items-center gap-1 rounded-2xl bg-slate-100/80 p-1">

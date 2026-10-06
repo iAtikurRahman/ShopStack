@@ -6,4 +6,4 @@ import { getStoreReport } from "@/lib/reports";
 // render the same numbers server-side without going through HTTP.
 export const GET = withAuth(async (_request, { session, db }) => {
   return NextResponse.json(await getStoreReport(db, session));
-}, { scope: "tenant", roles: ["company_admin", "store_manager"], permission: "can_view_reports" });
+}, { scope: "tenant", roles: ["company_admin"], permission: "can_view_reports" });

@@ -52,7 +52,7 @@ export default async function ReportPrintPage({
   let printedBy: string;
   try {
     const { session, db } = await requireTenantSession({
-      roles: ["company_admin", "store_manager"],
+      roles: ["company_admin"],
       permission: "can_view_reports",
     });
     [report, letterhead] = await Promise.all([

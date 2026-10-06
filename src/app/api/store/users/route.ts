@@ -15,7 +15,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({ users });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });
 
 // Store Managers create store_user accounts (never store_manager or
 // company_admin - "a role can only create roles strictly below it").
@@ -84,4 +84,4 @@ export const POST = withAuth(async (request, { session, db }) => {
   });
 
   return NextResponse.json({ user, permissions: grantedPermissions }, { status: 201 });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });

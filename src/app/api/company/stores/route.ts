@@ -12,7 +12,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
     orderBy: { createdAt: "asc" },
   });
   return NextResponse.json({ stores });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });
 
 /** Only a company_admin may add a store. A store_manager's session is bound to
  * one store, so a store they created would be invisible in their own list and

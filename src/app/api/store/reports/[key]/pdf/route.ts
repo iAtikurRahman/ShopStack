@@ -56,4 +56,4 @@ export const GET = withAuth<{ key: string }>(async (request: NextRequest, { db, 
     }
     throw error;
   }
-}, { scope: "tenant", roles: ["company_admin", "store_manager"], permission: "can_view_reports" });
+}, { scope: "tenant", roles: ["company_admin"], permission: "can_view_reports" });

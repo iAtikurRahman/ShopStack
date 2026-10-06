@@ -39,4 +39,4 @@ export const GET = withAuth(async (_request, { session, db }) => {
     viewer: { name: session.name },
   };
   return NextResponse.json(payload);
-}, { scope: "tenant", roles: ["company_admin", "store_manager"], permission: "can_view_reports" });
+}, { scope: "tenant", roles: ["company_admin"], permission: "can_view_reports" });

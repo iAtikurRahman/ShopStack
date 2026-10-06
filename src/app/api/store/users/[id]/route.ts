@@ -26,4 +26,4 @@ export const DELETE = withAuth<{ id: string }>(async (_request, { session, db, p
   });
 
   return NextResponse.json({ ok: true });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });

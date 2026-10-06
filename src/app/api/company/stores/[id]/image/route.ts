@@ -65,7 +65,7 @@ export const POST = withAuth<ImageRouteContext>(async (request, { session, db, p
   await deleteStoredImage(before.imageUrl);
 
   return NextResponse.json({ store });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });
 
 export const DELETE = withAuth<ImageRouteContext>(async (_request, { session, db, params }) => {
   const storeId = Number(params.id);
@@ -94,4 +94,4 @@ export const DELETE = withAuth<ImageRouteContext>(async (_request, { session, db
   await deleteStoredImage(before.imageUrl);
 
   return NextResponse.json({ store });
-}, { scope: "tenant", roles: ["company_admin", "store_manager"] });
+}, { scope: "tenant", roles: ["company_admin"] });
