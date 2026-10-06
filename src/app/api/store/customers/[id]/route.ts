@@ -18,7 +18,7 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
 
   const sales = await db.sale.findMany({
     where: { customerId, ...storeScopeWhere(session) },
-    include: { items: true, returns: true },
+    include: { items: true, returns: true, payments: true },
     orderBy: { createdAt: "desc" },
   });
 
