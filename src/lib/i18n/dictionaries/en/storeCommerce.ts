@@ -44,7 +44,7 @@
       searchPlaceholder: "Search by name, phone or email…",
       noMatch: 'No customers match "{search}".',
       noneYet: "No customers yet.",
-      points: "{points} pts",
+      points: "{points} points",
       viewPurchases: "View purchases →",
       addTitle: "Add a customer",
       addButton: "Add customer",
