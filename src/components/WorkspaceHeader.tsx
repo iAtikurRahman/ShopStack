@@ -4,15 +4,6 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { WorkspaceNav } from "@/components/WorkspaceNav";
 
-function initialsOf(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-}
-
 type WorkspaceHeaderProps = {
   role: Role;
   title: string;
@@ -36,10 +27,7 @@ export function WorkspaceHeader({ role, title, name, homeHref }: WorkspaceHeader
 
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
-            <span className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-3">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-900 text-[11px] font-semibold text-white">
-                {initialsOf(name)}
-              </span>
+            <span className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-3 pr-3">
               <span className="text-sm text-slate-600">{name}</span>
             </span>
             <LogoutButton redirectTo="/login" />
