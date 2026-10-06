@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 
@@ -20,7 +20,7 @@ type Sale = {
   items: SaleItem[];
   payments: SalePayment[];
   returns: ReturnRow[];
-  customer: { name: string } | null;
+  customer: { name: string; dueAmount: string } | null;
 };
 type SaleLetterhead = { companyName: string; name: string | null };
 
@@ -31,6 +31,9 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
   const [letterhead, setLetterhead] = useState<SaleLetterhead | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Development's strict mode runs the effect twice; without a guard the print
+  // dialog would open twice even though the user asked for one print.
+  const printedOnce = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -43,7 +46,11 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
         setLetterhead(data.letterhead);
         // `?print=1` is how the sales list opens a receipt straight into the
         // print dialog.
-        if (new URLSearchParams(window.location.search).get("print") === "1") {
+        if (
+          !printedOnce.current &&
+          new URLSearchParams(window.location.search).get("print") === "1"
+        ) {
+          printedOnce.current = true;
           window.setTimeout(() => window.print(), 300);
         }
       } catch (err) {
@@ -69,11 +76,8 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
         <>
           <div className="hidden print:block mb-6 text-center">
             <h2 className="text-lg font-semibold text-slate-950">
-              {letterhead?.companyName || "Nexora POS"}
+              {letterhead?.name || letterhead?.companyName || "Nexora POS"}
             </h2>
-            {letterhead?.name ? (
-              <p className="text-sm font-medium text-slate-800">{letterhead.name}</p>
-            ) : null}
             <div className="mt-3 flex items-start justify-between">
               <p className="text-sm font-semibold text-slate-950">
                 {t("storeOps.saleDetail.receipt", { id: sale.id })}
@@ -144,11 +148,17 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          <div className="mt-4 text-sm text-slate-500">
-            {t("storeOps.saleDetail.paidVia", {
-              methods: sale.payments.map((p) => `${tEnum(p.method)} (${fmt.money(p.amount)})`).join(", "),
-            })}
-          </div>
+          {sale.payments.length === 0 ? (
+            <p className="mt-4 text-sm font-semibold text-amber-700">
+              {t("storeOps.saleDetail.dueSale", { amount: fmt.money(sale.totalAmount) })}
+            </p>
+          ) : (
+            <div className="mt-4 text-sm text-slate-500">
+              {t("storeOps.saleDetail.paidVia", {
+                methods: sale.payments.map((p) => `${tEnum(p.method)} (${fmt.money(p.amount)})`).join(", "),
+              })}
+            </div>
+          )}
 
           {sale.returns.length > 0 ? (
             <div className="mt-6 border-t border-slate-100 pt-4">

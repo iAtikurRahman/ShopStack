@@ -68,6 +68,7 @@
       discount: "Discount",
       tax: "Tax",
       paidVia: "Paid via {methods}",
+      dueSale: "This sale went on due: {amount}",
       refunded: "Refunded ৳{amount} on {date}",
       processReturn: "Process a return",
     },

@@ -15,7 +15,7 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
       items: true,
       payments: true,
       returns: { include: { items: true } },
-      customer: { select: { id: true, name: true } },
+      customer: { select: { id: true, name: true, dueAmount: true } },
     },
   });
 

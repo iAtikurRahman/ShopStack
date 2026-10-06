@@ -66,6 +66,7 @@
       discount: "ছাড়",
       tax: "কর",
       paidVia: "পরিশোধের মাধ্যম: {methods}",
+      dueSale: "এই বিক্রয়টি বাকিতে গিয়েছে: {amount}",
       refunded: "{date} তারিখে ৳{amount} ফেরত দেওয়া হয়েছে",
       processReturn: "ফেরত প্রক্রিয়া করুন",
     },
