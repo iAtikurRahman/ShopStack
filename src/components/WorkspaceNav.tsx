@@ -8,12 +8,22 @@ import type { TranslationKey } from "@/lib/i18n/dictionaries";
 
 type NavLink = { href: string; label: TranslationKey };
 
+// The bar starts Dashboard, then Categories, then Products: the catalog is the
+// common path for a shop, so it sits straight after the landing page.
+const DASHBOARD_LINK: NavLink = { href: "/store", label: "nav.dashboard" };
+
+const CATALOG_LINKS: NavLink[] = [
+  { href: "/company/categories", label: "nav.categories" },
+  { href: "/company/products", label: "nav.products" },
+];
+
+const CUSTOMERS_LINK: NavLink = { href: "/store/customers", label: "nav.customers" };
+const SUPPLIERS_LINK: NavLink = { href: "/company/suppliers", label: "nav.suppliers" };
+
 const STORE_LINKS: NavLink[] = [
-  { href: "/store", label: "nav.dashboard" },
   { href: "/store/pos", label: "nav.checkout" },
   { href: "/store/sales", label: "nav.sales" },
   { href: "/store/returns", label: "nav.returns" },
-  { href: "/store/customers", label: "nav.customers" },
   { href: "/store/inventory", label: "nav.inventory" },
   { href: "/store/transfers", label: "nav.transfers" },
   { href: "/store/purchases", label: "nav.purchases" },
@@ -21,16 +31,11 @@ const STORE_LINKS: NavLink[] = [
   { href: "/store/payments", label: "nav.payments" },
 ];
 
-const MANAGER_ONLY_LINKS: NavLink[] = [
-  { href: "/store/reports", label: "nav.reports" },
-];
+const REPORTS_LINK: NavLink = { href: "/store/reports", label: "nav.reports" };
 
-// Company workspace links both levels can use.
+// Company workspace links both levels can use. Payments stays in the
+// operational group (/store/payments) so it is not duplicated in the bar.
 const COMPANY_LINKS: NavLink[] = [
-  { href: "/company/products", label: "nav.products" },
-  { href: "/company/categories", label: "nav.categories" },
-  { href: "/company/suppliers", label: "nav.suppliers" },
-  { href: "/company/payments", label: "nav.payments" },
   { href: "/company/banks", label: "nav.banks" },
   { href: "/company/bank-transfers", label: "nav.bankTransfers" },
   { href: "/company/withdrawals", label: "nav.withdrawals" },
@@ -41,6 +46,7 @@ const COMPANY_LINKS: NavLink[] = [
 const COMPANY_ADMIN_ONLY_LINKS: NavLink[] = [
   { href: "/company/stores", label: "nav.stores" },
   { href: "/company/users", label: "nav.users" },
+  REPORTS_LINK,
   { href: "/company/audit-log", label: "nav.auditLog" },
 ];
 
@@ -59,10 +65,25 @@ export function WorkspaceNav({ role }: { role: Role }) {
   // not the management pages.
   const links =
     role === "company_admin"
-      ? [...STORE_LINKS, ...MANAGER_ONLY_LINKS, ...COMPANY_LINKS, ...COMPANY_ADMIN_ONLY_LINKS]
+      ? [
+          DASHBOARD_LINK,
+          ...CATALOG_LINKS,
+          CUSTOMERS_LINK,
+          SUPPLIERS_LINK,
+          ...STORE_LINKS,
+          ...COMPANY_LINKS,
+          ...COMPANY_ADMIN_ONLY_LINKS,
+        ]
       : role === "store_manager"
-        ? [...STORE_LINKS, ...COMPANY_LINKS]
-        : [...STORE_LINKS];
+        ? [
+            DASHBOARD_LINK,
+            ...CATALOG_LINKS,
+            CUSTOMERS_LINK,
+            SUPPLIERS_LINK,
+            ...STORE_LINKS,
+            ...COMPANY_LINKS,
+          ]
+        : [DASHBOARD_LINK, CUSTOMERS_LINK, ...STORE_LINKS];
 
   return (
     <nav className="flex w-full flex-wrap items-center gap-1 rounded-2xl bg-slate-100/80 p-1">
