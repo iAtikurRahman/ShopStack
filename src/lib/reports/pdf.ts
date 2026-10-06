@@ -283,20 +283,9 @@ function letterheadBlock(
     stack.push({ text: contact, fontSize: 9, alignment: "center", color: "#475569", margin: [0, 2, 0, 0] });
   }
 
-  // One centred column between two rules: a ruled header like a bill's, with no
-  // vertical lines to cut through a long address.
-  return {
-    table: { widths: ["*"], body: [[{ stack }]] },
-    layout: {
-      hLineWidth: (row: number) => (row === 0 || row === 1 ? 1.5 : 0),
-      vLineWidth: () => 0,
-      paddingTop: () => 8,
-      paddingBottom: () => 8,
-      paddingLeft: () => 6,
-      paddingRight: () => 6,
-    },
-    margin: [0, 0, 0, 10],
-  } as unknown as PdfContent;
+  // A bare stack, not a ruled box: the head of the document reads as plain text
+  // above the table, the same way the printed sheet opens.
+  return { stack, margin: [0, 0, 0, 10] } as unknown as PdfContent;
 }
 
 /** Builds the document. Exported so it can be inspected without rendering. */

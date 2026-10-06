@@ -37,7 +37,7 @@ export function ReportLetterheadView({
   storeName?: string | null;
 }) {
   return (
-    <header className="print-letterhead mb-6 border-2 border-slate-800 p-4 text-center">
+    <header className="print-letterhead mb-6 text-center">
       {logoUrl ? (
         <Image
           src={logoUrl}
