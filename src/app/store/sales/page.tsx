@@ -75,24 +75,31 @@ export default function StoreSalesPage() {
         ) : (
           <div className="mt-4 space-y-3">
             {filteredSales.map((sale) => (
-              <Link
+              <div
                 key={sale.id}
-                href={`/store/sales/${sale.id}`}
-                className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
               >
-                <div>
-                  <p className="font-semibold text-slate-950">
-                    {t("storeOps.sales.saleLabel", { id: sale.id })}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {sale.customer?.name ?? t("storeOps.sales.walkIn")} · {fmt.date(sale.createdAt)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-slate-950">{fmt.money(sale.totalAmount)}</p>
-                  <p className="text-xs text-slate-500">{tEnum(sale.status)}</p>
-                </div>
-              </Link>
+                <Link href={`/store/sales/${sale.id}`} className="flex flex-1 items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950">
+                      {t("storeOps.sales.saleLabel", { id: sale.id })}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {sale.customer?.name ?? t("storeOps.sales.walkIn")} · {fmt.date(sale.createdAt)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-slate-950">{fmt.money(sale.totalAmount)}</p>
+                    <p className="text-xs text-slate-500">{tEnum(sale.status)}</p>
+                  </div>
+                </Link>
+                <Link
+                  href={`/store/sales/${sale.id}?print=1`}
+                  className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  {t("reports.ui.print")}
+                </Link>
+              </div>
             ))}
           </div>
         )}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { canAccessStore } from "@/lib/tenant-access";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
 export const GET = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const saleId = Number(params.id);
@@ -26,5 +27,9 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
     return NextResponse.json({ message: "Sale not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ sale });
+  // Letterhead rides along so the client can print the receipt with the shop's
+  // own name on it, the same way the reports print.
+  const letterhead = await reportLetterhead(db, session);
+
+  return NextResponse.json({ sale, letterhead });
 }, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
