@@ -50,7 +50,7 @@ export function ReportLetterheadView({
 
       <h2 className="text-lg font-semibold text-slate-950">{company ?? heading}</h2>
       {storeName ? <p className="text-sm font-medium text-slate-800">{storeName}</p> : null}
-      <div className="mt-2 flex items-start justify-between border-t border-slate-300 pt-2">
+      <div className="mt-3 flex items-start justify-between">
         <p className="text-sm font-semibold text-slate-950">{title}</p>
         <p className="text-sm text-slate-700">{periodLine}</p>
       </div>
