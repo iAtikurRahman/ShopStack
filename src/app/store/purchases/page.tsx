@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
@@ -246,10 +247,18 @@ export default function StorePurchasesPage() {
           ) : (
             <div className="mt-4 space-y-3">
               {filteredPurchases.map((purchase) => (
-                <div key={purchase.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm">
+                <Link
+                  key={purchase.id}
+                  href={`/store/purchases/${purchase.id}`}
+                  title={t("storeCommerce.purchases.openDetail")}
+                  className="group block rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm transition hover:border-slate-300"
+                >
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-slate-950">{purchase.supplier.name}</p>
-                    <span className="text-slate-600">{fmt.money(purchase.totalCost)}</span>
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <span className="tabular-nums">{fmt.money(purchase.totalCost)}</span>
+                      <span className="text-slate-400 transition group-hover:translate-x-0.5">›</span>
+                    </span>
                   </div>
                   <p className="mt-1 text-slate-600">
                     {fmt.date(purchase.purchasedAt)}
@@ -303,7 +312,7 @@ export default function StorePurchasesPage() {
                       {t("storeCommerce.purchases.refLabel", { reference: purchase.reference })}
                     </p>
                   ) : null}
-                </div>
+                </Link>
               ))}
             </div>
           )}
