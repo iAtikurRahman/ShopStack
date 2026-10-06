@@ -2,7 +2,7 @@
   company: {
     dashboard: {
       welcome: "Welcome, {name}",
-      nextPhase: "Store and warehouse management lands in the next phase.",
+      overview: "Company-wide sales, refunds and stock at a glance.",
     },
     stores: {
       allTitle: "All stores",
