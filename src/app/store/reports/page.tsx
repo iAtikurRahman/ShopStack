@@ -425,9 +425,12 @@ function ReportsWorkspace() {
                 </div>
               ) : null}
               <ReportResultView report={report} />
-              <div className="hidden print:block text-right text-xs text-slate-500">
-                <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
-                <p>{t("reports.ui.printedBy", { name: catalog.viewer.name })}</p>
+              <div className="hidden print:block mt-6 flex items-end justify-between gap-4 text-xs text-slate-500">
+                <p className="font-semibold text-slate-800">Nexora POS</p>
+                <div className="text-right">
+                  <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
+                  <p>{t("reports.ui.printedBy", { name: catalog.viewer.name })}</p>
+                </div>
               </div>
             </>
           ) : null}

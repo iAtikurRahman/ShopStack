@@ -43,6 +43,18 @@ textarea {
   @page {
     size: A4 portrait;
     margin: 12mm;
+
+    /* The browser draws its own print chrome in the page margins - a date in
+       the top-left, the title and URL, page numbers - alongside the report's
+       own letterhead. An empty margin box takes precedence over the
+       browser-generated one, so declare them empty to keep that chrome off
+       the paper without giving up the 12mm margin on every page. */
+    @top-left { content: ""; }
+    @top-center { content: ""; }
+    @top-right { content: ""; }
+    @bottom-left { content: ""; }
+    @bottom-center { content: ""; }
+    @bottom-right { content: ""; }
   }
 
   html,

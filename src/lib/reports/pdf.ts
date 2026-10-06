@@ -330,13 +330,21 @@ export function reportDocument(report: ReportResult, locale: Locale, meta: PdfMe
   }
 
   // Who printed it is a signature, not a heading: it belongs under everything,
-  // on the left, the way it is signed on a bill. A table rather than a rule drawn
-  // by hand, so the line spans the page in either orientation.
+  // on the right, with the brand name on the left, so the PDF footer agrees with
+  // the printed sheet. A table rather than a rule drawn by hand, so the line
+  // spans the page in either orientation.
   content.push({
     table: {
-      widths: ["*"],
+      widths: ["*", "*"],
       body: [
         [
+          {
+            text: "Nexora POS",
+            fontSize: 8,
+            bold: true,
+            color: "#1e293b",
+            margin: [0, 7, 0, 0],
+          },
           {
             stack: [
               {

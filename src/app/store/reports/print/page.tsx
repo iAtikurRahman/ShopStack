@@ -100,9 +100,12 @@ export default async function ReportPrintPage({
             })}
           />
       <ReportResultView report={report} scrollable={false} summary={false} />
-          <div className="mt-4 text-right text-xs text-slate-500">
-            <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
-            <p>{t("reports.ui.printedBy", { name: printedBy })}</p>
+          <div className="mt-6 flex items-end justify-between gap-4 text-xs text-slate-500">
+            <p className="font-semibold text-slate-800">Nexora POS</p>
+            <div className="text-right">
+              <p>{t("reports.ui.generatedAt", { at: fmt.dateTime(new Date().toISOString()) })}</p>
+              <p>{t("reports.ui.printedBy", { name: printedBy })}</p>
+            </div>
           </div>
     </main>
   );
