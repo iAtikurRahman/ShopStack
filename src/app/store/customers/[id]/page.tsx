@@ -138,7 +138,10 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       built.push({ kind: "sale", at: sale.createdAt, amount, impact: isDue ? amount : 0, isDue, sale });
       for (const refund of sale.returns) {
         const amt = Number(refund.refundAmount);
-        built.push({ kind: "refund", at: refund.createdAt, amount: amt, impact: isDue ? -amt : 0, sale, refund });
+        // A refund returns money whether the sale was credit or paid, so it
+        // always lowers the running balance. The balance itself may dip below
+        // zero, which simply means the store now owes that much back.
+        built.push({ kind: "refund", at: refund.createdAt, amount: amt, impact: -amt, sale, refund });
       }
     }
     for (const payment of payments) {

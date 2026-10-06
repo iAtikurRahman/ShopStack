@@ -18,7 +18,7 @@ export const PATCH = withAuth<{ id: string }>(async (request, { session, db, par
 
   const existing = await db.return.findUnique({
     where: { id: returnId },
-    include: { sale: { select: { id: true, totalAmount: true } } },
+    include: { sale: { select: { id: true, totalAmount: true, customerId: true } } },
   });
   if (!existing || !canAccessStore(session, existing.storeId)) {
     return NextResponse.json({ message: "Return not found" }, { status: 404 });
@@ -54,12 +54,31 @@ export const PATCH = withAuth<{ id: string }>(async (request, { session, db, par
       },
     });
 
+    // Put back what the original refund took off the customer's balance, then
+    // apply the corrected figure. The balance may end up negative, which just
+    // means the customer now has credit with the store.
+    const customerId = existing.sale.customerId;
+    if (customerId !== null && customerId !== undefined) {
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { dueAmount: { increment: Number(existing.refundAmount) } },
+      });
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { dueAmount: { decrement: Number(result.refundAmount) } },
+      });
+    }
+
     await writeAuditLog(tx, session, {
       action: "return.refund_edited",
       entityType: "Return",
       entityId: returnId,
       before: { refundAmount: existing.refundAmount.toString(), reason: existing.reason },
-      after: { refundAmount: result.refundAmount.toString(), reason: result.reason },
+      after: {
+        refundAmount: result.refundAmount.toString(),
+        reason: result.reason,
+        dueReduced: Number(result.refundAmount) - Number(existing.refundAmount),
+      },
     });
 
     return result;

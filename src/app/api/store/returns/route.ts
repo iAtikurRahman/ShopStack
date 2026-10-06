@@ -137,11 +137,24 @@ export const POST = withAuth(async (request, { session, db }) => {
         data: { status: totalReturnedQty >= totalOriginalQty ? "refunded" : "partially_refunded" },
       });
 
+      // A refund returns money to whoever bought the sale, whether it was sold
+      // on credit or paid at the till. Either way the party's remaining balance
+      // comes down by the refunded amount - a credit sale stops being owed, a
+      // paid sale leaves the customer with credit for the refunded money. The
+      // balance is allowed to go negative (it then means "we owe them").
+      const saleCustomerId = sale.customerId;
+      if (saleCustomerId !== null && saleCustomerId !== undefined) {
+        await tx.customer.update({
+          where: { id: saleCustomerId },
+          data: { dueAmount: { decrement: Number(refundAmount) } },
+        });
+      }
+
       await writeAuditLog(tx, session, {
         action: "return.created",
         entityType: "Return",
         entityId: createdReturn.id,
-        after: { saleId: sale.id, refundAmount },
+        after: { saleId: sale.id, refundAmount, dueReduced: Number(refundAmount) },
       });
 
       return createdReturn;
