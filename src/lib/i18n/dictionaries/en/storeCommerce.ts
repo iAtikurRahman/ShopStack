@@ -110,7 +110,7 @@
     purchases: {
       title: "Purchases (stock-in)",
       recent: "Recent purchases",
-      searchPlaceholder: "Search by supplier, product, reference, amount or date…",
+      searchPlaceholder: "Search by purchase #, supplier, product, reference, amount or date…",
       noMatch: 'No purchases match "{search}".',
       noneYet: "No purchases yet.",
       multipleWarehouses: "Multiple warehouses",
@@ -161,9 +161,16 @@
       reasonOptional: "Reason (optional)",
       reasonPlaceholder: "Damaged, wrong item, etc.",
       nothingSelected: "Set a return quantity above 0 for at least one item.",
+      submitEmpty: "Set return quantities to continue.",
       submitOne: "Return 1 item · ৳{amount} credit",
       submitMany: "Return {count} items · ৳{amount} credit",
       success: "Returned {count} to the supplier.",
+      lookupTitle: "Return stock by supply number",
+      supplyPlaceholder: "Supply / purchase number or reference…",
+      loadPurchase: "Load purchase",
+      lookupHint:
+        "Enter the purchase number or its reference / invoice no. to load the delivery, then return part or all of it.",
+      notFoundByNumber: "No purchase found with that supply number or reference.",
     },
     supplierReturns: {
       recent: "Recent returns",
@@ -190,6 +197,8 @@
       reasonPlaceholder: "Damaged, wrong item, etc.",
       validationError: "Enter a valid credit amount of zero or more",
       submit: "Return to supplier · ৳{amount} credit",
+      processTitle: "Process a return",
+      purchaseNumberPlaceholder: "Purchase / supply number or reference…",
     },
     users: {
       title: "Store users",

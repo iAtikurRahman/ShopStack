@@ -4,19 +4,32 @@ import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
 
-export const GET = withAuth(async (_request, { session, db }) => {
+export const GET = withAuth(async (request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
   const warehouseIds = warehouses.map((w) => w.id);
 
+  // Used by purchase-return: look up a delivery by its purchase number or its
+  // reference / invoice no. (the loose "supply number"). When the query param
+  // is absent the whole store's history is returned as before.
+  const lookup = new URL(request.url).searchParams.get("lookup")?.trim() ?? "";
+
   // A purchase can be spread across warehouses, so show it if any of its
   // lines landed in one of this store's warehouses.
+  const scope = {
+    OR: [
+      { warehouseId: { in: warehouseIds } },
+      { items: { some: { warehouseId: { in: warehouseIds } } } },
+    ],
+  };
+  const lookups = lookup
+    ? [
+        ...(/^\d+$/.test(lookup) ? [{ id: Number(lookup) }] : []),
+        { reference: lookup },
+      ]
+    : [];
+
   const purchases = await db.purchase.findMany({
-    where: {
-      OR: [
-        { warehouseId: { in: warehouseIds } },
-        { items: { some: { warehouseId: { in: warehouseIds } } } },
-      ],
-    },
+    where: lookups.length > 0 ? { AND: [{ OR: lookups }, scope] } : scope,
     include: {
       supplier: { select: { id: true, name: true } },
       items: {

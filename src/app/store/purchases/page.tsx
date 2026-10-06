@@ -5,10 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
+import { round2 } from "@/lib/returns";
 
 type Warehouse = { id: number; name: string };
 type Product = { id: number; sku: string; name: string; purchasePrice: string };
 type Supplier = { id: number; name: string };
+type StockRow = { id: number; warehouseId: number; productId: number; quantity: number };
 type PurchaseItem = {
   id: number;
   productId: number;
@@ -61,8 +63,18 @@ export default function StorePurchasesPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [stock, setStock] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Return-by-supply-number state, mirroring how sale returns load a sale.
+  const [returnInput, setReturnInput] = useState("");
+  const [returnPurchase, setReturnPurchase] = useState<Purchase | null>(null);
+  const [returnQty, setReturnQty] = useState<Record<number, string>>({});
+  const [returnReason, setReturnReason] = useState("");
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [returnSuccess, setReturnSuccess] = useState<string | null>(null);
 
   const [supplierId, setSupplierId] = useState("");
   const [reference, setReference] = useState("");
@@ -85,6 +97,7 @@ export default function StorePurchasesPage() {
       return (
         purchase.supplier.name.toLowerCase().includes(q) ||
         matchesItem ||
+        String(purchase.id).includes(q) ||
         (purchase.reference ?? "").toLowerCase().includes(q) ||
         purchase.totalCost.includes(q) ||
         purchase.purchasedAt.slice(0, 10).includes(q)
@@ -106,15 +119,100 @@ export default function StorePurchasesPage() {
       ? paymentMethod
       : methodOptions[0] ?? DUE_METHOD;
 
+  const stockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    stock.forEach((row) => map.set(`${row.warehouseId}:${row.productId}`, row.quantity));
+    return map;
+  }, [stock]);
+
+  const returnSelected = useMemo(() => {
+    if (!returnPurchase) return { count: 0, credit: 0, lines: [] as { item: PurchaseItem; qty: number }[] };
+    const lines: { item: PurchaseItem; qty: number }[] = [];
+    for (const item of returnPurchase.items) {
+      const qty = Number(returnQty[item.id] ?? "0");
+      if (Number.isInteger(qty) && qty > 0 && qty <= item.quantity) {
+        lines.push({ item, qty });
+      }
+    }
+    return {
+      count: lines.reduce((sum, { qty }) => sum + qty, 0),
+      credit: lines.reduce((sum, { item, qty }) => sum + qty * Number(item.unitCost), 0),
+      lines,
+    };
+  }, [returnPurchase, returnQty]);
+
+  function setReturnQtyFor(itemId: number, value: string) {
+    setReturnQty((current) => ({ ...current, [itemId]: value }));
+    setReturnSuccess(null);
+    setReturnError(null);
+  }
+
+  function lookupReturn(raw: string) {
+    const q = raw.trim();
+    setReturnError(null);
+    setReturnSuccess(null);
+    if (!q) {
+      setReturnPurchase(null);
+      setReturnQty({});
+      return;
+    }
+    const match = purchases.find(
+      (p) => String(p.id) === q || (p.reference ?? "").toLowerCase() === q.toLowerCase()
+    );
+    if (!match) {
+      setReturnPurchase(null);
+      setReturnQty({});
+      setReturnError(t("storeCommerce.purchaseDetail.notFoundByNumber"));
+      return;
+    }
+    setReturnPurchase(match);
+    setReturnQty({});
+  }
+
+  async function submitReturn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setReturnError(null);
+    setReturnSuccess(null);
+    if (!returnPurchase || returnSelected.lines.length === 0) {
+      setReturnError(t("storeCommerce.purchaseDetail.nothingSelected"));
+      return;
+    }
+    setReturnSubmitting(true);
+    let returned = 0;
+    try {
+      for (const { item, qty } of returnSelected.lines) {
+        await apiFetch("/api/store/supplier-returns", "POST", {
+          supplierId: returnPurchase.supplier.id,
+          warehouseId: item.warehouse.id,
+          productId: item.product.id,
+          quantity: qty,
+          reason: returnReason || null,
+          amount: round2(qty * Number(item.unitCost)),
+        });
+        returned += qty;
+      }
+      setReturnSuccess(t("storeCommerce.purchaseDetail.success", { count: fmt.quantity(returned) }));
+      setReturnQty({});
+      setReturnReason("");
+      const inventory = await apiFetch<{ stock: StockRow[] }>("/api/store/inventory");
+      setStock(inventory.stock);
+    } catch (err) {
+      setReturnError((err as Error).message);
+    } finally {
+      setReturnSubmitting(false);
+    }
+  }
+
   async function loadAll() {
     try {
       const [inventoryData, suppliersData, purchasesData] = await Promise.all([
-        apiFetch<{ warehouses: Warehouse[]; products: Product[] }>("/api/store/inventory"),
+        apiFetch<{ warehouses: Warehouse[]; products: Product[]; stock: StockRow[] }>("/api/store/inventory"),
         apiFetch<{ suppliers: Supplier[] }>("/api/store/suppliers"),
         apiFetch<{ purchases: Purchase[] }>("/api/store/purchases"),
       ]);
       setWarehouses(inventoryData.warehouses);
       setProducts(inventoryData.products);
+      setStock(inventoryData.stock);
       setSuppliers(suppliersData.suppliers);
       setPurchases(purchasesData.purchases);
       setLines((current) =>
@@ -254,14 +352,16 @@ export default function StorePurchasesPage() {
                   className="group block rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm transition hover:border-slate-300"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-slate-950">{purchase.supplier.name}</p>
+                    <p className="font-semibold text-slate-950">
+                      {t("storeCommerce.purchaseDetail.label", { id: fmt.number(purchase.id) })}
+                    </p>
                     <span className="flex items-center gap-1.5 text-slate-600">
                       <span className="tabular-nums">{fmt.money(purchase.totalCost)}</span>
                       <span className="text-slate-400 transition group-hover:translate-x-0.5">›</span>
                     </span>
                   </div>
                   <p className="mt-1 text-slate-600">
-                    {fmt.date(purchase.purchasedAt)}
+                    {purchase.supplier.name} · {fmt.date(purchase.purchasedAt)}
                     {purchase.warehouseId === null ? (
                       <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
                         {t("storeCommerce.purchases.multipleWarehouses")}
@@ -512,6 +612,127 @@ export default function StorePurchasesPage() {
             </button>
           </form>
         </div>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-950">
+          {t("storeCommerce.purchaseDetail.lookupTitle")}
+        </h2>
+        <p className="mt-1 text-xs text-slate-500">{t("storeCommerce.purchaseDetail.lookupHint")}</p>
+
+        <div className="mt-4 flex gap-3">
+          <input
+            value={returnInput}
+            onChange={(e) => setReturnInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                lookupReturn(returnInput);
+              }
+            }}
+            placeholder={t("storeCommerce.purchaseDetail.supplyPlaceholder")}
+            className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+          />
+          <button
+            type="button"
+            onClick={() => lookupReturn(returnInput)}
+            className="rounded-2xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-50"
+          >
+            {t("storeCommerce.purchaseDetail.loadPurchase")}
+          </button>
+        </div>
+
+        {returnError ? <p className="mt-3 text-sm text-red-600">{returnError}</p> : null}
+        {returnSuccess ? (
+          <p className="mt-3 rounded-2xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">{returnSuccess}</p>
+        ) : null}
+
+        {returnPurchase ? (
+          <form onSubmit={submitReturn} className="mt-6 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-slate-50 p-4">
+              <div>
+                <p className="font-semibold text-slate-950">
+                  {t("storeCommerce.purchaseDetail.label", { id: fmt.number(returnPurchase.id) })}
+                  {returnPurchase.reference ? ` · ${returnPurchase.reference}` : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {returnPurchase.supplier.name} · {fmt.dateTime(returnPurchase.purchasedAt)}
+                </p>
+              </div>
+              <p className="font-semibold text-slate-950">{fmt.money(returnPurchase.totalCost)}</p>
+            </div>
+
+            {returnPurchase.items.map((item) => {
+              const available = stockMap.get(`${item.warehouseId}:${item.productId}`) ?? 0;
+              const qtyValue = Number(returnQty[item.id] ?? "0");
+              const overStock = qtyValue > 0 && qtyValue > available;
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-slate-50 p-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-950">{item.product.name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {item.product.sku} · {item.warehouse.name} ·{" "}
+                      {t("storeCommerce.purchases.qty")}{" "}
+                      <span className="tabular-nums">{fmt.quantity(item.quantity)}</span>
+                    </p>
+                    <p className={`mt-1 text-xs ${overStock ? "font-semibold text-red-700" : "text-slate-400"}`}>
+                      {overStock
+                        ? t("storeCommerce.purchaseDetail.oversold", { count: fmt.quantity(available) })
+                        : t("storeCommerce.purchaseDetail.inStock", { count: fmt.quantity(available) })}
+                    </p>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-medium text-slate-600">
+                      {t("storeCommerce.purchaseDetail.returnQty")}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={item.quantity}
+                      step={1}
+                      inputMode="numeric"
+                      value={returnQty[item.id] ?? "0"}
+                      onChange={(e) => setReturnQtyFor(item.id, e.target.value)}
+                      className="mt-1 w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-slate-900"
+                    />
+                  </label>
+                </div>
+              );
+            })}
+
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700">
+                {t("storeCommerce.purchaseDetail.reasonOptional")}
+              </span>
+              <input
+                value={returnReason}
+                onChange={(e) => setReturnReason(e.target.value)}
+                placeholder={t("storeCommerce.purchaseDetail.reasonPlaceholder")}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={returnSubmitting || returnSelected.lines.length === 0}
+              className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {returnSubmitting
+                ? t("common.loading")
+                : returnSelected.count === 1
+                  ? t("storeCommerce.purchaseDetail.submitOne", {
+                      amount: fmt.number(returnSelected.credit, { decimals: 2 }),
+                    })
+                  : t("storeCommerce.purchaseDetail.submitMany", {
+                      count: fmt.number(returnSelected.count),
+                      amount: fmt.number(returnSelected.credit, { decimals: 2 }),
+                    })}
+            </button>
+          </form>
+        ) : null}
       </div>
     </main>
   );

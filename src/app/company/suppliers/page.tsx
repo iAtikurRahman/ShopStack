@@ -116,19 +116,25 @@ export default function CompanySuppliersPage() {
                   href={`/company/suppliers/${supplier.id}`}
                   className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
                 >
-                  <p className="font-semibold text-slate-950">{supplier.name}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-950">{supplier.name}</p>
+                    <span
+                      className={`shrink-0 font-semibold tabular-nums ${
+                        supplier.dueAmount > 0
+                          ? "text-sm text-amber-700"
+                          : supplier.dueAmount < 0
+                            ? "text-sm text-emerald-700"
+                            : "text-xs text-slate-500"
+                      }`}
+                    >
+                      {fmt.money(supplier.dueAmount)}
+                    </span>
+                  </div>
                   <p className="mt-1 text-sm text-slate-600">
                     {[supplier.phone, supplier.email].filter(Boolean).join(" · ") ||
                       t("company.suppliers.noContact")}
                   </p>
                   {supplier.address ? <p className="mt-1 text-xs text-slate-500">{supplier.address}</p> : null}
-                  {supplier.dueAmount > 0 ? (
-                    <p className="mt-1 text-sm font-semibold text-amber-700">
-                      {t("company.suppliers.dueOwed", {
-                        amount: fmt.number(supplier.dueAmount, { decimals: 2 }),
-                      })}
-                    </p>
-                  ) : null}
                   <p className="mt-2 text-xs font-semibold text-slate-600">
                     {t("company.suppliers.viewPurchases")}
                   </p>
