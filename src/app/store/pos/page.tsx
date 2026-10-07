@@ -348,6 +348,7 @@ const activeMethod =
                   onClick={() => {
                     setCart([]);
                     setQtyDrafts({});
+                    setPriceDrafts({});
                   }}
                   className="rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-white"
                 >
@@ -372,6 +373,16 @@ const activeMethod =
           ) : null}
 
           <div className="mt-4 space-y-2">
+            {cart.length > 0 ? (
+              <div className="flex items-center gap-2 px-3 text-xs font-medium text-slate-400">
+                <span className="min-w-0 flex-1">{t("storeOps.saleDetail.product")}</span>
+                <span className="w-10 shrink-0 text-center">{t("storeOps.pos.unit")}</span>
+                <span className="w-14 shrink-0 text-center">{t("storeOps.pos.qty")}</span>
+                <span className="w-16 shrink-0 text-center">{t("storeOps.pos.unitPrice")}</span>
+                <span className="w-16 shrink-0 text-right">{t("storeOps.pos.lineTotal")}</span>
+                <span className="w-8 shrink-0" />
+              </div>
+            ) : null}
             {cart.length === 0 ? (
               <p className="text-sm text-slate-500">{t("storeOps.pos.emptyCart")}</p>
             ) : (
@@ -381,77 +392,70 @@ const activeMethod =
                 return (
                   <div
                     key={line.productId}
-                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                    className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-950">{line.name}</p>
-                      <p className="text-xs tabular-nums text-slate-400">
-                        {t("storeOps.pos.inStock", {
-                          qty: `${fmt.quantity(maxInUnit)} ${unitLabel(line.unit, locale)}`,
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={priceDrafts[line.productId] ?? String(line.unitPrice)}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          setPriceDrafts((current) => ({ ...current, [line.productId]: raw }));
-                          const parsed = Number(raw);
-                          if (Number.isFinite(parsed) && parsed >= 0) {
-                            updatePrice(line.productId, parsed);
-                          }
-                        }}
-                        onBlur={() =>
-                          setPriceDrafts((current) => {
-                            const next = { ...current };
-                            delete next[line.productId];
-                            return next;
-                          })
+                    <span className="min-w-0 flex-1 truncate font-medium text-slate-950" title={line.name}>
+                      {line.name}
+                    </span>
+                    <span className="w-10 shrink-0 text-center text-xs text-slate-500">
+                      {unitLabel(line.unit, locale)}
+                    </span>
+                    <input
+                      type="number"
+                      min={0.01}
+                      max={maxInUnit}
+                      step="any"
+                      value={qtyDrafts[line.productId] ?? String(line.quantity)}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setQtyDrafts((current) => ({ ...current, [line.productId]: raw }));
+                        const parsed = Number(raw);
+                        if (Number.isFinite(parsed) && parsed > 0) {
+                          updateQty(line.productId, parsed);
                         }
-                        className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
-                      />
-                      <span className="text-xs text-slate-500">/{unitLabel(line.unit, locale)}</span>
-                      <span className="text-slate-300">×</span>
-                      <input
-                        type="number"
-                        min={0.01}
-                        max={maxInUnit}
-                        step="any"
-                        value={qtyDrafts[line.productId] ?? String(line.quantity)}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          setQtyDrafts((current) => ({ ...current, [line.productId]: raw }));
-                          const parsed = Number(raw);
-                          if (Number.isFinite(parsed) && parsed > 0) {
-                            updateQty(line.productId, parsed);
-                          }
-                        }}
-                        onBlur={() =>
-                          setQtyDrafts((current) => {
-                            const next = { ...current };
-                            delete next[line.productId];
-                            return next;
-                          })
+                      }}
+                      onBlur={() =>
+                        setQtyDrafts((current) => {
+                          const next = { ...current };
+                          delete next[line.productId];
+                          return next;
+                        })
+                      }
+                      className="w-14 shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={priceDrafts[line.productId] ?? String(line.unitPrice)}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setPriceDrafts((current) => ({ ...current, [line.productId]: raw }));
+                        const parsed = Number(raw);
+                        if (Number.isFinite(parsed) && parsed >= 0) {
+                          updatePrice(line.productId, parsed);
                         }
-                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
-                      />
-                      <span className="text-slate-300">=</span>
-                      <span className="w-20 text-right tabular-nums text-slate-700">
-                        {fmt.money(round2(line.unitPrice * line.quantity))}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(line.productId)}
-                        aria-label={t("storeOps.pos.removeItem", { name: line.name })}
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600"
-                      >
-                        ✕
-                      </button>
-                    </div>
+                      }}
+                      onBlur={() =>
+                        setPriceDrafts((current) => {
+                          const next = { ...current };
+                          delete next[line.productId];
+                          return next;
+                        })
+                      }
+                      className="w-16 shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
+                    />
+                    <span className="w-16 shrink-0 text-right tabular-nums text-slate-700">
+                      {fmt.money(round2(line.unitPrice * line.quantity))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeFromCart(line.productId)}
+                      aria-label={t("storeOps.pos.removeItem", { name: line.name })}
+                      className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600"
+                    >
+                      ✕
+                    </button>
                   </div>
                 );
               })
