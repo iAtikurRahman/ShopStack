@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
-import { convertQuantity, normalizeUnit, unitLabel, unitOptionsFor } from "@/lib/units";
+import { convertQuantity, normalizeUnit, unitLabel } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
 type Product = {
@@ -61,6 +61,8 @@ export default function PosCheckoutPage() {
   // While a quantity box is being edited we keep the raw text, so backspacing
   // it down to empty doesn't drop the line - the real quantity snaps back on blur.
   const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
+  // Same idea as qtyDrafts, for the per-line price override while it is typed.
+  const [priceDrafts, setPriceDrafts] = useState<Record<number, string>>({});
 
   async function loadData() {
     try {
@@ -134,13 +136,12 @@ export default function PosCheckoutPage() {
     });
   }
 
-  function changeUnit(productId: number, unit: string) {
+  // The cashier may override the shelf price for a line (a negotiated price);
+  // the override is per the line's chosen unit and rides along to checkout.
+  function updatePrice(productId: number, unitPrice: number) {
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) return;
     setCart((current) =>
-      current.map((l) => {
-        if (l.productId !== productId) return l;
-        const product = productById.get(productId);
-        return { ...l, unit, unitPrice: product ? priceFor(product, unit) : l.unitPrice };
-      })
+      current.map((l) => (l.productId === productId ? { ...l, unitPrice: round2(unitPrice) } : l))
     );
   }
 
@@ -158,6 +159,11 @@ export default function PosCheckoutPage() {
   function removeFromCart(productId: number) {
     setCart((current) => current.filter((l) => l.productId !== productId));
     setQtyDrafts((current) => {
+      const next = { ...current };
+      delete next[productId];
+      return next;
+    });
+    setPriceDrafts((current) => {
       const next = { ...current };
       delete next[productId];
       return next;
@@ -375,34 +381,41 @@ const activeMethod =
                 return (
                   <div
                     key={line.productId}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl bg-slate-50 px-3 py-2 text-sm"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-950">{line.name}</p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <select
-                          value={line.unit}
-                          onChange={(e) => changeUnit(line.productId, e.target.value)}
-                          className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-xs outline-none focus:border-slate-900"
-                        >
-                          {unitOptionsFor(product?.unit).map((u) => (
-                            <option key={u.code} value={u.code}>
-                              {unitLabel(u.code, locale)}
-                            </option>
-                          ))}
-                        </select>
-                        <span className="text-xs tabular-nums text-slate-500">
-                          {t("storeOps.pos.lineMeta", {
-                            price: fmt.number(line.unitPrice, { decimals: 2 }),
-                            qty: `${fmt.quantity(maxInUnit)} ${unitLabel(line.unit, locale)}`,
-                          })}
-                        </span>
-                      </div>
+                      <p className="text-xs tabular-nums text-slate-400">
+                        {t("storeOps.pos.inStock", {
+                          qty: `${fmt.quantity(maxInUnit)} ${unitLabel(line.unit, locale)}`,
+                        })}
+                      </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="tabular-nums text-slate-700">
-                        {fmt.money(round2(line.unitPrice * line.quantity))}
-                      </span>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={priceDrafts[line.productId] ?? String(line.unitPrice)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setPriceDrafts((current) => ({ ...current, [line.productId]: raw }));
+                          const parsed = Number(raw);
+                          if (Number.isFinite(parsed) && parsed >= 0) {
+                            updatePrice(line.productId, parsed);
+                          }
+                        }}
+                        onBlur={() =>
+                          setPriceDrafts((current) => {
+                            const next = { ...current };
+                            delete next[line.productId];
+                            return next;
+                          })
+                        }
+                        className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
+                      />
+                      <span className="text-xs text-slate-500">/{unitLabel(line.unit, locale)}</span>
+                      <span className="text-slate-300">×</span>
                       <input
                         type="number"
                         min={0.01}
@@ -424,8 +437,12 @@ const activeMethod =
                             return next;
                           })
                         }
-                        className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-center outline-none focus:border-slate-900"
+                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center tabular-nums outline-none focus:border-slate-900"
                       />
+                      <span className="text-slate-300">=</span>
+                      <span className="w-20 text-right tabular-nums text-slate-700">
+                        {fmt.money(round2(line.unitPrice * line.quantity))}
+                      </span>
                       <button
                         type="button"
                         onClick={() => removeFromCart(line.productId)}
