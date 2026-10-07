@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
-export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => {
+export const GET = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const supplierId = Number(params.id);
   if (!Number.isInteger(supplierId)) {
     return NextResponse.json({ message: "Invalid supplier id" }, { status: 400 });
@@ -44,5 +45,9 @@ export const GET = withAuth<{ id: string }>(async (_request, { db, params }) => 
     }),
   ]);
 
-  return NextResponse.json({ supplier, purchases, supplierReturns, payments });
+  // Letterhead rides along so the client can print the account with the shop's
+  // own name at the top, the same way the reports print.
+  const letterhead = await reportLetterhead(db, session);
+
+  return NextResponse.json({ supplier, purchases, supplierReturns, payments, letterhead });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });

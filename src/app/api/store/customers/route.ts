@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { parseOpeningDue } from "@/lib/due";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
 // Customers aren't store-scoped in the schema (a customer can shop at any
 // store in the company), so this intentionally returns the full tenant
 // customer list rather than filtering by session.storeId.
-export const GET = withAuth(async (_request, { db }) => {
+export const GET = withAuth(async (_request, { session, db }) => {
   const customers = await db.customer.findMany({ orderBy: { createdAt: "desc" } });
-  return NextResponse.json({ customers });
+  // Letterhead rides along so the client can print the list with the shop's
+  // own name at the top, the same way the reports print.
+  return NextResponse.json({ customers, letterhead: await reportLetterhead(db, session) });
 }, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });
 
 export const POST = withAuth(async (request, { db }) => {

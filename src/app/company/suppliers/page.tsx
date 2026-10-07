@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/LocaleProvider";
+import { PrintLetterhead } from "@/components/reports/PrintLetterhead";
 import { apiFetch } from "@/services/api";
+import type { ReportLetterhead } from "@/lib/reports/letterhead";
 
 type Supplier = {
   id: number;
@@ -18,6 +20,7 @@ type Supplier = {
 export default function CompanySuppliersPage() {
   const { t, fmt } = useI18n();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [letterhead, setLetterhead] = useState<ReportLetterhead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,8 +35,11 @@ export default function CompanySuppliersPage() {
 
   async function loadSuppliers() {
     try {
-      const data = await apiFetch<{ suppliers: Supplier[] }>("/api/company/suppliers");
+      const data = await apiFetch<{ suppliers: Supplier[]; letterhead: ReportLetterhead | null }>(
+        "/api/company/suppliers"
+      );
       setSuppliers(data.suppliers);
+      setLetterhead(data.letterhead);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -87,10 +93,21 @@ export default function CompanySuppliersPage() {
   }, [suppliers, search]);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.suppliers")}</h1>
+    <main className="mx-auto max-w-5xl space-y-8 p-8 print-root">
+      <PrintLetterhead letterhead={letterhead} />
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nav.suppliers")}</h1>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="no-print rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+        >
+          {t("reports.ui.print")}
+        </button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] print:block">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">{t("company.suppliers.allTitle")}</h2>
           <input
@@ -98,7 +115,7 @@ export default function CompanySuppliersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("company.suppliers.searchPlaceholder")}
-            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+            className="print-hide mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
@@ -114,7 +131,7 @@ export default function CompanySuppliersPage() {
                 <Link
                   key={supplier.id}
                   href={`/company/suppliers/${supplier.id}`}
-                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300 print:break-inside-avoid"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-slate-950">{supplier.name}</p>
@@ -135,7 +152,7 @@ export default function CompanySuppliersPage() {
                       t("company.suppliers.noContact")}
                   </p>
                   {supplier.address ? <p className="mt-1 text-xs text-slate-500">{supplier.address}</p> : null}
-                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                  <p className="print-hide mt-2 text-xs font-semibold text-slate-600">
                     {t("company.suppliers.viewPurchases")}
                   </p>
                 </Link>
@@ -144,7 +161,7 @@ export default function CompanySuppliersPage() {
           )}
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="print-hide rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">{t("company.suppliers.addTitle")}</h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">

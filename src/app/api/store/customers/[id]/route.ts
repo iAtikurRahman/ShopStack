@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { storeScopeWhere } from "@/lib/tenant-access";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
 export const GET = withAuth<{ id: string }>(async (_request, { session, db, params }) => {
   const customerId = Number(params.id);
@@ -37,5 +38,9 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
     orderBy: [{ paymentDate: "desc" }, { id: "desc" }],
   });
 
-  return NextResponse.json({ customer, sales, products, payments });
+  // Letterhead rides along so the client can print the account with the shop's
+  // own name at the top, the same way the reports print.
+  const letterhead = await reportLetterhead(db, session);
+
+  return NextResponse.json({ customer, sales, products, payments, letterhead });
 }, { scope: "tenant", roles: ["company_admin", "store_manager", "store_user"] });

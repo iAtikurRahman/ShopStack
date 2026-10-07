@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { parseOpeningDue } from "@/lib/due";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
-export const GET = withAuth(async (_request, { db }) => {
+export const GET = withAuth(async (_request, { session, db }) => {
   const suppliers = await db.supplier.findMany({
     orderBy: { name: "asc" },
   });
-  return NextResponse.json({ suppliers });
+  // Letterhead rides along so the client can print the list with the shop's
+  // own name at the top, the same way the reports print.
+  return NextResponse.json({ suppliers, letterhead: await reportLetterhead(db, session) });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 export const POST = withAuth(async (request, { session, db }) => {

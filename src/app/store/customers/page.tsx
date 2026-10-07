@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/components/LocaleProvider";
+import { PrintLetterhead } from "@/components/reports/PrintLetterhead";
 import { apiFetch } from "@/services/api";
+import type { ReportLetterhead } from "@/lib/reports/letterhead";
 
 type Customer = {
   id: number;
@@ -17,6 +19,7 @@ type Customer = {
 export default function StoreCustomersPage() {
   const { t, fmt } = useI18n();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [letterhead, setLetterhead] = useState<ReportLetterhead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -29,8 +32,11 @@ export default function StoreCustomersPage() {
 
   async function loadCustomers() {
     try {
-      const data = await apiFetch<{ customers: Customer[] }>("/api/store/customers");
+      const data = await apiFetch<{ customers: Customer[]; letterhead: ReportLetterhead | null }>(
+        "/api/store/customers"
+      );
       setCustomers(data.customers);
+      setLetterhead(data.letterhead);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -81,10 +87,21 @@ export default function StoreCustomersPage() {
   }, [customers, search]);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.customers")}</h1>
+    <main className="mx-auto max-w-5xl space-y-8 p-8 print-root">
+      <PrintLetterhead letterhead={letterhead} />
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nav.customers")}</h1>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="no-print rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+        >
+          {t("reports.ui.print")}
+        </button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] print:block">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">
             {t("storeCommerce.customers.allTitle")}
@@ -94,7 +111,7 @@ export default function StoreCustomersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("storeCommerce.customers.searchPlaceholder")}
-            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+            className="print-hide mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
@@ -110,7 +127,7 @@ export default function StoreCustomersPage() {
                 <Link
                   key={customer.id}
                   href={`/store/customers/${customer.id}`}
-                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300"
+                  className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:border-slate-300 print:break-inside-avoid"
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-950">{customer.name}</p>
@@ -136,7 +153,7 @@ export default function StoreCustomersPage() {
                   <p className="mt-1 text-xs font-semibold text-slate-600">
                     {t("storeCommerce.customers.points", { points: fmt.number(customer.loyaltyPoints) })}
                   </p>
-                  <p className="mt-2 text-xs font-semibold text-slate-600">
+                  <p className="print-hide mt-2 text-xs font-semibold text-slate-600">
                     {t("storeCommerce.customers.viewPurchases")}
                   </p>
                 </Link>
@@ -145,7 +162,7 @@ export default function StoreCustomersPage() {
           )}
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="print-hide rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">
             {t("storeCommerce.customers.addTitle")}
           </h2>
