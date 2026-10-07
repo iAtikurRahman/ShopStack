@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { reportLetterhead } from "@/lib/reports/letterhead";
 
-export const GET = withAuth(async (_request, { db }) => {
+export const GET = withAuth(async (_request, { session, db }) => {
   const products = await db.product.findMany({
     include: {
       category: { select: { id: true, name: true } },
@@ -29,7 +30,12 @@ export const GET = withAuth(async (_request, { db }) => {
     })),
   }));
 
-  return NextResponse.json({ products: withTotals });
+  // Letterhead rides along so the client can print the catalog with the shop's
+  // own name at the top, the same way the reports print.
+  return NextResponse.json({
+    products: withTotals,
+    letterhead: await reportLetterhead(db, session),
+  });
 }, { scope: "tenant", roles: ["company_admin", "store_manager"] });
 
 // Catalog creation. Cost and sale price are optional so a catalog can be

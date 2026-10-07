@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
+import { PrintLetterhead } from "@/components/reports/PrintLetterhead";
 import { toLatinNumber } from "@/lib/i18n/format";
 import { apiFetch } from "@/services/api";
+import type { ReportLetterhead } from "@/lib/reports/letterhead";
 
 type StockByStore = { warehouseId: number; warehouseName: string; storeId: number; storeName: string; quantity: number };
 
@@ -26,7 +28,7 @@ type Category = { id: number; name: string };
 const UNIT_OPTIONS = ["piece", "kg", "g", "liter", "ml", "box", "pack", "dozen"];
 
 const PRICE_INPUT_CLASS =
-  "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900";
+  "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900 print:border-0 print:px-0";
 
 /** Editable price cell: shows formatted digits (Bangla when the locale is bn),
  *  hands the real Latin number to the caller on blur or Enter. */
@@ -74,6 +76,7 @@ export default function CompanyProductsPage() {
   const { t, fmt } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [letterhead, setLetterhead] = useState<ReportLetterhead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,6 +97,9 @@ export default function CompanyProductsPage() {
 
   const [categoryQuery, setCategoryQuery] = useState("");
   const [search, setSearch] = useState("");
+  // The product whose per-store stock breakdown is open, if any. It is a copy
+  // of the row from the list, so the dialog needs no extra fetch.
+  const [selected, setSelected] = useState<Product | null>(null);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const categoryFieldRef = useRef<HTMLDivElement>(null);
 
@@ -129,13 +135,25 @@ export default function CompanyProductsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!selected) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setSelected(null);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selected]);
+
   async function loadData() {
     const [productsResult, categoriesResult] = await Promise.allSettled([
-      apiFetch<{ products: Product[] }>("/api/company/products"),
+      apiFetch<{ products: Product[]; letterhead: ReportLetterhead | null }>("/api/company/products"),
       apiFetch<{ categories: Category[] }>("/api/company/categories"),
     ]);
 
-    if (productsResult.status === "fulfilled") setProducts(productsResult.value.products);
+    if (productsResult.status === "fulfilled") {
+      setProducts(productsResult.value.products);
+      setLetterhead(productsResult.value.letterhead);
+    }
     if (categoriesResult.status === "fulfilled") setCategories(categoriesResult.value.categories);
 
     const failures = [productsResult, categoriesResult]
@@ -231,12 +249,23 @@ export default function CompanyProductsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-8">
-      <h1 className="text-2xl font-semibold text-slate-950">{t("nav.products")}</h1>
-      <p className="text-sm text-slate-600">{t("company.products.priceNote")}</p>
-      {notice ? <p className="text-sm text-emerald-600">{notice}</p> : null}
+    <main className="mx-auto max-w-6xl space-y-8 p-8 print-root">
+      <PrintLetterhead letterhead={letterhead} />
 
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-slate-950">{t("nav.products")}</h1>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="no-print rounded-xl border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+        >
+          {t("reports.ui.print")}
+        </button>
+      </div>
+      <p className="print-hide text-sm text-slate-600">{t("company.products.priceNote")}</p>
+      {notice ? <p className="print-hide text-sm text-emerald-600">{notice}</p> : null}
+
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr] print:block">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">{t("company.products.allTitle")}</h2>
           <input
@@ -244,7 +273,7 @@ export default function CompanyProductsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("company.products.searchPlaceholder")}
-            className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
+            className="print-hide mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-slate-900"
           />
           {loading ? (
             <p className="mt-6 text-sm text-slate-600">{t("common.loading")}</p>
@@ -266,51 +295,52 @@ export default function CompanyProductsPage() {
                     <th className="pb-2">{t("common.cost")}</th>
                     <th className="pb-2">{t("company.products.salePrice")}</th>
                     <th className="pb-2">{t("company.products.totalStock")}</th>
-                    <th className="pb-2">{t("company.products.byStore")}</th>
+                    <th className="print-hide pb-2">
+                      <span className="sr-only">{t("company.products.viewStock")}</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-t border-slate-100">
-                      <td className="py-2 text-slate-600">{product.sku}</td>
-                      <td className="py-2 font-medium text-slate-950">{product.name}</td>
-                      <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
-                      <td className="py-2 text-slate-600">
-                        {product.unitValue
-                          ? `${fmt.quantity(product.unitValue)} ${product.unit ?? ""}`.trim()
-                          : product.unit ?? "—"}
-                      </td>
-                      <td className="py-2">
-                        <PriceCell
-                          value={product.purchasePrice}
-                          onCommit={(latin) => savePrice(product.id, "purchasePrice", latin)}
-                          className={PRICE_INPUT_CLASS}
-                        />
-                      </td>
-                      <td className="py-2">
-                        <PriceCell
-                          value={product.salePrice}
-                          onCommit={(latin) => savePrice(product.id, "salePrice", latin)}
-                          className={PRICE_INPUT_CLASS}
-                        />
-                      </td>
-                      <td className="py-2 text-slate-600">{fmt.quantity(product.totalStock)}</td>
-                      <td className="py-2 text-xs text-slate-500">
-                        {product.stockByStore.length === 0
-                          ? "—"
-                          : product.stockByStore
-                              .map((s) => `${s.storeName} (${s.warehouseName}): ${fmt.quantity(s.quantity)}`)
-                              .join(", ")}
-                      </td>
-                    </tr>
-                  ))}
+                   {filteredProducts.map((product) => (
+                     <tr
+                       key={product.id}
+                       onClick={() => setSelected(product)}
+                       title={t("company.products.viewStock")}
+                       className="cursor-pointer border-t border-slate-100 transition hover:bg-slate-50"
+                     >
+                       <td className="py-2 text-slate-600">{product.sku}</td>
+                       <td className="py-2 font-medium text-slate-950">{product.name}</td>
+                       <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
+                       <td className="py-2 text-slate-600">
+                         {product.unitValue
+                           ? `${fmt.quantity(product.unitValue)} ${product.unit ?? ""}`.trim()
+                           : product.unit ?? "—"}
+                       </td>
+                       <td className="py-2" onClick={(e) => e.stopPropagation()}>
+                         <PriceCell
+                           value={product.purchasePrice}
+                           onCommit={(latin) => savePrice(product.id, "purchasePrice", latin)}
+                           className={PRICE_INPUT_CLASS}
+                         />
+                       </td>
+                       <td className="py-2" onClick={(e) => e.stopPropagation()}>
+                         <PriceCell
+                           value={product.salePrice}
+                           onCommit={(latin) => savePrice(product.id, "salePrice", latin)}
+                           className={PRICE_INPUT_CLASS}
+                         />
+                       </td>
+                       <td className="py-2 text-slate-600">{fmt.quantity(product.totalStock)}</td>
+                       <td className="print-hide py-2 text-right text-slate-400">›</td>
+                     </tr>
+                   ))}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="print-hide space-y-6">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-950">{t("company.products.bulkTitle")}</h2>
           <p className="mt-1 text-sm text-slate-600">{t("company.products.bulkHelper")}</p>
@@ -512,6 +542,69 @@ export default function CompanyProductsPage() {
         </div>
         </div>
       </div>
+
+      {selected ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-slate-950">{selected.name}</h2>
+                <p className="text-sm text-slate-500">{selected.sku}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                {t("common.close")}
+              </button>
+            </div>
+
+            <p className="mt-5 text-sm font-semibold text-slate-950">
+              {t("company.products.stockTitle")}
+            </p>
+
+            {selected.stockByStore.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-600">{t("company.products.noStock")}</p>
+            ) : (
+              <table className="mt-3 w-full text-left text-sm">
+                <thead className="text-slate-500">
+                  <tr>
+                    <th className="pb-2">{t("company.products.stockStore")}</th>
+                    <th className="pb-2">{t("company.products.stockWarehouse")}</th>
+                    <th className="pb-2 text-right">{t("common.quantity")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.stockByStore.map((s) => (
+                    <tr key={s.warehouseId} className="border-t border-slate-100">
+                      <td className="py-2 text-slate-600">{s.storeName}</td>
+                      <td className="py-2 text-slate-600">{s.warehouseName}</td>
+                      <td className="py-2 text-right text-slate-950">{fmt.quantity(s.quantity)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-slate-200 font-semibold text-slate-950">
+                    <td className="py-2" colSpan={2}>
+                      {t("company.products.totalStock")}
+                    </td>
+                    <td className="py-2 text-right">{fmt.quantity(selected.totalStock)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
