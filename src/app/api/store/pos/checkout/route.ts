@@ -3,8 +3,9 @@ import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore } from "@/lib/tenant-access";
 import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
+import { convertQuantity, normalizeUnit } from "@/lib/units";
 
-type CheckoutItem = { productId: number; quantity: number; discountAmount?: number };
+type CheckoutItem = { productId: number; quantity: number; unit?: string; unitPrice?: number; discountAmount?: number };
 type CheckoutPayment = { method: string; amount: number; reference?: string };
 
 function round2(value: number) {
@@ -58,6 +59,8 @@ export const POST = withAuth(async (request, { session, db }) => {
       const saleItemsData: {
         productId: number;
         quantity: number;
+        unit: string;
+        stockQuantity: number;
         unitPrice: number;
         discountAmount: number;
         lineTotal: number;
@@ -67,7 +70,7 @@ export const POST = withAuth(async (request, { session, db }) => {
         const quantity = Number(item.quantity);
         const productId = Number(item.productId);
         const itemDiscount = Number(item.discountAmount ?? 0);
-        if (!productId || !quantity || quantity <= 0) {
+        if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
           throw new Error("Each item requires a valid productId and a positive quantity");
         }
 
@@ -76,19 +79,35 @@ export const POST = withAuth(async (request, { session, db }) => {
           throw new Error(`Product ${productId} not found`);
         }
 
+        const unit = normalizeUnit(item.unit ?? product.unit);
+        const packFactor = product.unitValue ? Number(product.unitValue) : null;
+        const stockQuantity = convertQuantity(quantity, unit, product.unit, packFactor);
+        if (stockQuantity === null) {
+          throw new Error(`Unit ${unit} does not match product ${productId}`);
+        }
+
         const stock = await tx.warehouseStock.findUnique({
           where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
         });
-        if (!stock || stock.quantity < quantity) {
+        if (!stock || Number(stock.quantity) < stockQuantity) {
           throw new Error(`Insufficient stock for product ${productId}`);
         }
 
         await tx.warehouseStock.update({
           where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
-          data: { quantity: { decrement: quantity } },
+          data: { quantity: { decrement: stockQuantity } },
         });
 
-        const unitPrice = Number(product.salePrice);
+        // The price is per the unit the cashier chose. When omitted it falls
+        // back to the product's shelf price (which is per its stock unit).
+        const unitPrice =
+          item.unitPrice !== undefined && item.unitPrice !== null
+            ? Number(item.unitPrice)
+            : Number(product.salePrice);
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+          throw new Error(`Invalid price for product ${productId}`);
+        }
+
         const lineSubtotal = round2(unitPrice * quantity - itemDiscount);
         const lineTax = round2(lineSubtotal * (Number(product.taxRate) / 100));
         subtotal = round2(subtotal + lineSubtotal);
@@ -97,6 +116,8 @@ export const POST = withAuth(async (request, { session, db }) => {
         saleItemsData.push({
           productId,
           quantity,
+          unit,
+          stockQuantity,
           unitPrice,
           discountAmount: itemDiscount,
           lineTotal: lineSubtotal,

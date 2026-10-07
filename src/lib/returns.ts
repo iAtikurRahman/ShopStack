@@ -16,7 +16,7 @@ export function round2(value: number): number {
 
 type RefundableSaleItem = {
   id: number;
-  quantity: number;
+  quantity: DecimalLike;
   unitPrice: DecimalLike;
   discountAmount: DecimalLike;
   lineTotal: DecimalLike;
@@ -52,7 +52,8 @@ export function computeRefundAmount(
     const orderDiscountShare = toNum(sale.discountAmount) * lineShare;
     const taxShare = toNum(sale.taxAmount) * lineShare;
     const linePaid = toNum(item.lineTotal) - orderDiscountShare + taxShare;
-    const perUnit = item.quantity > 0 ? linePaid / item.quantity : 0;
+    const lineQty = toNum(item.quantity);
+    const perUnit = lineQty > 0 ? linePaid / lineQty : 0;
 
     total += perUnit * selection.quantity;
   }

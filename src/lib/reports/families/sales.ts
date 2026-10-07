@@ -31,6 +31,7 @@ function windowItems(ctx: ReportContext) {
     where: { sale: { ...ctx.storeFilter, createdAt: within(ctx) } },
     select: {
       quantity: true,
+      stockQuantity: true,
       unitPrice: true,
       discountAmount: true,
       lineTotal: true,
@@ -84,14 +85,15 @@ async function productTotals(ctx: ReportContext, items: WindowItem[]): Promise<R
       rows.set(item.productId, row);
     }
     const quantity = num(item.quantity);
-    row.quantity = num(row.quantity) + quantity;
+    const stockQuantity = num(item.stockQuantity);
+    row.quantity = num(row.quantity) + stockQuantity;
     row.gross = add(num(row.gross), quantity * num(item.unitPrice));
     row.discount = add(num(row.discount), num(item.discountAmount));
     row.revenue = add(num(row.revenue), num(item.lineTotal));
     // Cost of goods uses the product's CURRENT purchase price. The schema has no
     // cost snapshot on a sale line, so this is the only cost a reader can check
     // by hand - the profit reports say so where they use it.
-    row.cost = add(num(row.cost), (product?.purchasePrice ?? 0) * quantity);
+    row.cost = add(num(row.cost), (product?.purchasePrice ?? 0) * stockQuantity);
     row.lines = num(row.lines) + 1;
   }
   return [...rows.values()];
@@ -645,7 +647,7 @@ export const salesReports: ReportDefinition[] = [
             processedById: true,
             reason: true,
             refundAmount: true,
-            items: { select: { saleItemId: true, quantity: true, restocked: true } },
+            items: { select: { saleItemId: true, quantity: true, stockQuantity: true, restocked: true } },
           },
         }),
         userMap(ctx.db),
@@ -657,7 +659,7 @@ export const salesReports: ReportDefinition[] = [
       // touched need a two-step lookup: the lines, then the products.
       const saleItems = await ctx.db.saleItem.findMany({
         where: { id: { in: returns.flatMap((entry) => entry.items.map((item) => item.saleItemId)) } },
-        select: { id: true, productId: true, quantity: true },
+        select: { id: true, productId: true, quantity: true, stockQuantity: true },
       });
       const lineById = new Map(saleItems.map((line) => [line.id, line]));
       const products = await productMap(
@@ -676,8 +678,8 @@ export const salesReports: ReportDefinition[] = [
           store: stores.get(entry.storeId)?.name ?? String(entry.storeId),
           processedBy: users.get(entry.processedById)?.name ?? null,
           products: names.join(", ") || null,
-          quantity: entry.items.reduce((sum, item) => sum + item.quantity, 0),
-          restocked: entry.items.filter((item) => item.restocked).reduce((sum, item) => sum + item.quantity, 0),
+          quantity: entry.items.reduce((sum, item) => sum + num(item.stockQuantity), 0),
+          restocked: entry.items.filter((item) => item.restocked).reduce((sum, item) => sum + num(item.stockQuantity), 0),
           refund: num(entry.refundAmount),
           reason: entry.reason,
         };

@@ -4,13 +4,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import { unitLabel } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
-type Product = { id: number; sku: string; name: string; category: { name: string } | null };
-type Stock = { warehouseId: number; productId: number; quantity: number; lowStockThreshold: number };
+type Product = {
+  id: number;
+  sku: string;
+  name: string;
+  unit: string | null;
+  category: { name: string } | null;
+};
+type Stock = { warehouseId: number; productId: number; quantity: string; lowStockThreshold: string };
 
 export default function StoreInventoryPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
@@ -38,13 +45,13 @@ export default function StoreInventoryPage() {
     const lowStockTerm = t("storeOps.inventory.lowStock").toLowerCase();
     return products.filter((p) => {
       const current = stockByProduct.get(p.id);
-      const quantity = current?.quantity ?? 0;
+      const quantity = Number(current?.quantity ?? 0);
       return (
         p.sku.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q) ||
         (p.category?.name ?? "").toLowerCase().includes(q) ||
         String(quantity).includes(q) ||
-        (quantity <= (current?.lowStockThreshold ?? 5) && lowStockTerm.includes(q))
+        (quantity <= Number(current?.lowStockThreshold ?? 5) && lowStockTerm.includes(q))
       );
     });
   }, [products, search, stockByProduct, t]);
@@ -213,8 +220,9 @@ export default function StoreInventoryPage() {
               <tbody>
                 {filteredProducts.map((product) => {
                   const current = stockFor(product.id);
-                  const quantity = current?.quantity ?? 0;
-                  const isLow = quantity <= (current?.lowStockThreshold ?? 5);
+                  const quantity = Number(current?.quantity ?? 0);
+                  const lowThreshold = Number(current?.lowStockThreshold ?? 5);
+                  const isLow = quantity <= lowThreshold;
                   const key = `${selectedWarehouseId}-${product.id}`;
                   return (
                     <tr key={product.id} className="border-t border-slate-100">
@@ -225,16 +233,22 @@ export default function StoreInventoryPage() {
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
+                            step="any"
                             defaultValue={quantity}
                             disabled={savingKey === key}
                             onBlur={(e) => {
                               const next = Number(e.target.value);
-                              if (next !== quantity) handleQuantityChange(product.id, next);
+                              if (Number.isFinite(next) && next !== quantity) {
+                                handleQuantityChange(product.id, next);
+                              }
                             }}
                             className={`w-24 rounded-xl border px-3 py-1.5 outline-none focus:border-slate-900 ${
                               isLow ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50"
                             }`}
                           />
+                          <span className="text-xs text-slate-500">
+                            {unitLabel(product.unit, locale)}
+                          </span>
                           {isLow ? (
                             <span className="text-xs font-medium text-red-600">
                               {t("storeOps.inventory.lowStock")}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import { UNITS, unitLabel } from "@/lib/units";
 
 type Product = {
   warehouseStockId: number;
@@ -14,12 +15,14 @@ type Product = {
   purchasePrice: string;
   salePrice: string;
   taxRate: string;
-  quantity: number;
-  lowStockThreshold: number;
+  unit: string | null;
+  unitValue: string | null;
+  quantity: string;
+  lowStockThreshold: string;
 };
 
 export default function WarehouseProductsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t, fmt } = useI18n();
+  const { t, fmt, locale } = useI18n();
   const { id: warehouseId } = use(params);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,7 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
   const [name, setName] = useState("");
   const [purchasePrice, setPurchasePrice] = useState("");
   const [salePrice, setSalePrice] = useState("");
+  const [unit, setUnit] = useState("piece");
   const [quantity, setQuantity] = useState("0");
 
   async function loadProducts() {
@@ -60,12 +64,14 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
         name,
         purchasePrice: Number(purchasePrice),
         salePrice: Number(salePrice),
+        unit,
         quantity: Number(quantity),
       });
       setSku("");
       setName("");
       setPurchasePrice("");
       setSalePrice("");
+      setUnit("piece");
       setQuantity("0");
       await loadProducts();
     } catch (err) {
@@ -146,7 +152,9 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
                           className="w-24 rounded-lg border border-slate-200 px-2 py-1 outline-none focus:border-slate-900"
                         />
                       </td>
-                      <td className="py-2 text-slate-600">{fmt.quantity(product.quantity)}</td>
+                      <td className="py-2 text-slate-600">
+                        {fmt.quantity(product.quantity)} {unitLabel(product.unit, locale)}
+                      </td>
                       <td className="py-2">
                         <button
                           type="button"
@@ -216,12 +224,27 @@ export default function WarehouseProductsPage({ params }: { params: Promise<{ id
               />
             </label>
             <label className="block">
+              <span className="text-sm font-medium text-slate-700">{t("company.products.unit")}</span>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              >
+                {UNITS.map((u) => (
+                  <option key={u.code} value={u.code}>
+                    {u[locale]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
               <span className="text-sm font-medium text-slate-700">
                 {t("storeOps.warehouseProducts.initialQuantity")}
               </span>
               <input
                 type="number"
                 min={0}
+                step="any"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"

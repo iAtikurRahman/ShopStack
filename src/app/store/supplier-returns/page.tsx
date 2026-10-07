@@ -5,15 +5,25 @@ import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 import { round2 } from "@/lib/returns";
+import { convertQuantity, normalizeUnit, unitLabel, unitOptionsFor } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
-type Product = { id: number; sku: string; name: string; purchasePrice: string };
+type Product = {
+  id: number;
+  sku: string;
+  name: string;
+  purchasePrice: string;
+  unit: string | null;
+  unitValue: string | null;
+};
 type Supplier = { id: number; name: string };
 type StockRow = { id: number; warehouseId: number; productId: number; quantity: number };
 type PurchaseItem = {
   id: number;
   productId: number;
   quantity: number;
+  unit: string | null;
+  stockQuantity: string;
   unitCost: string;
   product: { id: number; sku: string; name: string; purchasePrice: string };
   warehouse: { id: number; name: string };
@@ -31,6 +41,7 @@ type SupplierReturn = {
   warehouseId: number;
   productId: number;
   quantity: number;
+  unit: string | null;
   amount: string;
   reason: string | null;
   createdAt: string;
@@ -43,7 +54,7 @@ function stockKey(warehouseId: number, productId: number): string {
 }
 
 function SupplierReturnsForm() {
-  const { t, fmt } = useI18n();
+  const { t, fmt, locale } = useI18n();
   const searchParams = useSearchParams();
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -57,7 +68,7 @@ function SupplierReturnsForm() {
   // Number-based return, mirroring how sale returns load a sale.
   const [purchaseIdInput, setPurchaseIdInput] = useState(searchParams.get("purchaseId") ?? "");
   const [purchase, setPurchase] = useState<Purchase | null>(null);
-  const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [quantities, setQuantities] = useState<Record<number, string>>({});
   const [reason, setReason] = useState("");
   const [processLoading, setProcessLoading] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
@@ -72,6 +83,7 @@ function SupplierReturnsForm() {
   const [supplierId, setSupplierId] = useState("");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [unit, setUnit] = useState("");
   const [manualReason, setManualReason] = useState("");
   const [manualAmount, setManualAmount] = useState("");
   const [amountTouched, setAmountTouched] = useState(false);
@@ -81,6 +93,16 @@ function SupplierReturnsForm() {
     stock.forEach((row) => map.set(stockKey(row.warehouseId, row.productId), row.quantity));
     return map;
   }, [stock]);
+
+  // Lines written before the unit column carry null; fall back to the product
+  // row so their quantities are still labelled and converted correctly.
+  const productById = useMemo(() => {
+    const map = new Map<number, Product>();
+    products.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [products]);
+
+  const unitOf = (item: PurchaseItem) => item.unit ?? productById.get(item.productId)?.unit ?? null;
 
   async function loadReturns() {
     setReturnsError(null);
@@ -163,8 +185,8 @@ function SupplierReturnsForm() {
     if (!purchase) return { count: 0, credit: 0, lines: [] as { item: PurchaseItem; qty: number }[] };
     const lines: { item: PurchaseItem; qty: number }[] = [];
     for (const item of purchase.items) {
-      const qty = quantities[item.id] ?? 0;
-      if (Number.isInteger(qty) && qty > 0 && qty <= item.quantity) {
+      const qty = Number(quantities[item.id] ?? "0");
+      if (qty > 0 && qty <= item.quantity) {
         lines.push({ item, qty });
       }
     }
@@ -195,6 +217,7 @@ function SupplierReturnsForm() {
           warehouseId: item.warehouse.id,
           productId: item.product.id,
           quantity: qty,
+          unit: unitOf(item),
           reason: reason || null,
           amount: round2(qty * Number(item.unitCost)),
         });
@@ -212,8 +235,18 @@ function SupplierReturnsForm() {
   }
 
   const selectedProduct = products.find((p) => String(p.id) === productId);
+  const selectedUnit = unit || normalizeUnit(selectedProduct?.unit);
+  // purchasePrice is per stock unit, so convert the entered quantity first.
+  const quantityInStockUnit = selectedProduct
+    ? convertQuantity(
+        Number(quantity || 0),
+        selectedUnit,
+        selectedProduct.unit,
+        selectedProduct.unitValue ? Number(selectedProduct.unitValue) : null
+      ) ?? Number(quantity || 0)
+    : Number(quantity || 0);
   const suggestedAmount = selectedProduct
-    ? round2(Number(selectedProduct.purchasePrice) * Number(quantity || 0))
+    ? round2(Number(selectedProduct.purchasePrice) * quantityInStockUnit)
     : 0;
   const displayedAmount = amountTouched ? manualAmount : suggestedAmount.toFixed(2);
   const totalCredited = supplierReturns.reduce((sum, r) => sum + Number(r.amount), 0);
@@ -232,11 +265,13 @@ function SupplierReturnsForm() {
         warehouseId: Number(warehouseId),
         productId: Number(productId),
         quantity: Number(quantity),
+        unit: selectedUnit,
         reason: manualReason || null,
         amount: credit,
       });
       setProductId("");
       setQuantity("1");
+      setUnit("");
       setManualReason("");
       setManualAmount("");
       setAmountTouched(false);
@@ -314,8 +349,14 @@ function SupplierReturnsForm() {
             <div className="space-y-3">
               {purchase.items.map((item) => {
                 const available = stockMap.get(stockKey(item.warehouse.id, item.productId)) ?? 0;
-                const qtyValue = quantities[item.id] ?? 0;
-                const overStock = qtyValue > 0 && qtyValue > available;
+                const qtyValue = Number(quantities[item.id] ?? "0");
+                // Stock is counted in the product's stock unit while the return is
+                // entered in the line unit, so convert before comparing.
+                const product = productById.get(item.productId);
+                const packFactor = product?.unitValue ? Number(product.unitValue) : null;
+                const inStockUnit =
+                  convertQuantity(qtyValue, unitOf(item), product?.unit, packFactor) ?? qtyValue;
+                const overStock = qtyValue > 0 && inStockUnit > available;
                 return (
                   <div
                     key={item.id}
@@ -328,7 +369,9 @@ function SupplierReturnsForm() {
                       <p className="mt-0.5 text-xs text-slate-500">
                         {item.product.sku} · {item.warehouse.name} ·{" "}
                         {t("storeCommerce.purchases.qty")}{" "}
-                        <span className="tabular-nums">{fmt.quantity(item.quantity)}</span>
+                        <span className="tabular-nums">
+                          {fmt.quantity(item.quantity)} {unitLabel(unitOf(item), locale)}
+                        </span>
                         {" · "}
                         {t("storeCommerce.purchaseDetail.credit")}{" "}
                         <span className="tabular-nums">{fmt.money(item.unitCost)}</span>
@@ -347,11 +390,11 @@ function SupplierReturnsForm() {
                         type="number"
                         min={0}
                         max={item.quantity}
-                        step={1}
-                        inputMode="numeric"
-                        value={quantities[item.id] ?? 0}
+                        step="any"
+                        inputMode="decimal"
+                        value={quantities[item.id] ?? "0"}
                         onChange={(e) =>
-                          setQuantities((current) => ({ ...current, [item.id]: Number(e.target.value) }))
+                          setQuantities((current) => ({ ...current, [item.id]: e.target.value }))
                         }
                         className="mt-1 w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-slate-900"
                       />
@@ -444,7 +487,7 @@ function SupplierReturnsForm() {
                           {ret.product
                             ? `${ret.product.sku} — ${ret.product.name}`
                             : t("storeCommerce.supplierReturns.productFallback", { id: ret.productId })}{" "}
-                          × {fmt.quantity(ret.quantity)}
+                          × {fmt.quantity(ret.quantity)} {unitLabel(ret.unit, locale)}
                         </p>
                         {ret.reason ? <p className="mt-1 text-slate-600">{ret.reason}</p> : null}
                         <p className="mt-0.5 text-xs text-slate-400">
@@ -519,6 +562,7 @@ function SupplierReturnsForm() {
                 value={productId}
                 onChange={(e) => {
                   setProductId(e.target.value);
+                  setUnit("");
                   setManualAmount("");
                   setAmountTouched(false);
                 }}
@@ -532,17 +576,36 @@ function SupplierReturnsForm() {
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
-              <input
-                required
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
-              />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
+                <input
+                  required
+                  type="number"
+                  min={0.01}
+                  step="any"
+                  inputMode="decimal"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">{t("company.products.unit")}</span>
+                <select
+                  required
+                  value={selectedUnit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+                >
+                  {unitOptionsFor(selectedProduct?.unit).map((u) => (
+                    <option key={u.code} value={u.code}>
+                      {unitLabel(u.code, locale)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <label className="block">
               <span className="text-sm font-medium text-slate-700">
                 {t("storeCommerce.supplierReturns.creditAmount")}
@@ -564,7 +627,10 @@ function SupplierReturnsForm() {
                   : selectedProduct
                     ? t("storeCommerce.supplierReturns.amountHintProduct", {
                         price: fmt.number(selectedProduct.purchasePrice, { decimals: 2 }),
-                        qty: fmt.quantity(quantity),
+                        qty: `${fmt.quantity(quantityInStockUnit)} ${unitLabel(
+                          selectedProduct.unit,
+                          locale
+                        )} (${fmt.quantity(quantity)} ${unitLabel(selectedUnit, locale)})`,
                       })
                     : t("storeCommerce.supplierReturns.amountHintEmpty")}
               </span>

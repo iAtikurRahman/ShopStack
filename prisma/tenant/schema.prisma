@@ -392,10 +392,15 @@ model Product {
   purchasePrice   Decimal          @db.Decimal(10, 2)
   salePrice       Decimal          @db.Decimal(10, 2)
   taxRate         Decimal          @default(0) @db.Decimal(5, 2)
-  // Package/measurement size, e.g. unitValue=250, unit="ml" for a 250ml
-  // Coca-Cola bottle - set at the company catalog level (see
-  // /company/products); price stays editable per-store via
-  // /store/warehouses/[id]/products.
+  // unit is the product's STOCK unit - the unit all of its inventory is kept
+  // and reported in (piece/kg/litre/mon/...). A purchase or sale may be entered
+  // in any unit of the same family and is converted back to this one before it
+  // touches a WarehouseStock row. See src/lib/units.ts.
+  //
+  // unitValue is an optional pack size used only by the count units "box" and
+  // "pack": the number of pieces one of them holds (e.g. 24 for a 24-pack).
+  // Set at the company catalog level (see /company/products); price stays
+  // editable per-store via /store/warehouses/[id]/products.
   unitValue       Decimal?         @db.Decimal(10, 2)
   unit            String?
   isActive        Boolean          @default(true)
@@ -411,8 +416,10 @@ model WarehouseStock {
   warehouseId       Int
   product           Product   @relation(fields: [productId], references: [id])
   productId         Int
-  quantity          Int       @default(0)
-  lowStockThreshold Int       @default(5)
+  // Stored in the product's stock unit (Product.unit) as a decimal so measured
+  // goods - 2.5 kg of rice, 0.75 litre of oil - are kept exactly.
+  quantity          Decimal   @default(0) @db.Decimal(14, 2)
+  lowStockThreshold Decimal   @default(5) @db.Decimal(14, 2)
   updatedAt         DateTime  @updatedAt
 
   @@unique([warehouseId, productId])
@@ -435,7 +442,13 @@ model StockTransferItem {
   transfer   StockTransfer @relation(fields: [transferId], references: [id])
   transferId Int
   productId  Int
-  quantity   Int
+  // quantity = what the user typed; stockQuantity = the same amount expressed
+  // in the product's stock unit, which is what actually moves between
+  // warehouses. They differ only when a non-stock unit (e.g. mon for a kg
+  // product) was chosen.
+  quantity      Decimal @db.Decimal(14, 2)
+  unit          String?
+  stockQuantity Decimal @default(0) @db.Decimal(14, 2)
 }
 
 model Supplier {
@@ -493,8 +506,13 @@ model PurchaseItem {
   // warehouses from the same supplier delivery.
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
   warehouseId Int
-  quantity    Int
-  unitCost    Decimal   @db.Decimal(10, 2)
+  // quantity/unitCost are exactly as the line was entered (e.g. "2 mon @ ৳X/mon");
+  // stockQuantity is that quantity converted to the product's stock unit and is
+  // what inventory and reports use.
+  quantity      Decimal   @db.Decimal(14, 2)
+  unit          String?
+  stockQuantity Decimal   @default(0) @db.Decimal(14, 2)
+  unitCost      Decimal   @db.Decimal(10, 2)
 }
 
 // Stock sent back to a supplier (e.g. damaged/wrong goods). Decrements
@@ -509,7 +527,9 @@ model SupplierReturn {
   warehouseId   Int
   product       Product   @relation(fields: [productId], references: [id])
   productId     Int
-  quantity      Int
+  quantity      Decimal   @db.Decimal(14, 2)
+  unit          String?
+  stockQuantity Decimal   @default(0) @db.Decimal(14, 2)
   // Credit value expected back from the supplier. Defaults to the product's
   // purchasePrice x quantity at the time the return is recorded, but stays
   // editable because the supplier may only credit part of it. 0 means the
@@ -557,7 +577,11 @@ model SaleItem {
   sale           Sale    @relation(fields: [saleId], references: [id])
   saleId         Int
   productId      Int
-  quantity       Int
+  // quantity/unitPrice are as entered at the till; stockQuantity is the amount
+  // converted to the product's stock unit and is what leaves inventory.
+  quantity       Decimal @db.Decimal(14, 2)
+  unit           String?
+  stockQuantity  Decimal @default(0) @db.Decimal(14, 2)
   unitPrice      Decimal @db.Decimal(12, 2)
   discountAmount Decimal @default(0) @db.Decimal(12, 2)
   lineTotal      Decimal @db.Decimal(12, 2)
@@ -634,9 +658,11 @@ model ReturnItem {
   id         Int     @id @default(autoincrement())
   return     Return  @relation(fields: [returnId], references: [id])
   returnId   Int
-  saleItemId Int
-  quantity   Int
-  restocked  Boolean @default(false)
+  saleItemId    Int
+  quantity      Decimal @db.Decimal(14, 2)
+  unit          String?
+  stockQuantity Decimal @default(0) @db.Decimal(14, 2)
+  restocked     Boolean @default(false)
 }
 
 model AuditLog {

@@ -52,6 +52,15 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "Sale not found" }, { status: 404 });
   }
 
+  // Legacy sale lines predate the unit column; fall back to the product's
+  // stock unit so their restock still lands in the right place.
+  const productIds = [...new Set(sale.items.map((si) => si.productId))];
+  const saleProducts = await db.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, unit: true },
+  });
+  const productUnitById = new Map(saleProducts.map((p) => [p.id, p.unit]));
+
   // Staff negotiate discounts at the till, so the computed figure is a
   // suggestion they are allowed to override - but never above what the sale
   // actually brought in.
@@ -73,12 +82,18 @@ export const POST = withAuth(async (request, { session, db }) => {
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const returnItemsData: { saleItemId: number; quantity: number; restocked: boolean }[] = [];
+      const returnItemsData: {
+        saleItemId: number;
+        quantity: number;
+        unit: string;
+        stockQuantity: number;
+        restocked: boolean;
+      }[] = [];
 
       for (const item of items) {
         const quantity = Number(item.quantity);
         const saleItemId = Number(item.saleItemId);
-        if (!saleItemId || !quantity || quantity <= 0) {
+        if (!saleItemId || !Number.isFinite(quantity) || quantity <= 0) {
           throw new Error("Each item requires a valid saleItemId and a positive quantity");
         }
 
@@ -91,18 +106,25 @@ export const POST = withAuth(async (request, { session, db }) => {
           where: { saleItemId },
           _sum: { quantity: true },
         });
-        const remaining = saleItem.quantity - (alreadyReturned._sum.quantity ?? 0);
+        const soldQty = Number(saleItem.quantity);
+        const remaining = soldQty - Number(alreadyReturned._sum.quantity ?? 0);
         if (quantity > remaining) {
           throw new Error(`Only ${remaining} unit(s) of sale item ${saleItemId} remain returnable`);
         }
 
+        // The return is entered in the same unit the customer bought, so the
+        // stock unit it restocks at is the line's own stock-per-unit ratio.
+        const unit = saleItem.unit ?? productUnitById.get(saleItem.productId) ?? "piece";
+        const factor = soldQty > 0 ? Number(saleItem.stockQuantity) / soldQty : 1;
+        const stockQuantity = round2(quantity * factor);
+
         await tx.warehouseStock.upsert({
           where: { warehouseId_productId: { warehouseId: sale.warehouseId, productId: saleItem.productId } },
-          update: { quantity: { increment: quantity } },
-          create: { warehouseId: sale.warehouseId, productId: saleItem.productId, quantity },
+          update: { quantity: { increment: stockQuantity } },
+          create: { warehouseId: sale.warehouseId, productId: saleItem.productId, quantity: stockQuantity },
         });
 
-        returnItemsData.push({ saleItemId, quantity, restocked: true });
+        returnItemsData.push({ saleItemId, quantity, unit, stockQuantity, restocked: true });
       }
 
       // Refund what the customer actually paid, not the sticker price - see
@@ -123,14 +145,14 @@ export const POST = withAuth(async (request, { session, db }) => {
         include: { items: true },
       });
 
-      const totalOriginalQty = sale.items.reduce((sum, si) => sum + si.quantity, 0);
+      const totalOriginalQty = sale.items.reduce((sum, si) => sum + Number(si.quantity), 0);
       const saleItemIds = sale.items.map((si) => si.id);
       const totalReturnedAgg = await tx.returnItem.groupBy({
         by: ["saleItemId"],
         where: { saleItemId: { in: saleItemIds } },
         _sum: { quantity: true },
       });
-      const totalReturnedQty = totalReturnedAgg.reduce((sum, row) => sum + (row._sum.quantity ?? 0), 0);
+      const totalReturnedQty = totalReturnedAgg.reduce((sum, row) => sum + Number(row._sum.quantity ?? 0), 0);
 
       await tx.sale.update({
         where: { id: sale.id },

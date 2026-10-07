@@ -62,7 +62,7 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
       totalAmount: true,
       discountAmount: true,
       taxAmount: true,
-      items: { select: { quantity: true, productId: true, lineTotal: true } },
+      items: { select: { quantity: true, stockQuantity: true, productId: true, lineTotal: true } },
       payments: { select: { method: true, amount: true } },
       returns: { select: { refundAmount: true } },
     },
@@ -70,7 +70,7 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
   const [purchases, expenses, returns, supplierReturns, customers, stock, products, categories, stores, users] = await Promise.all([
     ctx.db.purchaseItem.findMany({
       where: { purchase: { purchasedAt: inRange(start, end) }, ...warehouseScope(ctx) },
-      select: { productId: true, quantity: true, unitCost: true },
+      select: { productId: true, quantity: true, stockQuantity: true, unitCost: true },
     }),
     ctx.db.expenditure.findMany({
       where: { isActive: true, expenditureDate: inRange(start, end) },
@@ -78,11 +78,11 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
     }),
     ctx.db.return.findMany({
       where: { ...ctx.storeFilter, createdAt: inRange(start, end) },
-      select: { refundAmount: true, items: { select: { quantity: true, restocked: true } } },
+      select: { refundAmount: true, items: { select: { quantity: true, stockQuantity: true, restocked: true } } },
     }),
     ctx.db.supplierReturn.findMany({
       where: { ...warehouseScope(ctx), createdAt: inRange(start, end) },
-      select: { quantity: true, amount: true },
+      select: { quantity: true, stockQuantity: true, amount: true },
     }),
     ctx.db.customer.findMany({
       where: { sales: { some: { ...ctx.storeFilter, createdAt: inRange(start, end) } } },
@@ -101,15 +101,15 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
   const revenue = add(...sales.map((sale) => num(sale.totalAmount)));
   const invoiceDiscount = add(...sales.map((sale) => num(sale.discountAmount)));
   const tax = add(...sales.map((sale) => num(sale.taxAmount)));
-  const quantity = add(...sales.map((sale) => add(...sale.items.map((item) => item.quantity))));
+  const quantity = add(...sales.map((sale) => add(...sale.items.map((item) => num(item.stockQuantity)))));
   const soldIds = new Set(sales.flatMap((sale) => sale.items.map((item) => item.productId)));
   const collected = add(...sales.map((sale) => add(...sale.payments.map((payment) => num(payment.amount)))));
   const refunded = add(...returns.map((entry) => num(entry.refundAmount)));
   const restocked = add(
-    ...returns.flatMap((entry) => entry.items.filter((item) => item.restocked).map((item) => item.quantity))
+    ...returns.flatMap((entry) => entry.items.filter((item) => item.restocked).map((item) => num(item.stockQuantity)))
   );
-  const purchaseCost = add(...purchases.map((item) => num(item.unitCost) * item.quantity));
-  const purchaseQuantity = add(...purchases.map((item) => item.quantity));
+  const purchaseCost = add(...purchases.map((item) => num(item.unitCost) * num(item.quantity)));
+  const purchaseQuantity = add(...purchases.map((item) => num(item.stockQuantity)));
   const expenseTotal = add(...expenses.map((voucher) => num(voucher.totalAmount)));
   const expensePaid = add(...expenses.map((voucher) => num(voucher.paidAmount)));
   const expenseUnpaid = round2(expenseTotal - expensePaid);
@@ -118,10 +118,10 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
   const productById = new Map(products.map((product) => [product.id, product]));
   const stockByProduct = new Map<number, number>();
   for (const row of stock) {
-    stockByProduct.set(row.productId, num(stockByProduct.get(row.productId) ?? 0) + row.quantity);
+    stockByProduct.set(row.productId, num(stockByProduct.get(row.productId) ?? 0) + num(row.quantity));
   }
-  const lowStock = stock.filter((row) => row.quantity <= row.lowStockThreshold && (stockByProduct.get(row.productId) ?? 0) > 0).length;
-  const outOfStock = stock.filter((row) => row.quantity <= 0).length;
+  const lowStock = stock.filter((row) => num(row.quantity) <= num(row.lowStockThreshold) && (stockByProduct.get(row.productId) ?? 0) > 0).length;
+  const outOfStock = stock.filter((row) => num(row.quantity) <= 0).length;
   const stockValue = add(
     ...[...stockByProduct.entries()].map(([id, quantityHeld]) => num(productById.get(id)?.purchasePrice ?? 0) * quantityHeld)
   );
@@ -134,7 +134,7 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
   // no cost snapshot on a sale line, so this is an estimate and the note says so.
   const costOfGoods = add(
     ...sales.flatMap((sale) =>
-      sale.items.map((item) => num(productById.get(item.productId)?.purchasePrice ?? 0) * item.quantity)
+      sale.items.map((item) => num(productById.get(item.productId)?.purchasePrice ?? 0) * num(item.stockQuantity))
     )
   );
   const gross = round2(revenue - costOfGoods);
@@ -152,7 +152,9 @@ async function snapshot(ctx: ReportContext, start: Date, end: Date) {
     refunded,
     returns: returns.length,
     restocked,
-    nonRestocked: round2(add(...returns.flatMap((entry) => entry.items.filter((item) => !item.restocked).map((item) => item.quantity)))),
+    nonRestocked: round2(
+      add(...returns.flatMap((entry) => entry.items.filter((item) => !item.restocked).map((item) => num(item.stockQuantity))))
+    ),
     purchaseCost,
     purchaseQuantity,
     purchaseLines: purchases.length,
@@ -281,7 +283,7 @@ export const dashboardReports: ReportDefinition[] = [
       ]);
       const sales = await ctx.db.sale.findMany({
         where: { ...ctx.storeFilter, createdAt: isWindow(ctx) },
-        select: { warehouseId: true, customerId: true, totalAmount: true, items: { select: { quantity: true, productId: true, lineTotal: true } } },
+        select: { warehouseId: true, customerId: true, totalAmount: true, items: { select: { quantity: true, stockQuantity: true, productId: true, lineTotal: true } } },
       });
       const [warehouses, productInfo] = await Promise.all([
         warehouseMap(ctx),
@@ -333,7 +335,7 @@ export const dashboardReports: ReportDefinition[] = [
         }
         row.invoices = num(row.invoices) + 1;
         row.revenue = add(num(row.revenue), num(sale.totalAmount));
-        row.qty = add(num(row.qty), ...sale.items.map((item) => item.quantity));
+        row.qty = add(num(row.qty), ...sale.items.map((item) => num(item.stockQuantity)));
       }
       for (const row of byWarehouse.values()) row.share = pct(num(row.revenue), now.revenue);
 
@@ -343,7 +345,7 @@ export const dashboardReports: ReportDefinition[] = [
         for (const item of sale.items) {
           const held = lineProducts.get(item.productId) ?? { quantity: 0, value: 0 };
           lineProducts.set(item.productId, {
-            quantity: held.quantity + item.quantity,
+            quantity: held.quantity + num(item.stockQuantity),
             value: add(held.value, num(item.lineTotal)),
           });
         }
@@ -481,18 +483,18 @@ export const dashboardReports: ReportDefinition[] = [
       });
       const unpaidTotal = add(...unpaid.map((voucher) => num(voucher.totalAmount)));
       const lowRows = stock
-        .filter((row) => row.quantity <= row.lowStockThreshold)
+        .filter((row) => num(row.quantity) <= num(row.lowStockThreshold))
         .map((row) => ({
-          alert: row.quantity <= 0 ? "reports.alert.outOfStock" : "reports.alert.lowStock",
-          severity: row.quantity <= 0 ? "reports.severity.critical" : "reports.severity.warning",
+          alert: num(row.quantity) <= 0 ? "reports.alert.outOfStock" : "reports.alert.lowStock",
+          severity: num(row.quantity) <= 0 ? "reports.severity.critical" : "reports.severity.warning",
           item: products.get(row.productId)?.name ?? `#${row.productId}`,
           sku: products.get(row.productId)?.sku ?? null,
           warehouse: row.warehouse.name,
           store: row.warehouse.storeId === ctx.storeFilter.storeId || !ctx.scopedToStore ? (stores.get(row.warehouse.storeId)?.name ?? null) : null,
-          quantity: row.quantity,
-          threshold: row.lowStockThreshold,
-          gap: row.lowStockThreshold - row.quantity,
-          suggestedPurchase: round2((row.lowStockThreshold - row.quantity) * num(products.get(row.productId)?.purchasePrice ?? 0)),
+          quantity: num(row.quantity),
+          threshold: num(row.lowStockThreshold),
+          gap: num(row.lowStockThreshold) - num(row.quantity),
+          suggestedPurchase: round2((num(row.lowStockThreshold) - num(row.quantity)) * num(products.get(row.productId)?.purchasePrice ?? 0)),
         }));
       const columns: ReportColumn[] = [
         { key: "alert", label: "reports.col.alert", type: "badge" },

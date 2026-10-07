@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import { normalizeUnit, unitLabel, unitOptionsFor } from "@/lib/units";
 
 type Warehouse = { id: number; name: string; store: { id: number; name: string } };
-type Product = { id: number; sku: string; name: string };
-type TransferItem = { id: number; productId: number; quantity: number };
+type Product = { id: number; sku: string; name: string; unit: string | null };
+type TransferItem = {
+  id: number;
+  productId: number;
+  quantity: number;
+  unit: string | null;
+  stockQuantity: string;
+};
 type Transfer = {
   id: number;
   fromWarehouseId: number;
@@ -17,7 +24,7 @@ type Transfer = {
 };
 
 export default function CompanyTransfersPage() {
-  const { t, tEnum, fmt } = useI18n();
+  const { t, tEnum, fmt, locale } = useI18n();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
@@ -27,6 +34,7 @@ export default function CompanyTransfersPage() {
   const [fromWarehouseId, setFromWarehouseId] = useState("");
   const [toWarehouseId, setToWarehouseId] = useState("");
   const [productId, setProductId] = useState("");
+  const [unit, setUnit] = useState("");
   const [quantity, setQuantity] = useState("1");
 
   function warehouseLabel(id: number) {
@@ -64,6 +72,9 @@ export default function CompanyTransfersPage() {
     load();
   }, []);
 
+  const selectedProduct = products.find((p) => p.id === Number(productId));
+  const selectedUnit = unit || normalizeUnit(selectedProduct?.unit);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -71,9 +82,10 @@ export default function CompanyTransfersPage() {
       await apiFetch("/api/company/transfers", "POST", {
         fromWarehouseId: Number(fromWarehouseId),
         toWarehouseId: Number(toWarehouseId),
-        items: [{ productId: Number(productId), quantity: Number(quantity) }],
+        items: [{ productId: Number(productId), quantity: Number(quantity), unit: selectedUnit }],
       });
       setProductId("");
+      setUnit("");
       setQuantity("1");
       await loadAll();
     } catch (err) {
@@ -107,7 +119,13 @@ export default function CompanyTransfersPage() {
                   </div>
                   <p className="mt-1 text-slate-600">
                     {transfer.items
-                      .map((item) => `${productLabel(item.productId)} × ${fmt.quantity(item.quantity)}`)
+                      .map(
+                        (item) =>
+                          `${productLabel(item.productId)} × ${fmt.quantity(item.quantity)} ${unitLabel(
+                            item.unit ?? products.find((p) => p.id === item.productId)?.unit,
+                            locale
+                          )}`
+                      )
                       .join(", ")}
                   </p>
                 </div>
@@ -158,7 +176,10 @@ export default function CompanyTransfersPage() {
               <select
                 required
                 value={productId}
-                onChange={(e) => setProductId(e.target.value)}
+                onChange={(e) => {
+                  setProductId(e.target.value);
+                  setUnit("");
+                }}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
               >
                 <option value="">{t("company.transfers.selectProduct")}</option>
@@ -170,11 +191,28 @@ export default function CompanyTransfersPage() {
               </select>
             </label>
             <label className="block">
+              <span className="text-sm font-medium text-slate-700">
+                {t("company.products.unit")}
+              </span>
+              <select
+                value={selectedUnit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
+              >
+                {unitOptionsFor(selectedProduct?.unit).map((u) => (
+                  <option key={u.code} value={u.code}>
+                    {unitLabel(u.code, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
               <span className="text-sm font-medium text-slate-700">{t("common.quantity")}</span>
               <input
                 required
                 type="number"
-                min={1}
+                min={0.01}
+                step="any"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"

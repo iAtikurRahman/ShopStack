@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
+import { convertQuantity, normalizeUnit } from "@/lib/units";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -40,31 +41,52 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "Destination warehouse not found" }, { status: 404 });
   }
 
+  const productIds = [...new Set(items.map((item: { productId?: number }) => Number(item.productId)))];
+  const transferProducts = await db.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, unit: true, unitValue: true },
+  });
+  if (transferProducts.length !== productIds.length) {
+    return NextResponse.json({ message: "Product not found" }, { status: 404 });
+  }
+  const productById = new Map(transferProducts.map((p) => [p.id, p]));
+
   try {
     const transfer = await db.$transaction(async (tx) => {
+      const lineItems: { productId: number; quantity: number; unit: string; stockQuantity: number }[] = [];
+
       for (const item of items) {
         const quantity = Number(item.quantity);
         const productId = Number(item.productId);
-        if (!productId || !quantity || quantity <= 0) {
+        if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
           throw new Error("Each item requires a valid productId and a positive quantity");
         }
+
+        const product = productById.get(productId);
+        if (!product) throw new Error(`Product ${productId} not found`);
+        const unit = normalizeUnit(item.unit ?? product.unit);
+        const packFactor = product.unitValue ? Number(product.unitValue) : null;
+        const stockQuantity = convertQuantity(quantity, unit, product.unit, packFactor);
+        if (stockQuantity === null) throw new Error(`Unit ${unit} does not match product ${productId}`);
 
         const sourceStock = await tx.warehouseStock.findUnique({
           where: { warehouseId_productId: { warehouseId: Number(fromWarehouseId), productId } },
         });
-        if (!sourceStock || sourceStock.quantity < quantity) {
+        if (!sourceStock || Number(sourceStock.quantity) < stockQuantity) {
           throw new Error(`Insufficient stock for product ${productId} in the source warehouse`);
         }
 
         await tx.warehouseStock.update({
           where: { warehouseId_productId: { warehouseId: Number(fromWarehouseId), productId } },
-          data: { quantity: { decrement: quantity } },
+          data: { quantity: { decrement: stockQuantity } },
         });
         await tx.warehouseStock.upsert({
           where: { warehouseId_productId: { warehouseId: Number(toWarehouseId), productId } },
-          update: { quantity: { increment: quantity } },
-          create: { warehouseId: Number(toWarehouseId), productId, quantity },
+          update: { quantity: { increment: stockQuantity } },
+          create: { warehouseId: Number(toWarehouseId), productId, quantity: stockQuantity },
         });
+
+        lineItems.push({ productId, quantity, unit, stockQuantity });
       }
 
       return tx.stockTransfer.create({
@@ -75,12 +97,7 @@ export const POST = withAuth(async (request, { session, db }) => {
           requestedById: session.userId,
           completedById: session.userId,
           completedAt: new Date(),
-          items: {
-            create: items.map((item: { productId: number; quantity: number }) => ({
-              productId: Number(item.productId),
-              quantity: Number(item.quantity),
-            })),
-          },
+          items: { create: lineItems },
         },
         include: { items: true },
       });

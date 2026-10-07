@@ -183,7 +183,7 @@ export const staffReports: ReportDefinition[] = [
             refundAmount: true,
             reason: true,
             saleId: true,
-            items: { select: { quantity: true, restocked: true } },
+            items: { select: { quantity: true, stockQuantity: true, restocked: true } },
           },
         }),
         userMap(ctx.db),
@@ -197,10 +197,10 @@ export const staffReports: ReportDefinition[] = [
           rows.set(entry.processedById, row);
         }
         row.returns = num(row.returns) + 1;
-        row.quantity = num(row.quantity) + entry.items.reduce((sum, item) => sum + item.quantity, 0);
+        row.quantity = num(row.quantity) + entry.items.reduce((sum, item) => sum + num(item.stockQuantity), 0);
         row.restocked = add(
           num(row.restocked),
-          ...entry.items.filter((item) => item.restocked).map((item) => item.quantity)
+          ...entry.items.filter((item) => item.restocked).map((item) => num(item.stockQuantity))
         );
         row.refund = add(num(row.refund), num(entry.refundAmount));
       }
@@ -479,6 +479,7 @@ export const staffReports: ReportDefinition[] = [
         select: {
           productId: true,
           quantity: true,
+          stockQuantity: true,
           lineTotal: true,
           sale: { select: { cashierId: true } },
         },
@@ -507,7 +508,7 @@ export const staffReports: ReportDefinition[] = [
           groups.set(key, row);
         }
         row.lines = num(row.lines) + 1;
-        row.quantity = num(row.quantity) + item.quantity;
+        row.quantity = num(row.quantity) + num(item.stockQuantity);
         row.revenue = add(num(row.revenue), num(item.lineTotal));
       }
       const grouped = [...groups.values()];

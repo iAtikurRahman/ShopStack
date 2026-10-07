@@ -6,16 +6,18 @@ import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
 import { computeRefundAmount, round2 } from "@/lib/returns";
+import { unitLabel } from "@/lib/units";
 
 type SaleItem = {
   id: number;
   productId: number;
-  quantity: number;
+  quantity: number | string;
+  unit: string | null;
   unitPrice: string;
   discountAmount: string;
   lineTotal: string;
 };
-type ReturnItem = { saleItemId: number; quantity: number };
+type ReturnItem = { saleItemId: number; quantity: number | string };
 type Sale = {
   id: number;
   status: string;
@@ -32,18 +34,25 @@ type ReturnRecord = {
   reason: string | null;
   refundAmount: string;
   createdAt: string;
-  items: { saleItemId: number; quantity: number }[];
+  items: { saleItemId: number; quantity: number | string }[];
   sale: {
     subtotal: string;
     discountAmount: string;
     taxAmount: string;
     totalAmount: string;
-    items: { id: number; quantity: number; unitPrice: string; discountAmount: string; lineTotal: string }[];
+    items: {
+      id: number;
+      quantity: number | string;
+      unit: string | null;
+      unitPrice: string;
+      discountAmount: string;
+      lineTotal: string;
+    }[];
   };
 };
 
 function ReturnsForm() {
-  const { t, tEnum, fmt } = useI18n();
+  const { t, tEnum, fmt, locale } = useI18n();
   const searchParams = useSearchParams();
   const [saleIdInput, setSaleIdInput] = useState(searchParams.get("saleId") ?? "");
   const [sale, setSale] = useState<Sale | null>(null);
@@ -143,8 +152,8 @@ function ReturnsForm() {
     const returned = (sale?.returns ?? [])
       .flatMap((r) => r.items)
       .filter((ri) => ri.saleItemId === item.id)
-      .reduce((sum, ri) => sum + ri.quantity, 0);
-    return item.quantity - returned;
+      .reduce((sum, ri) => sum + Number(ri.quantity), 0);
+    return Number(item.quantity) - returned;
   }
 
   const selectedItems = Object.entries(quantities)
@@ -276,9 +285,9 @@ function ReturnsForm() {
                     </p>
                     <p className="text-xs text-slate-500">
                       {t("storeCommerce.returns.itemMeta", {
-                        price: fmt.number(item.unitPrice, { decimals: 2 }),
-                        qty: fmt.quantity(item.quantity),
-                        remaining: fmt.quantity(remaining),
+                        price: `${fmt.number(item.unitPrice, { decimals: 2 })} / ${unitLabel(item.unit, locale)}`,
+                        qty: `${fmt.quantity(item.quantity)} ${unitLabel(item.unit, locale)}`,
+                        remaining: `${fmt.quantity(remaining)} ${unitLabel(item.unit, locale)}`,
                       })}
                     </p>
                     {Number(item.discountAmount) > 0 ? (
@@ -294,6 +303,7 @@ function ReturnsForm() {
                     type="number"
                     min={0}
                     max={remaining}
+                    step="any"
                     disabled={remaining <= 0}
                     value={quantities[item.id] ?? 0}
                     onChange={(e) =>
@@ -408,7 +418,7 @@ function ReturnsForm() {
         ) : (
           <div className="mt-4 space-y-3">
             {filteredReturns.map((r) => {
-              const units = r.items.reduce((sum, i) => sum + i.quantity, 0);
+              const units = r.items.reduce((sum, i) => sum + Number(i.quantity), 0);
 
               return (
                 <div key={r.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">

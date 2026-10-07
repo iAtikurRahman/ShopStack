@@ -59,16 +59,17 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
         productId: true,
         warehouseId: true,
         quantity: true,
+        stockQuantity: true,
         purchase: { select: { id: true, purchasedAt: true } },
       },
     }),
     ctx.db.saleItem.findMany({
       where: { sale: { ...ctx.storeFilter, createdAt: inWindow(ctx) } },
-      select: { productId: true, quantity: true, sale: { select: { id: true, warehouseId: true, createdAt: true } } },
+      select: { productId: true, quantity: true, stockQuantity: true, sale: { select: { id: true, warehouseId: true, createdAt: true } } },
     }),
     ctx.db.supplierReturn.findMany({
       where: { createdAt: inWindow(ctx), ...warehouseScope(ctx) },
-      select: { productId: true, warehouseId: true, quantity: true, id: true, createdAt: true, reason: true },
+      select: { productId: true, warehouseId: true, quantity: true, stockQuantity: true, id: true, createdAt: true, reason: true },
     }),
     ctx.db.stockTransfer.findMany({
       where: { status: "completed", completedAt: inWindow(ctx) },
@@ -77,7 +78,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
         completedAt: true,
         fromWarehouseId: true,
         toWarehouseId: true,
-        items: { select: { productId: true, quantity: true } },
+        items: { select: { productId: true, quantity: true, stockQuantity: true } },
       },
     }),
   ]);
@@ -88,7 +89,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
       kind: "purchase",
       productId: line.productId,
       warehouseId: line.warehouseId,
-      quantity: line.quantity,
+      quantity: num(line.stockQuantity),
       reference: `P-${line.purchase.id}`,
       note: null,
     });
@@ -99,7 +100,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
       kind: "sale",
       productId: line.productId,
       warehouseId: line.sale.warehouseId,
-      quantity: -line.quantity,
+      quantity: -num(line.stockQuantity),
       reference: `S-${line.sale.id}`,
       note: null,
     });
@@ -110,7 +111,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
       kind: "supplierReturn",
       productId: entry.productId,
       warehouseId: entry.warehouseId,
-      quantity: -entry.quantity,
+      quantity: -num(entry.stockQuantity),
       reference: `SR-${entry.id}`,
       note: entry.reason,
     });
@@ -123,7 +124,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
         kind: "transferOut",
         productId: item.productId,
         warehouseId: transfer.fromWarehouseId,
-        quantity: -item.quantity,
+        quantity: -num(item.stockQuantity),
         reference: `T-${transfer.id}`,
         note: null,
       });
@@ -132,7 +133,7 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
         kind: "transferIn",
         productId: item.productId,
         warehouseId: transfer.toWarehouseId,
-        quantity: item.quantity,
+        quantity: num(item.stockQuantity),
         reference: `T-${transfer.id}`,
         note: null,
       });
@@ -155,7 +156,7 @@ async function restockedReturns(ctx: ReportContext): Promise<Movement[]> {
       id: true,
       createdAt: true,
       reason: true,
-      items: { select: { saleItemId: true, quantity: true, restocked: true } },
+      items: { select: { saleItemId: true, quantity: true, stockQuantity: true, restocked: true } },
     },
   });
   const lines = await ctx.db.saleItem.findMany({
@@ -174,7 +175,7 @@ async function restockedReturns(ctx: ReportContext): Promise<Movement[]> {
           kind: "customerReturn" as MovementKind,
           productId: line.productId,
 warehouseId: line.sale.warehouseId,
-          quantity: item.quantity,
+          quantity: num(item.stockQuantity),
           reference: `R-${entry.id}`,
           note: entry.reason,
         },
@@ -219,19 +220,21 @@ async function stockRows(ctx: ReportContext): Promise<ReportRow[]> {
   return stocks.map((stock) => {
     const costPrice = num(stock.product.purchasePrice);
     const salePrice = num(stock.product.salePrice);
+    const quantity = num(stock.quantity);
+    const threshold = num(stock.lowStockThreshold);
     return {
       product: stock.product.name,
       sku: stock.product.sku,
       category: stock.product.categoryId === null ? null : categories.get(stock.product.categoryId) ?? null,
       warehouse: stock.warehouse.name,
       store: stores.get(stock.warehouse.storeId)?.name ?? null,
-      quantity: stock.quantity,
-      threshold: stock.lowStockThreshold,
+      quantity,
+      threshold,
       costPrice,
       salePrice,
-      costValue: round2(costPrice * stock.quantity),
-      saleValue: round2(salePrice * stock.quantity),
-      status: stock.quantity <= 0 ? "out" : stock.quantity <= stock.lowStockThreshold ? "low" : "ok",
+      costValue: round2(costPrice * quantity),
+      saleValue: round2(salePrice * quantity),
+      status: quantity <= 0 ? "out" : quantity <= threshold ? "low" : "ok",
     };
   });
 }
@@ -551,13 +554,13 @@ export const inventoryReports: ReportDefinition[] = [
             createdAt: true,
             reason: true,
             refundAmount: true,
-            items: { select: { saleItemId: true, quantity: true, restocked: true } },
+            items: { select: { saleItemId: true, quantity: true, stockQuantity: true, restocked: true } },
           },
         }),
         restockedReturns(ctx),
         ctx.db.supplierReturn.findMany({
           where: { createdAt: inWindow(ctx), ...warehouseScope(ctx) },
-          select: { id: true, productId: true, quantity: true, amount: true, reason: true, createdAt: true, warehouseId: true },
+          select: { id: true, productId: true, quantity: true, stockQuantity: true, amount: true, reason: true, createdAt: true, warehouseId: true },
         }),
         warehouseMap(ctx),
       ]);
@@ -580,8 +583,8 @@ export const inventoryReports: ReportDefinition[] = [
           reference: `SR-${entry.id}`,
           product: products.get(entry.productId)?.name ?? null,
           warehouse: warehouses.get(entry.warehouseId)?.name ?? null,
-          quantity: -entry.quantity,
-          units: entry.quantity,
+          quantity: -num(entry.stockQuantity),
+          units: num(entry.stockQuantity),
           amount: num(entry.amount),
           reason: entry.reason,
         });
@@ -596,8 +599,8 @@ export const inventoryReports: ReportDefinition[] = [
             reference: `R-${entry.id}`,
             product: productId === undefined ? null : products.get(productId)?.name ?? null,
             warehouse: null,
-            quantity: -item.quantity,
-            units: item.quantity,
+            quantity: -num(item.stockQuantity),
+            units: num(item.stockQuantity),
             // Only a supplier return carries a value the supplier agreed to
             // credit. A customer return's money left via refundAmount, which the
             // sales returns report already covers - repeating it here would let

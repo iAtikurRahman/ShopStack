@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
+import { convertQuantity, normalizeUnit, unitLabel, unitOptionsFor } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
 type Product = {
@@ -13,11 +14,20 @@ type Product = {
   name: string;
   salePrice: string;
   taxRate: string;
+  unit: string | null;
+  unitValue: string | null;
   category: { name: string } | null;
 };
-type Stock = { warehouseId: number; productId: number; quantity: number };
+type Stock = { warehouseId: number; productId: number; quantity: string };
 type Customer = { id: number; name: string; phone: string | null };
-type CartLine = { productId: number; name: string; unitPrice: number; taxRate: number; quantity: number };
+type CartLine = {
+  productId: number;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  taxRate: number;
+  quantity: number;
+};
 
 // The "nothing was paid" marker, kept alongside the real methods because it is
 // the one choice at the till with a lasting balance-sheet consequence. It leads
@@ -32,7 +42,7 @@ function round2(value: number) {
 
 export default function PosCheckoutPage() {
   const router = useRouter();
-  const { t, tEnum, fmt } = useI18n();
+  const { t, tEnum, fmt, locale } = useI18n();
   const { banks, loading: banksLoading } = useBanks();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -78,25 +88,45 @@ export default function PosCheckoutPage() {
     load();
   }, []);
 
+  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+
+  // Stock is kept in the product's stock unit; a cart line may be in another
+  // unit of the same family, so "how much is one of this line in stock units".
+  function stockFactor(product: Product | undefined, unit: string) {
+    if (!product) return 1;
+    const factor = convertQuantity(1, unit, product.unit, product.unitValue ? Number(product.unitValue) : null);
+    return factor && factor > 0 ? factor : 1;
+  }
+
   function availableQty(productId: number) {
-    return stock.find((s) => s.warehouseId === warehouseId && s.productId === productId)?.quantity ?? 0;
+    const raw = stock.find((s) => s.warehouseId === warehouseId && s.productId === productId)?.quantity;
+    return raw === undefined ? 0 : Number(raw);
+  }
+
+  // The shelf price is per the product's stock unit, so a line in another unit
+  // scales it (e.g. selling a 40kg mon of a per-kg product is 40x the price).
+  function priceFor(product: Product, unit: string) {
+    return round2(Number(product.salePrice) * stockFactor(product, unit));
   }
 
   function addToCart(product: Product) {
     setCart((current) => {
       const existing = current.find((l) => l.productId === product.id);
-      const maxQty = availableQty(product.id);
+      const unit = normalizeUnit(product.unit);
+      const factor = stockFactor(product, unit);
+      const availableInUnit = availableQty(product.id) / factor;
       if (existing) {
-        if (existing.quantity >= maxQty) return current;
+        if (existing.quantity + 1 > availableInUnit) return current;
         return current.map((l) => (l.productId === product.id ? { ...l, quantity: l.quantity + 1 } : l));
       }
-      if (maxQty <= 0) return current;
+      if (availableInUnit <= 0) return current;
       return [
         ...current,
         {
           productId: product.id,
           name: product.name,
-          unitPrice: Number(product.salePrice),
+          unit,
+          unitPrice: priceFor(product, unit),
           taxRate: Number(product.taxRate),
           quantity: 1,
         },
@@ -104,11 +134,24 @@ export default function PosCheckoutPage() {
     });
   }
 
+  function changeUnit(productId: number, unit: string) {
+    setCart((current) =>
+      current.map((l) => {
+        if (l.productId !== productId) return l;
+        const product = productById.get(productId);
+        return { ...l, unit, unitPrice: product ? priceFor(product, unit) : l.unitPrice };
+      })
+    );
+  }
+
   // Only the ✕ button removes a line - editing the number (even clearing it
   // mid-edit) just changes the quantity.
   function updateQty(productId: number, quantity: number) {
-    const maxQty = availableQty(productId);
-    const next = Math.min(Math.max(Math.floor(quantity), 1), Math.max(maxQty, 1));
+    const product = productById.get(productId);
+    const line = cart.find((l) => l.productId === productId);
+    const factor = stockFactor(product, line?.unit ?? normalizeUnit(product?.unit));
+    const maxInUnit = availableQty(productId) / factor;
+    const next = Math.min(Math.max(quantity, 0.01), Math.max(maxInUnit, 0.01));
     setCart((current) => current.map((l) => (l.productId === productId ? { ...l, quantity: next } : l)));
   }
 
@@ -186,7 +229,12 @@ const activeMethod =
         warehouseId,
         customerId,
         discountAmount: Number(discountAmount || 0),
-        items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+        items: cart.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          unit: l.unit,
+          unitPrice: l.unitPrice,
+        })),
         payments: [{ method: activeMethod, amount: total }],
       });
       router.push(`/store/sales/${data.sale.id}`);
@@ -243,15 +291,20 @@ const activeMethod =
                     </div>
                     <span className="shrink-0 text-sm font-medium tabular-nums text-slate-900">
                       {fmt.money(product.salePrice)}
+                      <span className="text-xs font-normal text-slate-500">
+                        /{unitLabel(product.unit, locale)}
+                      </span>
                     </span>
                     <span
-                      className={`w-20 shrink-0 text-right text-xs tabular-nums ${
+                      className={`w-24 shrink-0 text-right text-xs tabular-nums ${
                         soldOut ? "text-red-500" : qty <= 5 ? "text-amber-600" : "text-slate-500"
                       }`}
                     >
                       {soldOut
                         ? t("storeOps.pos.outOfStock")
-                        : t("storeOps.pos.inStock", { qty: fmt.quantity(qty) })}
+                        : t("storeOps.pos.inStock", {
+                            qty: `${fmt.quantity(qty)} ${unitLabel(product.unit, locale)}`,
+                          })}
                     </span>
                     {inCart > 0 ? (
                       <span className="w-16 shrink-0 rounded-full bg-slate-900 px-2 py-0.5 text-center text-xs font-semibold tabular-nums text-white">
@@ -317,7 +370,8 @@ const activeMethod =
               <p className="text-sm text-slate-500">{t("storeOps.pos.emptyCart")}</p>
             ) : (
               cart.map((line) => {
-                const maxQty = availableQty(line.productId);
+                const product = productById.get(line.productId);
+                const maxInUnit = availableQty(line.productId) / stockFactor(product, line.unit);
                 return (
                   <div
                     key={line.productId}
@@ -325,12 +379,25 @@ const activeMethod =
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-slate-950">{line.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {t("storeOps.pos.lineMeta", {
-                          price: fmt.number(line.unitPrice, { decimals: 2 }),
-                          qty: fmt.quantity(maxQty),
-                        })}
-                      </p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <select
+                          value={line.unit}
+                          onChange={(e) => changeUnit(line.productId, e.target.value)}
+                          className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-xs outline-none focus:border-slate-900"
+                        >
+                          {unitOptionsFor(product?.unit).map((u) => (
+                            <option key={u.code} value={u.code}>
+                              {unitLabel(u.code, locale)}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-xs tabular-nums text-slate-500">
+                          {t("storeOps.pos.lineMeta", {
+                            price: fmt.number(line.unitPrice, { decimals: 2 }),
+                            qty: `${fmt.quantity(maxInUnit)} ${unitLabel(line.unit, locale)}`,
+                          })}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="tabular-nums text-slate-700">
@@ -338,14 +405,15 @@ const activeMethod =
                       </span>
                       <input
                         type="number"
-                        min={1}
-                        max={maxQty}
+                        min={0.01}
+                        max={maxInUnit}
+                        step="any"
                         value={qtyDrafts[line.productId] ?? String(line.quantity)}
                         onChange={(e) => {
                           const raw = e.target.value;
                           setQtyDrafts((current) => ({ ...current, [line.productId]: raw }));
                           const parsed = Number(raw);
-                          if (Number.isInteger(parsed) && parsed > 0) {
+                          if (Number.isFinite(parsed) && parsed > 0) {
                             updateQty(line.productId, parsed);
                           }
                         }}
@@ -356,7 +424,7 @@ const activeMethod =
                             return next;
                           })
                         }
-                        className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-center outline-none focus:border-slate-900"
+                        className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-center outline-none focus:border-slate-900"
                       />
                       <button
                         type="button"

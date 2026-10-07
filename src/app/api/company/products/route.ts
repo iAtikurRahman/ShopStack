@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { reportLetterhead } from "@/lib/reports/letterhead";
+import { isKnownUnit, normalizeUnit } from "@/lib/units";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const products = await db.product.findMany({
@@ -20,7 +21,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
   const withTotals = products.map(({ stock, ...product }) => ({
     ...product,
-    totalStock: stock.reduce((sum, s) => sum + s.quantity, 0),
+    totalStock: stock.reduce((sum, s) => sum + Number(s.quantity), 0),
     stockByStore: stock.map((s) => ({
       warehouseId: s.warehouse.id,
       warehouseName: s.warehouse.name,
@@ -60,6 +61,16 @@ export const POST = withAuth(async (request, { session, db }) => {
     pricing[key] = value;
   }
 
+  if (unit !== undefined && unit !== null && unit !== "" && !isKnownUnit(unit)) {
+    return NextResponse.json({ message: "Unknown unit" }, { status: 400 });
+  }
+  if (unitValue !== undefined && unitValue !== null && unitValue !== "") {
+    const parsed = Number(unitValue);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      return NextResponse.json({ message: "unitValue must be zero or greater" }, { status: 400 });
+    }
+  }
+
   const existing = await db.product.findUnique({ where: { sku } });
   if (existing) {
     return NextResponse.json({ message: "A product with this SKU already exists" }, { status: 409 });
@@ -74,7 +85,7 @@ export const POST = withAuth(async (request, { session, db }) => {
       salePrice: pricing.salePrice ?? 0,
       taxRate: taxRate ?? 0,
       unitValue: unitValue !== undefined && unitValue !== null && unitValue !== "" ? Number(unitValue) : null,
-      unit: unit || null,
+      unit: unit && unit !== "" ? normalizeUnit(unit) : "piece",
     },
   });
 

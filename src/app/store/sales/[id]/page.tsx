@@ -4,8 +4,16 @@ import Link from "next/link";
 import { use, useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import { unitLabel } from "@/lib/units";
 
-type SaleItem = { id: number; productId: number; quantity: number; unitPrice: string; lineTotal: string };
+type SaleItem = {
+  id: number;
+  productId: number;
+  quantity: number;
+  unit: string | null;
+  unitPrice: string;
+  lineTotal: string;
+};
 type SalePayment = { id: number; method: string; amount: string };
 type ReturnItem = { id: number; saleItemId: number; quantity: number };
 type ReturnRow = { id: number; refundAmount: string; createdAt: string; items: ReturnItem[] };
@@ -25,7 +33,7 @@ type Sale = {
 type SaleLetterhead = { companyName: string; name: string | null };
 
 export default function SaleReceiptPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t, tEnum, fmt } = useI18n();
+  const { t, tEnum, fmt, locale } = useI18n();
   const { id } = use(params);
   const [sale, setSale] = useState<Sale | null>(null);
   const [letterhead, setLetterhead] = useState<SaleLetterhead | null>(null);
@@ -121,7 +129,9 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
                   <td className="py-2 text-slate-600">
                     {t("storeOps.saleDetail.productRow", { id: item.productId })}
                   </td>
-                  <td className="py-2 text-slate-600">{fmt.quantity(item.quantity)}</td>
+                  <td className="py-2 text-slate-600">
+                    {fmt.quantity(item.quantity)} {item.unit ? unitLabel(item.unit, locale) : ""}
+                  </td>
                   <td className="py-2 text-slate-600">{fmt.money(item.unitPrice)}</td>
                   <td className="py-2 text-slate-950">{fmt.money(item.lineTotal)}</td>
                 </tr>

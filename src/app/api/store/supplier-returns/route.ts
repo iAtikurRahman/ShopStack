@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 import { round2 } from "@/lib/returns";
+import { convertQuantity, normalizeUnit } from "@/lib/units";
 
 export const GET = withAuth(async (_request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -22,7 +23,7 @@ export const GET = withAuth(async (_request, { session, db }) => {
 
 export const POST = withAuth(async (request, { session, db }) => {
   const body = await request.json().catch(() => null);
-  const { supplierId, warehouseId, productId, quantity, reason, amount } = body ?? {};
+  const { supplierId, warehouseId, productId, quantity, unit, reason, amount } = body ?? {};
 
   if (!supplierId || !warehouseId || !productId || !quantity) {
     return NextResponse.json(
@@ -31,8 +32,8 @@ export const POST = withAuth(async (request, { session, db }) => {
     );
   }
   const parsedQuantity = Number(quantity);
-  if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
-    return NextResponse.json({ message: "quantity must be a positive whole number" }, { status: 400 });
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    return NextResponse.json({ message: "quantity must be a positive number" }, { status: 400 });
   }
 
   const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
@@ -48,10 +49,17 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "Product not found" }, { status: 404 });
   }
 
+  const returnUnit = normalizeUnit(unit ?? product.unit);
+  const packFactor = product.unitValue ? Number(product.unitValue) : null;
+  const stockQuantity = convertQuantity(parsedQuantity, returnUnit, product.unit, packFactor);
+  if (stockQuantity === null) {
+    return NextResponse.json({ message: `Unit ${returnUnit} does not match product ${productId}` }, { status: 400 });
+  }
+
   // Credit expected back from the supplier. Defaults to what the stock cost us
   // (purchasePrice x quantity) so a return is never recorded without a value,
   // but the supplier may only credit part of it, so it stays overridable.
-  let creditAmount = round2(Number(product.purchasePrice) * parsedQuantity);
+  let creditAmount = round2(Number(product.purchasePrice) * stockQuantity);
   if (amount !== undefined && amount !== null && amount !== "") {
     const supplied = Number(amount);
     if (!Number.isFinite(supplied) || supplied < 0) {
@@ -65,13 +73,13 @@ export const POST = withAuth(async (request, { session, db }) => {
       const stock = await tx.warehouseStock.findUnique({
         where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId: Number(productId) } },
       });
-      if (!stock || stock.quantity < parsedQuantity) {
+      if (!stock || Number(stock.quantity) < stockQuantity) {
         throw new Error("Insufficient stock for this product in the selected warehouse");
       }
 
       await tx.warehouseStock.update({
         where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId: Number(productId) } },
-        data: { quantity: { decrement: parsedQuantity } },
+        data: { quantity: { decrement: stockQuantity } },
       });
 
       const supplierReturn = await tx.supplierReturn.create({
@@ -80,6 +88,8 @@ export const POST = withAuth(async (request, { session, db }) => {
           warehouseId: Number(warehouseId),
           productId: Number(productId),
           quantity: parsedQuantity,
+          unit: returnUnit,
+          stockQuantity,
           amount: creditAmount,
           reason: reason || null,
           processedById: session.userId,

@@ -6,15 +6,25 @@ import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
 import { round2 } from "@/lib/returns";
+import { convertQuantity, normalizeUnit, unitLabel, unitOptionsFor } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
-type Product = { id: number; sku: string; name: string; purchasePrice: string };
+type Product = {
+  id: number;
+  sku: string;
+  name: string;
+  purchasePrice: string;
+  unit: string | null;
+  unitValue: string | null;
+};
 type Supplier = { id: number; name: string };
 type StockRow = { id: number; warehouseId: number; productId: number; quantity: number };
 type PurchaseItem = {
   id: number;
   productId: number;
   quantity: number;
+  unit: string | null;
+  stockQuantity: string;
   unitCost: string;
   product: { id: number; sku: string; name: string };
   warehouseId: number;
@@ -34,6 +44,7 @@ type Line = {
   key: number;
   productId: string;
   quantity: string;
+  unit: string;
   unitCost: string;
   warehouseId: string;
 };
@@ -57,7 +68,7 @@ function subtotalOf(items: PurchaseItem[]): number {
 }
 
 export default function StorePurchasesPage() {
-  const { t, tEnum, fmt } = useI18n();
+  const { t, tEnum, fmt, locale } = useI18n();
   const { banks, loading: banksLoading } = useBanks();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,7 +93,7 @@ export default function StorePurchasesPage() {
   const [purchasedAt, setPurchasedAt] = useState(today());
   const [search, setSearch] = useState("");
   const [lines, setLines] = useState<Line[]>([
-    { key: 1, productId: "", quantity: "1", unitCost: "", warehouseId: "" },
+    { key: 1, productId: "", quantity: "1", unit: "", unitCost: "", warehouseId: "" },
   ]);
   const nextKey = useRef(2);
 
@@ -125,12 +136,22 @@ export default function StorePurchasesPage() {
     return map;
   }, [stock]);
 
+  // Legacy purchase lines predate the unit column; fall back to the product's
+  // stock unit so their quantities are still labelled correctly.
+  const productById = useMemo(() => {
+    const map = new Map<number, Product>();
+    products.forEach((p) => map.set(p.id, p));
+    return map;
+  }, [products]);
+
+  const unitOf = (item: PurchaseItem) => item.unit ?? productById.get(item.productId)?.unit ?? null;
+
   const returnSelected = useMemo(() => {
     if (!returnPurchase) return { count: 0, credit: 0, lines: [] as { item: PurchaseItem; qty: number }[] };
     const lines: { item: PurchaseItem; qty: number }[] = [];
     for (const item of returnPurchase.items) {
       const qty = Number(returnQty[item.id] ?? "0");
-      if (Number.isInteger(qty) && qty > 0 && qty <= item.quantity) {
+      if (qty > 0 && qty <= item.quantity) {
         lines.push({ item, qty });
       }
     }
@@ -186,6 +207,7 @@ export default function StorePurchasesPage() {
           warehouseId: item.warehouse.id,
           productId: item.product.id,
           quantity: qty,
+          unit: unitOf(item),
           reason: returnReason || null,
           amount: round2(qty * Number(item.unitCost)),
         });
@@ -243,6 +265,7 @@ export default function StorePurchasesPage() {
         key: nextKey.current++,
         productId: "",
         quantity: "1",
+        unit: "",
         unitCost: "",
         warehouseId: String(warehouses[0]?.id ?? ""),
       },
@@ -262,6 +285,7 @@ export default function StorePurchasesPage() {
     updateLine(line.key, {
       productId,
       unitCost: product ? String(product.purchasePrice) : line.unitCost,
+      unit: product ? normalizeUnit(product.unit) : "",
     });
   }
 
@@ -272,6 +296,7 @@ export default function StorePurchasesPage() {
     const payloadItems = lines.map((line) => ({
       productId: Number(line.productId),
       quantity: Number(line.quantity),
+      unit: line.unit || undefined,
       unitCost: Number(line.unitCost),
       warehouseId: Number(line.warehouseId),
     }));
@@ -294,7 +319,7 @@ export default function StorePurchasesPage() {
       });
       setLines((current) =>
         current.map((line, index) =>
-          index === 0 ? { ...line, productId: "", quantity: "1", unitCost: "" } : line
+          index === 0 ? { ...line, productId: "", quantity: "1", unit: "", unitCost: "" } : line
         )
       );
       if (lines.length > 1) {
@@ -303,6 +328,7 @@ export default function StorePurchasesPage() {
             key: nextKey.current++,
             productId: "",
             quantity: "1",
+            unit: "",
             unitCost: "",
             warehouseId: String(warehouses[0]?.id ?? ""),
           },
@@ -380,7 +406,7 @@ export default function StorePurchasesPage() {
                     ) : null}
                   </p>
                   <div className="mt-3">
-                    <div className="grid grid-cols-[1fr_4.5rem_3rem_5.5rem_5.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <div className="grid grid-cols-[1fr_4.5rem_4.5rem_5.5rem_5.5rem] gap-3 border-b border-slate-200 pb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
                       <span>{t("storeCommerce.purchases.product")}</span>
                       <span>{t("storeCommerce.purchases.warehouse")}</span>
                       <span className="text-right">{t("storeCommerce.purchases.qty")}</span>
@@ -390,14 +416,16 @@ export default function StorePurchasesPage() {
                     {purchase.items.map((item) => (
                       <div
                         key={item.id}
-                        className="grid grid-cols-[1fr_4.5rem_3rem_5.5rem_5.5rem] gap-3 py-1 text-slate-600"
+                        className="grid grid-cols-[1fr_4.5rem_4.5rem_5.5rem_5.5rem] gap-3 py-1 text-slate-600"
                       >
                         <span className="truncate">
                           {item.product.name}{" "}
                           <span className="text-xs text-slate-500">({item.product.sku})</span>
                         </span>
                         <span className="truncate text-xs text-slate-500">{item.warehouse.name}</span>
-                        <span className="text-right tabular-nums">{fmt.quantity(item.quantity)}</span>
+                        <span className="text-right tabular-nums">
+                          {fmt.quantity(item.quantity)} {unitLabel(unitOf(item), locale)}
+                        </span>
                         <span className="text-right tabular-nums">{fmt.money(item.unitCost)}</span>
                         <span className="text-right tabular-nums">{fmt.money(lineTotal(item))}</span>
                       </div>
@@ -534,7 +562,7 @@ export default function StorePurchasesPage() {
                         ✕
                       </button>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
+                    <div className="mt-2 grid grid-cols-4 gap-2">
                       <label className="block">
                         <span className="text-xs font-medium text-slate-600">
                           {t("storeCommerce.purchases.warehouse")}
@@ -562,11 +590,33 @@ export default function StorePurchasesPage() {
                         <input
                           required
                           type="number"
-                          min={1}
+                          min={0.01}
+                          step="any"
                           value={line.quantity}
                           onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900"
                         />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-medium text-slate-600">
+                          {t("company.products.unit")}
+                        </span>
+                        <select
+                          required
+                          disabled={!line.productId}
+                          value={line.unit}
+                          onChange={(e) => updateLine(line.key, { unit: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
+                        >
+                          {line.unit ? null : <option value="">{t("company.products.unit")}</option>}
+                          {unitOptionsFor(products.find((p) => String(p.id) === line.productId)?.unit).map(
+                            (u) => (
+                              <option key={u.code} value={u.code}>
+                                {unitLabel(u.code, locale)}
+                              </option>
+                            )
+                          )}
+                        </select>
                       </label>
                       <label className="block">
                         <span className="text-xs font-medium text-slate-600">
@@ -665,7 +715,13 @@ export default function StorePurchasesPage() {
             {returnPurchase.items.map((item) => {
               const available = stockMap.get(`${item.warehouseId}:${item.productId}`) ?? 0;
               const qtyValue = Number(returnQty[item.id] ?? "0");
-              const overStock = qtyValue > 0 && qtyValue > available;
+              // Stock lives in the product's stock unit; the entered quantity is
+              // in the line unit, so convert before comparing.
+              const product = productById.get(item.productId);
+              const packFactor = product?.unitValue ? Number(product.unitValue) : null;
+              const inStockUnit =
+                convertQuantity(qtyValue, unitOf(item), product?.unit, packFactor) ?? qtyValue;
+              const overStock = qtyValue > 0 && inStockUnit > available;
               return (
                 <div
                   key={item.id}
@@ -676,7 +732,9 @@ export default function StorePurchasesPage() {
                     <p className="mt-0.5 text-xs text-slate-500">
                       {item.product.sku} · {item.warehouse.name} ·{" "}
                       {t("storeCommerce.purchases.qty")}{" "}
-                      <span className="tabular-nums">{fmt.quantity(item.quantity)}</span>
+                      <span className="tabular-nums">
+                        {fmt.quantity(item.quantity)} {unitLabel(unitOf(item), locale)}
+                      </span>
                     </p>
                     <p className={`mt-1 text-xs ${overStock ? "font-semibold text-red-700" : "text-slate-400"}`}>
                       {overStock
@@ -692,8 +750,8 @@ export default function StorePurchasesPage() {
                       type="number"
                       min={0}
                       max={item.quantity}
-                      step={1}
-                      inputMode="numeric"
+                      step="any"
+                      inputMode="decimal"
                       value={returnQty[item.id] ?? "0"}
                       onChange={(e) => setReturnQtyFor(item.id, e.target.value)}
                       className="mt-1 w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-slate-900"

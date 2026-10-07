@@ -38,6 +38,7 @@ async function windowLines(ctx: ReportContext): Promise<Line[]> {
     select: {
       productId: true,
       quantity: true,
+      stockQuantity: true,
       discountAmount: true,
       lineTotal: true,
       sale: { select: { createdAt: true } },
@@ -51,10 +52,10 @@ async function windowLines(ctx: ReportContext): Promise<Line[]> {
   );
   return items.map((item) => ({
     productId: item.productId,
-    quantity: item.quantity,
+    quantity: num(item.stockQuantity),
     revenue: num(item.lineTotal),
     discount: num(item.discountAmount),
-    cost: (products.get(item.productId)?.purchasePrice ?? 0) * item.quantity,
+    cost: num(products.get(item.productId)?.purchasePrice ?? 0) * num(item.stockQuantity),
     at: item.sale.createdAt,
   }));
 }

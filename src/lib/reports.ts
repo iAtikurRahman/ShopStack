@@ -55,8 +55,8 @@ export async function getStoreReport(db: PrismaClient, session: TenantSession): 
     db.saleItem.groupBy({
       by: ["productId"],
       where: { sale: storeFilter },
-      _sum: { quantity: true, lineTotal: true },
-      orderBy: { _sum: { quantity: "desc" } },
+      _sum: { stockQuantity: true, lineTotal: true },
+      orderBy: { _sum: { stockQuantity: "desc" } },
       take: TOP_PRODUCT_LIMIT,
     }),
     db.warehouse.findMany({ where: storeFilter, select: { id: true } }),
@@ -69,7 +69,7 @@ export async function getStoreReport(db: PrismaClient, session: TenantSession): 
     where: { warehouseId: { in: warehouseIds } },
     include: { product: { select: { id: true, sku: true, name: true } } },
   });
-  const lowStockItems = lowStock.filter((s) => s.quantity <= s.lowStockThreshold);
+  const lowStockItems = lowStock.filter((s) => toNum(s.quantity) <= toNum(s.lowStockThreshold));
 
   const productIds = topProducts.map((p) => p.productId);
   const products = await db.product.findMany({
@@ -84,14 +84,14 @@ export async function getStoreReport(db: PrismaClient, session: TenantSession): 
     salesCount: salesAgg._count,
     topProducts: topProducts.map((p) => ({
       product: productMap.get(p.productId) ?? null,
-      quantitySold: p._sum.quantity ?? 0,
+      quantitySold: toNum(p._sum.stockQuantity ?? 0),
       revenue: toNum(p._sum.lineTotal ?? 0),
     })),
     lowStockItems: lowStockItems.map((s) => ({
       warehouseId: s.warehouseId,
       product: s.product,
-      quantity: s.quantity,
-      lowStockThreshold: s.lowStockThreshold,
+      quantity: toNum(s.quantity),
+      lowStockThreshold: toNum(s.lowStockThreshold),
     })),
   };
 }

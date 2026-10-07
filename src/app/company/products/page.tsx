@@ -6,8 +6,9 @@ import { PrintLetterhead } from "@/components/reports/PrintLetterhead";
 import { toLatinNumber } from "@/lib/i18n/format";
 import { apiFetch } from "@/services/api";
 import type { ReportLetterhead } from "@/lib/reports/letterhead";
+import { UNITS, resolveUnit, unitLabel } from "@/lib/units";
 
-type StockByStore = { warehouseId: number; warehouseName: string; storeId: number; storeName: string; quantity: number };
+type StockByStore = { warehouseId: number; warehouseName: string; storeId: number; storeName: string; quantity: string };
 
 type Product = {
   id: number;
@@ -24,8 +25,6 @@ type Product = {
 };
 
 type Category = { id: number; name: string };
-
-const UNIT_OPTIONS = ["piece", "kg", "g", "liter", "ml", "box", "pack", "dozen"];
 
 const PRICE_INPUT_CLASS =
   "w-24 rounded-lg border border-slate-200 px-2 py-1 text-right outline-none focus:border-slate-900 print:border-0 print:px-0";
@@ -73,7 +72,7 @@ function PriceCell({
 }
 
 export default function CompanyProductsPage() {
-  const { t, fmt } = useI18n();
+  const { t, fmt, locale } = useI18n();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [letterhead, setLetterhead] = useState<ReportLetterhead | null>(null);
@@ -312,9 +311,10 @@ export default function CompanyProductsPage() {
                        <td className="py-2 font-medium text-slate-950">{product.name}</td>
                        <td className="py-2 text-slate-600">{product.category?.name ?? "—"}</td>
                        <td className="py-2 text-slate-600">
-                         {product.unitValue
-                           ? `${fmt.quantity(product.unitValue)} ${product.unit ?? ""}`.trim()
-                           : product.unit ?? "—"}
+                         {unitLabel(product.unit, locale)}
+                         {product.unitValue && resolveUnit(product.unit).productSized
+                           ? ` (= ${fmt.quantity(product.unitValue)} ${unitLabel("piece", locale)})`
+                           : ""}
                        </td>
                        <td className="py-2" onClick={(e) => e.stopPropagation()}>
                          <PriceCell
@@ -330,7 +330,9 @@ export default function CompanyProductsPage() {
                            className={PRICE_INPUT_CLASS}
                          />
                        </td>
-                       <td className="py-2 text-slate-600">{fmt.quantity(product.totalStock)}</td>
+                       <td className="py-2 text-slate-600">
+                         {fmt.quantity(product.totalStock)} {unitLabel(product.unit, locale)}
+                       </td>
                        <td className="print-hide py-2 text-right text-slate-400">›</td>
                      </tr>
                    ))}
@@ -513,9 +515,9 @@ export default function CompanyProductsPage() {
                   onChange={(e) => setUnit(e.target.value)}
                   className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:border-slate-900"
                 >
-                  {UNIT_OPTIONS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
+                  {UNITS.map((u) => (
+                    <option key={u.code} value={u.code}>
+                      {u[locale]}
                     </option>
                   ))}
                 </select>
@@ -588,7 +590,9 @@ export default function CompanyProductsPage() {
                     <tr key={s.warehouseId} className="border-t border-slate-100">
                       <td className="py-2 text-slate-600">{s.storeName}</td>
                       <td className="py-2 text-slate-600">{s.warehouseName}</td>
-                      <td className="py-2 text-right text-slate-950">{fmt.quantity(s.quantity)}</td>
+                      <td className="py-2 text-right text-slate-950">
+                        {fmt.quantity(s.quantity)} {unitLabel(selected.unit, locale)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -597,7 +601,9 @@ export default function CompanyProductsPage() {
                     <td className="py-2" colSpan={2}>
                       {t("company.products.totalStock")}
                     </td>
-                    <td className="py-2 text-right">{fmt.quantity(selected.totalStock)}</td>
+                    <td className="py-2 text-right">
+                      {fmt.quantity(selected.totalStock)} {unitLabel(selected.unit, locale)}
+                    </td>
                   </tr>
                 </tfoot>
               </table>

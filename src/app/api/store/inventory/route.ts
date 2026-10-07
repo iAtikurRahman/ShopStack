@@ -32,6 +32,13 @@ export const PATCH = withAuth(async (request, { session, db }) => {
     );
   }
 
+  // Quantities are kept in the product's stock unit and may be fractional
+  // (2.5 kg), so this only has to reject non-numbers and negatives.
+  const parsedQuantity = Number(quantity);
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
+    return NextResponse.json({ message: "quantity must be zero or greater" }, { status: 400 });
+  }
+
   const warehouse = await db.warehouse.findUnique({ where: { id: Number(warehouseId) } });
   if (!warehouse || !canAccessStore(session, warehouse.storeId)) {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
@@ -40,13 +47,13 @@ export const PATCH = withAuth(async (request, { session, db }) => {
   const stock = await db.warehouseStock.upsert({
     where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId: Number(productId) } },
     update: {
-      quantity: Number(quantity),
+      quantity: parsedQuantity,
       ...(lowStockThreshold !== undefined ? { lowStockThreshold: Number(lowStockThreshold) } : {}),
     },
     create: {
       warehouseId: Number(warehouseId),
       productId: Number(productId),
-      quantity: Number(quantity),
+      quantity: parsedQuantity,
       lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 5,
     },
   });

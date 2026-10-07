@@ -33,6 +33,7 @@ function purchaseLines(ctx: ReportContext) {
       productId: true,
       warehouseId: true,
       quantity: true,
+      stockQuantity: true,
       unitCost: true,
       purchase: {
         select: {
@@ -62,8 +63,8 @@ function voucherTotals(lines: PurchaseLine[]) {
       voucher = { purchasedAt: line.purchase.purchasedAt, cost: 0, quantity: 0, lines: 0 };
       vouchers.set(line.purchase.id, voucher);
     }
-    voucher.cost = add(voucher.cost, num(line.unitCost) * line.quantity);
-    voucher.quantity += line.quantity;
+    voucher.cost = add(voucher.cost, num(line.unitCost) * num(line.quantity));
+    voucher.quantity += num(line.stockQuantity);
     voucher.lines += 1;
   }
   return vouchers;
@@ -164,8 +165,8 @@ export const supplierReports: ReportDefinition[] = [
         }
         entry.vouchers.add(line.purchase.id);
         entry.row.lines = num(entry.row.lines) + 1;
-        entry.row.quantity = num(entry.row.quantity) + line.quantity;
-        entry.row.cost = add(num(entry.row.cost), num(line.unitCost) * line.quantity);
+        entry.row.quantity = num(entry.row.quantity) + num(line.stockQuantity);
+        entry.row.cost = add(num(entry.row.cost), num(line.unitCost) * num(line.quantity));
       }
       const grouped: ReportRow[] = [...groups.values()].map(({ row, vouchers }) => {
         row.vouchers = vouchers.size;
@@ -222,8 +223,8 @@ export const supplierReports: ReportDefinition[] = [
           };
           rows.set(line.productId, row);
         }
-        row.quantity = num(row.quantity) + line.quantity;
-        row.cost = add(num(row.cost), num(line.unitCost) * line.quantity);
+        row.quantity = num(row.quantity) + num(line.stockQuantity);
+        row.cost = add(num(row.cost), num(line.unitCost) * num(line.quantity));
         // The lines are not ordered by date here, so the "latest price" is the
         // newest purchase this product appears in - which the price-history
         // report reads properly.
@@ -282,7 +283,7 @@ export const supplierReports: ReportDefinition[] = [
           supplier: line.purchase.supplier.name,
           product: products.get(line.productId)?.name ?? null,
           sku,
-          quantity: line.quantity,
+          quantity: num(line.stockQuantity),
           unitCost,
           previousCost: previous ?? null,
           change: previous === undefined ? null : round2(unitCost - previous),
@@ -333,6 +334,7 @@ export const supplierReports: ReportDefinition[] = [
           id: true,
           createdAt: true,
           quantity: true,
+          stockQuantity: true,
           amount: true,
           reason: true,
           productId: true,
@@ -349,19 +351,22 @@ export const supplierReports: ReportDefinition[] = [
         ctx.db.warehouse.findMany({ select: { id: true, name: true } }),
       ]);
       const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse.name]));
-      const rows: ReportRow[] = returns.map((entry) => ({
-        date: entry.createdAt.toISOString(),
-        reference: `SR-${entry.id}`,
-        supplier: entry.supplier.name,
-        product: products.get(entry.productId)?.name ?? null,
-        sku: products.get(entry.productId)?.sku ?? null,
-        warehouse: warehouseById.get(entry.warehouseId) ?? String(entry.warehouseId),
-        quantity: -entry.quantity,
-        units: entry.quantity,
-        credit: num(entry.amount),
-        perUnit: entry.quantity ? round2(num(entry.amount) / entry.quantity) : 0,
-        reason: entry.reason,
-      }));
+      const rows: ReportRow[] = returns.map((entry) => {
+        const stockQuantity = num(entry.stockQuantity);
+        return {
+          date: entry.createdAt.toISOString(),
+          reference: `SR-${entry.id}`,
+          supplier: entry.supplier.name,
+          product: products.get(entry.productId)?.name ?? null,
+          sku: products.get(entry.productId)?.sku ?? null,
+          warehouse: warehouseById.get(entry.warehouseId) ?? String(entry.warehouseId),
+          quantity: -stockQuantity,
+          units: stockQuantity,
+          credit: num(entry.amount),
+          perUnit: stockQuantity ? round2(num(entry.amount) / stockQuantity) : 0,
+          reason: entry.reason,
+        };
+      });
       const columns: ReportColumn[] = [
         { key: "date", label: "reports.col.date", type: "date" },
         { key: "reference", label: "reports.col.reference", type: "text" },

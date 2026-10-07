@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
 import { canAccessStore, storeScopeWhere } from "@/lib/tenant-access";
 import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
+import { convertQuantity, normalizeUnit } from "@/lib/units";
 
 export const GET = withAuth(async (request, { session, db }) => {
   const warehouses = await db.warehouse.findMany({ where: storeScopeWhere(session) });
@@ -97,6 +98,19 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
   }
 
+  // Each line is entered in some unit of the product's family; the product row
+  // tells us the stock unit it must be converted to (and, for box/pack, the
+  // pieces it holds).
+  const productIds = [...new Set(items.map((item: { productId?: number }) => Number(item.productId)))];
+  const products = await db.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, unit: true, unitValue: true },
+  });
+  if (products.length !== productIds.length) {
+    return NextResponse.json({ message: "Product not found" }, { status: 404 });
+  }
+  const productById = new Map(products.map((p) => [p.id, p]));
+
   let parsedPurchasedAt = new Date();
   if (purchasedAt) {
     parsedPurchasedAt = new Date(purchasedAt);
@@ -111,25 +125,40 @@ export const POST = withAuth(async (request, { session, db }) => {
   try {
     const purchase = await db.$transaction(async (tx) => {
       let totalCost = 0;
-      const lineItems: { productId: number; quantity: number; unitCost: number; warehouseId: number }[] = [];
+      const lineItems: {
+        productId: number;
+        quantity: number;
+        unit: string;
+        stockQuantity: number;
+        unitCost: number;
+        warehouseId: number;
+      }[] = [];
 
       for (const item of items) {
         const productId = Number(item.productId);
         const quantity = Number(item.quantity);
         const unitCost = Number(item.unitCost);
         const lineWarehouseId = Number(item.warehouseId ?? warehouseId);
-        if (!productId || !quantity || quantity <= 0 || Number.isNaN(unitCost) || unitCost < 0) {
+        if (!productId || !Number.isFinite(quantity) || quantity <= 0 || Number.isNaN(unitCost) || unitCost < 0) {
           throw new Error("Each item requires a valid productId, positive quantity, and non-negative unitCost");
         }
 
+        const product = productById.get(productId);
+        if (!product) throw new Error(`Product ${productId} not found`);
+
+        const unit = normalizeUnit(item.unit ?? product.unit);
+        const packFactor = product.unitValue ? Number(product.unitValue) : null;
+        const stockQuantity = convertQuantity(quantity, unit, product.unit, packFactor);
+        if (stockQuantity === null) throw new Error(`Unit ${unit} does not match product ${productId}`);
+
         await tx.warehouseStock.upsert({
           where: { warehouseId_productId: { warehouseId: lineWarehouseId, productId } },
-          update: { quantity: { increment: quantity } },
-          create: { warehouseId: lineWarehouseId, productId, quantity },
+          update: { quantity: { increment: stockQuantity } },
+          create: { warehouseId: lineWarehouseId, productId, quantity: stockQuantity },
         });
 
         totalCost += quantity * unitCost;
-        lineItems.push({ productId, quantity, unitCost, warehouseId: lineWarehouseId });
+        lineItems.push({ productId, quantity, unit, stockQuantity, unitCost, warehouseId: lineWarehouseId });
       }
 
       // Only pin the purchase to a single warehouse when every line agrees.

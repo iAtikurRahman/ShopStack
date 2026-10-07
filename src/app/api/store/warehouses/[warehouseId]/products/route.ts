@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-guard";
 import { writeAuditLog } from "@/lib/audit";
+import { isKnownUnit, normalizeUnit } from "@/lib/units";
 
 async function loadOwnWarehouse(
   db: import("@/generated/tenant").PrismaClient,
@@ -40,6 +41,8 @@ export const GET = withAuth<{ warehouseId: string }>(async (_request, { session,
       purchasePrice: s.product.purchasePrice,
       salePrice: s.product.salePrice,
       taxRate: s.product.taxRate,
+      unit: s.product.unit,
+      unitValue: s.product.unitValue,
       quantity: s.quantity,
       lowStockThreshold: s.lowStockThreshold,
     })),
@@ -63,19 +66,42 @@ export const POST = withAuth<{ warehouseId: string }>(async (request, { session,
   }
 
   const body = await request.json().catch(() => null);
-  const { sku, name, purchasePrice, salePrice, taxRate = 0, quantity = 0, categoryId } = body ?? {};
+  const {
+    sku,
+    name,
+    purchasePrice,
+    salePrice,
+    taxRate = 0,
+    quantity = 0,
+    categoryId,
+    unit,
+    unitValue,
+  } = body ?? {};
   if (!sku || !name || purchasePrice === undefined || salePrice === undefined) {
     return NextResponse.json(
       { message: "sku, name, purchasePrice, and salePrice are required" },
       { status: 400 }
     );
   }
+  if (unit !== undefined && unit !== null && unit !== "" && !isKnownUnit(unit)) {
+    return NextResponse.json({ message: "Unknown unit" }, { status: 400 });
+  }
 
   const result = await db.$transaction(async (tx) => {
     let product = await tx.product.findUnique({ where: { sku } });
     if (!product) {
       product = await tx.product.create({
-        data: { sku, name, purchasePrice, salePrice, taxRate, categoryId: categoryId ? Number(categoryId) : null },
+        data: {
+          sku,
+          name,
+          purchasePrice,
+          salePrice,
+          taxRate,
+          categoryId: categoryId ? Number(categoryId) : null,
+          unit: unit && unit !== "" ? normalizeUnit(unit) : "piece",
+          unitValue:
+            unitValue !== undefined && unitValue !== null && unitValue !== "" ? Number(unitValue) : null,
+        },
       });
     }
 
