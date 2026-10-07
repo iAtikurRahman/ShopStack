@@ -230,11 +230,6 @@ export default function StoreInventoryPage() {
                         <td className="py-2 text-right">
                           <span className="font-medium text-slate-950">{fmt.quantity(total)}</span>{" "}
                           <span className="text-xs text-slate-500">{unitLabel(product.unit, locale)}</span>
-                          {anyLow ? (
-                            <span className="ml-2 text-xs font-medium text-red-600">
-                              {t("storeOps.inventory.lowStock")}
-                            </span>
-                          ) : null}
                         </td>
                         <td className="py-2 text-right text-slate-400">{expanded ? "▾" : "▸"}</td>
                       </tr>
@@ -279,11 +274,6 @@ export default function StoreInventoryPage() {
                                         }`}
                                       />
                                       <span className="text-xs text-slate-500">{unitLabel(product.unit, locale)}</span>
-                                      {low ? (
-                                        <span className="text-xs font-medium text-red-600">
-                                          {t("storeOps.inventory.lowStock")}
-                                        </span>
-                                      ) : null}
                                     </div>
                                   </div>
                                 );
