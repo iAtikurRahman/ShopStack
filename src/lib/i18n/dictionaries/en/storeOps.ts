@@ -114,6 +114,9 @@
       sku: "SKU",
       category: "Category",
       lowStock: "low stock",
+      totalQuantity: "Total quantity",
+      byWarehouse: "By warehouse",
+      warehouse: "Warehouse",
     },
     warehouseProducts: {
       backToInventory: "← Back to inventory",

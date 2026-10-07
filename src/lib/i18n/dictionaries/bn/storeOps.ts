@@ -111,6 +111,9 @@
       sku: "SKU",
       category: "ক্যাটাগরি",
       lowStock: "স্টক কম",
+      totalQuantity: "মোট পরিমাণ",
+      byWarehouse: "গুদাম অনুযায়ী",
+      warehouse: "গুদাম",
     },
     warehouseProducts: {
       backToInventory: "← স্টকে ফিরে যান",
