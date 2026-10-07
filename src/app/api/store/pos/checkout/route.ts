@@ -5,7 +5,16 @@ import { canAccessStore } from "@/lib/tenant-access";
 import { DUE_METHOD, applyBankDelta, requireSettlementMethod } from "@/lib/banks";
 import { convertQuantity, normalizeUnit } from "@/lib/units";
 
-type CheckoutItem = { productId: number; quantity: number; unit?: string; unitPrice?: number; discountAmount?: number };
+type CheckoutItem = {
+  productId: number;
+  quantity: number;
+  unit?: string;
+  unitPrice?: number;
+  discountAmount?: number;
+  // Which warehouse this line's stock leaves from. Omitted means the sale's
+  // primary warehouse (the whole-sale default).
+  warehouseId?: number;
+};
 type CheckoutPayment = { method: string; amount: number; reference?: string };
 
 function round2(value: number) {
@@ -40,6 +49,23 @@ export const POST = withAuth(async (request, { session, db }) => {
     return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
   }
 
+  // A line may name its own warehouse so one sale can draw the same product
+  // from several. Every named warehouse must be accessible and belong to the
+  // same store as the sale's primary warehouse, otherwise the sale would span
+  // stores and its storeId would stop being meaningful.
+  const itemWarehouseIds = [...new Set(items.map((item) => Number(item.warehouseId ?? warehouseId)))];
+  const itemWarehouses = await db.warehouse.findMany({ where: { id: { in: itemWarehouseIds } } });
+  const warehouseById = new Map(itemWarehouses.map((w) => [w.id, w]));
+  for (const id of itemWarehouseIds) {
+    const found = warehouseById.get(id);
+    if (!found || !canAccessStore(session, found.storeId)) {
+      return NextResponse.json({ message: "Warehouse not found in your store" }, { status: 404 });
+    }
+    if (found.storeId !== warehouse.storeId) {
+      return NextResponse.json({ message: "All warehouses must belong to the same store" }, { status: 400 });
+    }
+  }
+
   // A payment method is a BankInfo.bankName (or "due"), so it is resolved
   // against the database rather than a hard-coded list - this is what lets a
   // company add its own methods. Done before the transaction so an unknown name
@@ -58,6 +84,7 @@ export const POST = withAuth(async (request, { session, db }) => {
       let taxAmount = 0;
       const saleItemsData: {
         productId: number;
+        warehouseId: number;
         quantity: number;
         unit: string;
         stockQuantity: number;
@@ -70,6 +97,7 @@ export const POST = withAuth(async (request, { session, db }) => {
         const quantity = Number(item.quantity);
         const productId = Number(item.productId);
         const itemDiscount = Number(item.discountAmount ?? 0);
+        const itemWarehouseId = Number(item.warehouseId ?? warehouseId);
         if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
           throw new Error("Each item requires a valid productId and a positive quantity");
         }
@@ -87,14 +115,14 @@ export const POST = withAuth(async (request, { session, db }) => {
         }
 
         const stock = await tx.warehouseStock.findUnique({
-          where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
+          where: { warehouseId_productId: { warehouseId: itemWarehouseId, productId } },
         });
         if (!stock || Number(stock.quantity) < stockQuantity) {
           throw new Error(`Insufficient stock for product ${productId}`);
         }
 
         await tx.warehouseStock.update({
-          where: { warehouseId_productId: { warehouseId: Number(warehouseId), productId } },
+          where: { warehouseId_productId: { warehouseId: itemWarehouseId, productId } },
           data: { quantity: { decrement: stockQuantity } },
         });
 
@@ -115,6 +143,7 @@ export const POST = withAuth(async (request, { session, db }) => {
 
         saleItemsData.push({
           productId,
+          warehouseId: itemWarehouseId,
           quantity,
           unit,
           stockQuantity,

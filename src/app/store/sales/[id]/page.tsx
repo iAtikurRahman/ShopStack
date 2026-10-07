@@ -13,6 +13,7 @@ type SaleItem = {
   unit: string | null;
   unitPrice: string;
   lineTotal: string;
+  warehouse: { name: string } | null;
 };
 type SalePayment = { id: number; method: string; amount: string };
 type ReturnItem = { id: number; saleItemId: number; quantity: number };
@@ -118,6 +119,7 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
             <thead className="text-slate-500">
               <tr>
                 <th className="pb-2">{t("storeOps.saleDetail.product")}</th>
+                <th className="pb-2">{t("storeOps.saleDetail.warehouse")}</th>
                 <th className="pb-2">{t("storeOps.saleDetail.qty")}</th>
                 <th className="pb-2">{t("storeOps.saleDetail.unitPrice")}</th>
                 <th className="pb-2">{t("storeOps.saleDetail.lineTotal")}</th>
@@ -128,6 +130,9 @@ export default function SaleReceiptPage({ params }: { params: Promise<{ id: stri
                 <tr key={item.id} className="border-t border-slate-100">
                   <td className="py-2 text-slate-600">
                     {t("storeOps.saleDetail.productRow", { id: item.productId })}
+                  </td>
+                  <td className="py-2 text-slate-600">
+                    {item.warehouse?.name ?? "—"}
                   </td>
                   <td className="py-2 text-slate-600">
                     {fmt.quantity(item.quantity)} {item.unit ? unitLabel(item.unit, locale) : ""}

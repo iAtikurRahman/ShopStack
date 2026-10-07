@@ -65,7 +65,13 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
     }),
     ctx.db.saleItem.findMany({
       where: { sale: { ...ctx.storeFilter, createdAt: inWindow(ctx) } },
-      select: { productId: true, quantity: true, stockQuantity: true, sale: { select: { id: true, warehouseId: true, createdAt: true } } },
+      select: {
+        productId: true,
+        warehouseId: true,
+        quantity: true,
+        stockQuantity: true,
+        sale: { select: { id: true, warehouseId: true, createdAt: true } },
+      },
     }),
     ctx.db.supplierReturn.findMany({
       where: { createdAt: inWindow(ctx), ...warehouseScope(ctx) },
@@ -99,7 +105,8 @@ async function movements(ctx: ReportContext): Promise<Movement[]> {
       at: line.sale.createdAt,
       kind: "sale",
       productId: line.productId,
-      warehouseId: line.sale.warehouseId,
+      // The line's own warehouse, falling back to the sale's for legacy rows.
+      warehouseId: line.warehouseId ?? line.sale.warehouseId,
       quantity: -num(line.stockQuantity),
       reference: `S-${line.sale.id}`,
       note: null,
@@ -161,8 +168,9 @@ async function restockedReturns(ctx: ReportContext): Promise<Movement[]> {
   });
   const lines = await ctx.db.saleItem.findMany({
     where: { id: { in: entries.flatMap((entry) => entry.items.map((item) => item.saleItemId)) } },
-    // The warehouse is the SALE's, not the line's - SaleItem has no warehouseId.
-    select: { id: true, productId: true, sale: { select: { warehouseId: true } } },
+    // Restocked returns land in the line's own warehouse, falling back to the
+    // sale's primary one for legacy rows written before SaleItem had one.
+    select: { id: true, productId: true, warehouseId: true, sale: { select: { warehouseId: true } } },
   });
   const byId = new Map(lines.map((line) => [line.id, line]));
   return entries.flatMap((entry) =>
@@ -174,7 +182,7 @@ async function restockedReturns(ctx: ReportContext): Promise<Movement[]> {
           at: entry.createdAt,
           kind: "customerReturn" as MovementKind,
           productId: line.productId,
-warehouseId: line.sale.warehouseId,
+          warehouseId: line.warehouseId ?? line.sale.warehouseId,
           quantity: num(item.stockQuantity),
           reference: `R-${entry.id}`,
           note: entry.reason,

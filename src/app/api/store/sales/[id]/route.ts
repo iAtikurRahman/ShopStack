@@ -12,7 +12,9 @@ export const GET = withAuth<{ id: string }>(async (_request, { session, db, para
   const sale = await db.sale.findUnique({
     where: { id: saleId },
     include: {
-      items: true,
+      // Each line keeps the warehouse its stock left from, so the receipt can
+      // show where a multi-warehouse sale drew from.
+      items: { include: { warehouse: { select: { name: true } } } },
       payments: true,
       returns: { include: { items: true } },
       customer: { select: { id: true, name: true, dueAmount: true } },

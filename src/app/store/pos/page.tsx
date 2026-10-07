@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/components/LocaleProvider";
 import { useBanks } from "@/hooks/useBanks";
 import { apiFetch } from "@/services/api";
-import { convertQuantity, normalizeUnit, unitLabel } from "@/lib/units";
+import { convertQuantity, normalizeUnit, roundQuantity, unitLabel } from "@/lib/units";
 
 type Warehouse = { id: number; name: string };
 type Product = {
@@ -22,12 +22,20 @@ type Stock = { warehouseId: number; productId: number; quantity: string };
 type Customer = { id: number; name: string; phone: string | null };
 type CartLine = {
   productId: number;
+  // Which warehouse this line's stock leaves from. One sale can draw the same
+  // product from several warehouses, so a cart line is identified by the pair.
+  warehouseId: number;
   name: string;
   unit: string;
   unitPrice: number;
   taxRate: number;
   quantity: number;
 };
+
+/** A cart line is unique per (warehouse, product), so both are the key. */
+function lineKey(warehouseId: number, productId: number) {
+  return `${warehouseId}:${productId}`;
+}
 
 // The "nothing was paid" marker, kept alongside the real methods because it is
 // the one choice at the till with a lasting balance-sheet consequence. It leads
@@ -48,7 +56,6 @@ export default function PosCheckoutPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stock, setStock] = useState<Stock[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
@@ -60,9 +67,10 @@ export default function PosCheckoutPage() {
   const [productSearch, setProductSearch] = useState("");
   // While a quantity box is being edited we keep the raw text, so backspacing
   // it down to empty doesn't drop the line - the real quantity snaps back on blur.
-  const [qtyDrafts, setQtyDrafts] = useState<Record<number, string>>({});
+  // Keyed by lineKey(warehouseId, productId).
+  const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
   // Same idea as qtyDrafts, for the per-line price override while it is typed.
-  const [priceDrafts, setPriceDrafts] = useState<Record<number, string>>({});
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
 
   async function loadData() {
     try {
@@ -74,7 +82,6 @@ export default function PosCheckoutPage() {
       setProducts(inv.products);
       setStock(inv.stock);
       setCustomers(custs.customers);
-      setWarehouseId((current) => current ?? inv.warehouses[0]?.id ?? null);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -100,9 +107,17 @@ export default function PosCheckoutPage() {
     return factor && factor > 0 ? factor : 1;
   }
 
-  function availableQty(productId: number) {
-    const raw = stock.find((s) => s.warehouseId === warehouseId && s.productId === productId)?.quantity;
+  // Stock in one warehouse, in the product's stock unit.
+  function stockAt(whId: number | null, productId: number) {
+    if (whId === null) return 0;
+    const raw = stock.find((s) => s.warehouseId === whId && s.productId === productId)?.quantity;
     return raw === undefined ? 0 : Number(raw);
+  }
+
+  // What the product list shows: the product's stock across every warehouse in
+  // this store, in its stock unit. Each cart line narrows this to its warehouse.
+  function availableQty(productId: number) {
+    return warehouses.reduce((sum, w) => sum + stockAt(w.id, productId), 0);
   }
 
   // The shelf price is per the product's stock unit, so a line in another unit
@@ -111,21 +126,31 @@ export default function PosCheckoutPage() {
     return round2(Number(product.salePrice) * stockFactor(product, unit));
   }
 
+  // Adding from the product list puts the line in the first warehouse that has
+  // stock of it (the cashier can move it on the line). A product already in the
+  // cart at that warehouse is incremented; the same product at a different
+  // warehouse is a separate line.
   function addToCart(product: Product) {
+    const whId = warehouses.find((w) => stockAt(w.id, product.id) > 0)?.id ?? warehouses[0]?.id ?? null;
+    if (whId === null) return;
     setCart((current) => {
-      const existing = current.find((l) => l.productId === product.id);
+      const key = lineKey(whId, product.id);
+      const existing = current.find((l) => lineKey(l.warehouseId, l.productId) === key);
       const unit = normalizeUnit(product.unit);
       const factor = stockFactor(product, unit);
-      const availableInUnit = availableQty(product.id) / factor;
+      const availableInUnit = stockAt(whId, product.id) / factor;
       if (existing) {
         if (existing.quantity + 1 > availableInUnit) return current;
-        return current.map((l) => (l.productId === product.id ? { ...l, quantity: l.quantity + 1 } : l));
+        return current.map((l) =>
+          lineKey(l.warehouseId, l.productId) === key ? { ...l, quantity: l.quantity + 1 } : l
+        );
       }
       if (availableInUnit <= 0) return current;
       return [
         ...current,
         {
           productId: product.id,
+          warehouseId: whId,
           name: product.name,
           unit,
           unitPrice: priceFor(product, unit),
@@ -138,34 +163,76 @@ export default function PosCheckoutPage() {
 
   // The cashier may override the shelf price for a line (a negotiated price);
   // the override is per the line's chosen unit and rides along to checkout.
-  function updatePrice(productId: number, unitPrice: number) {
+  function updatePrice(key: string, unitPrice: number) {
     if (!Number.isFinite(unitPrice) || unitPrice < 0) return;
     setCart((current) =>
-      current.map((l) => (l.productId === productId ? { ...l, unitPrice: round2(unitPrice) } : l))
+      current.map((l) =>
+        lineKey(l.warehouseId, l.productId) === key ? { ...l, unitPrice: round2(unitPrice) } : l
+      )
     );
   }
 
   // Only the ✕ button removes a line - editing the number (even clearing it
   // mid-edit) just changes the quantity.
-  function updateQty(productId: number, quantity: number) {
-    const product = productById.get(productId);
-    const line = cart.find((l) => l.productId === productId);
-    const factor = stockFactor(product, line?.unit ?? normalizeUnit(product?.unit));
-    const maxInUnit = availableQty(productId) / factor;
-    const next = Math.min(Math.max(quantity, 0.01), Math.max(maxInUnit, 0.01));
-    setCart((current) => current.map((l) => (l.productId === productId ? { ...l, quantity: next } : l)));
+  function updateQty(key: string, quantity: number) {
+    setCart((current) =>
+      current.map((l) => {
+        if (lineKey(l.warehouseId, l.productId) !== key) return l;
+        const factor = stockFactor(productById.get(l.productId), l.unit);
+        const maxInUnit = stockAt(l.warehouseId, l.productId) / factor;
+        const next = Math.min(Math.max(quantity, 0.01), Math.max(maxInUnit, 0.01));
+        return { ...l, quantity: next };
+      })
+    );
   }
 
-  function removeFromCart(productId: number) {
-    setCart((current) => current.filter((l) => l.productId !== productId));
+  // Moving a line to another warehouse may land on a line that already exists
+  // for the same product there; the two are merged (clamped to its stock).
+  function changeLineWarehouse(key: string, newWarehouseId: number) {
+    setCart((current) => {
+      const line = current.find((l) => lineKey(l.warehouseId, l.productId) === key);
+      if (!line) return current;
+      const newKey = lineKey(newWarehouseId, line.productId);
+      const target = current.find((l) => lineKey(l.warehouseId, l.productId) === newKey);
+      const factor = stockFactor(productById.get(line.productId), line.unit);
+      const maxInUnit = stockAt(newWarehouseId, line.productId) / factor;
+      const moved = Math.min(line.quantity, Math.max(maxInUnit, 0.01));
+      if (target) {
+        const merged = Math.min(target.quantity + moved, Math.max(maxInUnit, 0.01));
+        return current
+          .filter((l) => lineKey(l.warehouseId, l.productId) !== key)
+          .map((l) =>
+            lineKey(l.warehouseId, l.productId) === newKey ? { ...l, quantity: merged } : l
+          );
+      }
+      return current.map((l) =>
+        lineKey(l.warehouseId, l.productId) === key
+          ? { ...l, warehouseId: newWarehouseId, quantity: moved }
+          : l
+      );
+    });
     setQtyDrafts((current) => {
       const next = { ...current };
-      delete next[productId];
+      delete next[key];
       return next;
     });
     setPriceDrafts((current) => {
       const next = { ...current };
-      delete next[productId];
+      delete next[key];
+      return next;
+    });
+  }
+
+  function removeFromCart(key: string) {
+    setCart((current) => current.filter((l) => lineKey(l.warehouseId, l.productId) !== key));
+    setQtyDrafts((current) => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    setPriceDrafts((current) => {
+      const next = { ...current };
+      delete next[key];
       return next;
     });
   }
@@ -220,7 +287,7 @@ const activeMethod =
   }
 
   async function handleCheckout() {
-    if (!warehouseId || cart.length === 0) return;
+    if (cart.length === 0) return;
     // Caught here so the cashier gets the message before the round-trip, but
     // the route enforces it too - a walk-in due has no customer to owe the money.
     if (activeMethod === DUE_METHOD && !trimmedPhone) {
@@ -232,11 +299,14 @@ const activeMethod =
     try {
       const customerId = await resolveCustomerId();
       const data = await apiFetch<{ sale: { id: number } }>("/api/store/pos/checkout", "POST", {
-        warehouseId,
+        // The sale's primary warehouse: its first line. Each line still carries
+        // its own warehouseId, which is what the server decrements.
+        warehouseId: cart[0].warehouseId,
         customerId,
         discountAmount: Number(discountAmount || 0),
         items: cart.map((l) => ({
           productId: l.productId,
+          warehouseId: l.warehouseId,
           quantity: l.quantity,
           unit: l.unit,
           unitPrice: l.unitPrice,
@@ -276,7 +346,7 @@ const activeMethod =
             <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {filteredProducts.map((product) => {
                 const qty = availableQty(product.id);
-                const inCart = cart.find((l) => l.productId === product.id)?.quantity ?? 0;
+                const inCart = cart.reduce((sum, l) => (l.productId === product.id ? sum + l.quantity : sum), 0);
                 const soldOut = qty <= 0;
                 return (
                   <button
@@ -358,24 +428,13 @@ const activeMethod =
             ) : null}
           </div>
 
-          {warehouses.length > 1 ? (
-            <select
-              value={warehouseId ?? ""}
-              onChange={(e) => setWarehouseId(Number(e.target.value))}
-              className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none focus:border-slate-900"
-            >
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-
           <div className="mt-4 space-y-2">
             {cart.length > 0 ? (
               <div className="flex items-center gap-2 px-3 text-xs font-medium text-slate-400">
                 <span className="min-w-0 flex-1">{t("storeOps.saleDetail.product")}</span>
+                {warehouses.length > 1 ? (
+                  <span className="w-32 shrink-0">{t("storeOps.pos.warehouse")}</span>
+                ) : null}
                 <span className="w-10 shrink-0 text-center">{t("storeOps.pos.unit")}</span>
                 <span className="w-14 shrink-0 text-center">{t("storeOps.pos.qty")}</span>
                 <span className="w-16 shrink-0 text-center">{t("storeOps.pos.unitPrice")}</span>
@@ -388,15 +447,33 @@ const activeMethod =
             ) : (
               cart.map((line) => {
                 const product = productById.get(line.productId);
-                const maxInUnit = availableQty(line.productId) / stockFactor(product, line.unit);
+                const key = lineKey(line.warehouseId, line.productId);
+                const maxInUnit = stockAt(line.warehouseId, line.productId) / stockFactor(product, line.unit);
                 return (
                   <div
-                    key={line.productId}
+                    key={key}
                     className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm"
                   >
                     <span className="min-w-0 flex-1 truncate font-medium text-slate-950" title={line.name}>
                       {line.name}
                     </span>
+                    {warehouses.length > 1 ? (
+                      <select
+                        value={line.warehouseId}
+                        onChange={(e) => changeLineWarehouse(key, Number(e.target.value))}
+                        className="w-32 shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs outline-none focus:border-slate-900"
+                      >
+                        {warehouses.map((w) => {
+                          const availableInUnit =
+                            stockAt(w.id, line.productId) / stockFactor(product, line.unit);
+                          return (
+                            <option key={w.id} value={w.id}>
+                              {`${w.name} · ${fmt.quantity(roundQuantity(availableInUnit))} ${unitLabel(line.unit, locale)}`}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : null}
                     <span className="w-10 shrink-0 text-center text-xs text-slate-500">
                       {unitLabel(line.unit, locale)}
                     </span>
@@ -405,19 +482,27 @@ const activeMethod =
                       min={0.01}
                       max={maxInUnit}
                       step="any"
-                      value={qtyDrafts[line.productId] ?? String(line.quantity)}
+                      value={qtyDrafts[key] ?? String(line.quantity)}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        setQtyDrafts((current) => ({ ...current, [line.productId]: raw }));
                         const parsed = Number(raw);
+                        // Never let the box hold more than the selected warehouse's
+                        // stock: an over-typed value snaps straight to the ceiling.
+                        if (Number.isFinite(parsed) && parsed > maxInUnit) {
+                          const capped = String(roundQuantity(maxInUnit));
+                          setQtyDrafts((current) => ({ ...current, [key]: capped }));
+                          updateQty(key, maxInUnit);
+                          return;
+                        }
+                        setQtyDrafts((current) => ({ ...current, [key]: raw }));
                         if (Number.isFinite(parsed) && parsed > 0) {
-                          updateQty(line.productId, parsed);
+                          updateQty(key, parsed);
                         }
                       }}
                       onBlur={() =>
                         setQtyDrafts((current) => {
                           const next = { ...current };
-                          delete next[line.productId];
+                          delete next[key];
                           return next;
                         })
                       }
@@ -427,19 +512,19 @@ const activeMethod =
                       type="number"
                       min={0}
                       step="0.01"
-                      value={priceDrafts[line.productId] ?? String(line.unitPrice)}
+                      value={priceDrafts[key] ?? String(line.unitPrice)}
                       onChange={(e) => {
                         const raw = e.target.value;
-                        setPriceDrafts((current) => ({ ...current, [line.productId]: raw }));
+                        setPriceDrafts((current) => ({ ...current, [key]: raw }));
                         const parsed = Number(raw);
                         if (Number.isFinite(parsed) && parsed >= 0) {
-                          updatePrice(line.productId, parsed);
+                          updatePrice(key, parsed);
                         }
                       }}
                       onBlur={() =>
                         setPriceDrafts((current) => {
                           const next = { ...current };
-                          delete next[line.productId];
+                          delete next[key];
                           return next;
                         })
                       }
@@ -450,7 +535,7 @@ const activeMethod =
                     </span>
                     <button
                       type="button"
-                      onClick={() => removeFromCart(line.productId)}
+                      onClick={() => removeFromCart(key)}
                       aria-label={t("storeOps.pos.removeItem", { name: line.name })}
                       className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:text-red-600"
                     >

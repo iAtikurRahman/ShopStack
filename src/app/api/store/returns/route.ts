@@ -118,10 +118,13 @@ export const POST = withAuth(async (request, { session, db }) => {
         const factor = soldQty > 0 ? Number(saleItem.stockQuantity) / soldQty : 1;
         const stockQuantity = round2(quantity * factor);
 
+        // Put the goods back where they left from. Legacy lines have no
+        // warehouseId, so they fall back to the sale's primary warehouse.
+        const restockWarehouseId = saleItem.warehouseId ?? sale.warehouseId;
         await tx.warehouseStock.upsert({
-          where: { warehouseId_productId: { warehouseId: sale.warehouseId, productId: saleItem.productId } },
+          where: { warehouseId_productId: { warehouseId: restockWarehouseId, productId: saleItem.productId } },
           update: { quantity: { increment: stockQuantity } },
-          create: { warehouseId: sale.warehouseId, productId: saleItem.productId, quantity: stockQuantity },
+          create: { warehouseId: restockWarehouseId, productId: saleItem.productId, quantity: stockQuantity },
         });
 
         returnItemsData.push({ saleItemId, quantity, unit, stockQuantity, restocked: true });
