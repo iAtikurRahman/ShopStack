@@ -112,6 +112,14 @@ export type DailySales = {
   totalSales: number;
   totalRefunds: number;
   salesCount: number;
+  /** Cost of goods received that day (sum of purchase line unitCost x quantity). */
+  totalPurchases: number;
+  /** Expense voucher totals dated that day. */
+  totalExpenses: number;
+  /** Money in from customers (Payment.transactionType = "receive"). */
+  paymentsReceived: number;
+  /** Money out to suppliers (Payment.transactionType = "payment"). */
+  paymentsPaid: number;
 };
 
 /** The sales behind one day, newest first, for the click-through panel. */
@@ -204,14 +212,30 @@ export async function getDailySales(
   end.setDate(end.getDate() + 1);
 
   const storeFilter = storeScopeWhere(session);
-  const [sales, returns] = await Promise.all([
+  // Purchases reach their store through the warehouse; expenses and payments are
+  // company-wide tables with no storeId of their own (see the schema).
+  const warehouseFilter = session.storeId !== null ? { warehouse: { storeId: session.storeId } } : {};
+  const window = { gte: start, lt: end };
+  const [sales, returns, purchases, expenses, payments] = await Promise.all([
     db.sale.findMany({
-      where: { ...storeFilter, createdAt: { gte: start, lt: end } },
+      where: { ...storeFilter, createdAt: window },
       select: { createdAt: true, totalAmount: true },
     }),
     db.return.findMany({
-      where: { ...storeFilter, createdAt: { gte: start, lt: end } },
+      where: { ...storeFilter, createdAt: window },
       select: { createdAt: true, refundAmount: true },
+    }),
+    db.purchaseItem.findMany({
+      where: { purchase: { purchasedAt: window }, ...warehouseFilter },
+      select: { quantity: true, unitCost: true, purchase: { select: { purchasedAt: true } } },
+    }),
+    db.expenditure.findMany({
+      where: { isActive: true, expenditureDate: window },
+      select: { expenditureDate: true, totalAmount: true },
+    }),
+    db.payment.findMany({
+      where: { isActive: true, paymentDate: window },
+      select: { paymentDate: true, paymentAmount: true, transactionType: true },
     }),
   ]);
 
@@ -221,7 +245,16 @@ export async function getDailySales(
   for (let i = 0; i < span; i++) {
     const day = new Date(start);
     day.setDate(day.getDate() + i);
-    buckets.set(toDateKey(day), { date: toDateKey(day), totalSales: 0, totalRefunds: 0, salesCount: 0 });
+    buckets.set(toDateKey(day), {
+      date: toDateKey(day),
+      totalSales: 0,
+      totalRefunds: 0,
+      salesCount: 0,
+      totalPurchases: 0,
+      totalExpenses: 0,
+      paymentsReceived: 0,
+      paymentsPaid: 0,
+    });
   }
 
   for (const sale of sales) {
@@ -234,6 +267,25 @@ export async function getDailySales(
     const bucket = buckets.get(toDateKey(entry.createdAt));
     if (!bucket) continue;
     bucket.totalRefunds = round2(bucket.totalRefunds + toNum(entry.refundAmount));
+  }
+  for (const item of purchases) {
+    const bucket = buckets.get(toDateKey(item.purchase.purchasedAt));
+    if (!bucket) continue;
+    bucket.totalPurchases = round2(bucket.totalPurchases + toNum(item.unitCost) * toNum(item.quantity));
+  }
+  for (const voucher of expenses) {
+    const bucket = buckets.get(toDateKey(voucher.expenditureDate));
+    if (!bucket) continue;
+    bucket.totalExpenses = round2(bucket.totalExpenses + toNum(voucher.totalAmount));
+  }
+  for (const entry of payments) {
+    const bucket = buckets.get(toDateKey(entry.paymentDate));
+    if (!bucket) continue;
+    if (entry.transactionType === "receive") {
+      bucket.paymentsReceived = round2(bucket.paymentsReceived + toNum(entry.paymentAmount));
+    } else {
+      bucket.paymentsPaid = round2(bucket.paymentsPaid + toNum(entry.paymentAmount));
+    }
   }
 
   return [...buckets.values()];
@@ -254,11 +306,24 @@ export async function getDayReport(
   if (!bounds) return null;
 
   const storeFilter = storeScopeWhere(session);
+  const warehouseFilter = session.storeId !== null ? { warehouse: { storeId: session.storeId } } : {};
   const createdAt = { gte: bounds.start, lt: bounds.end };
 
-  const [salesAgg, refundsAgg, sales] = await Promise.all([
+  const [salesAgg, refundsAgg, purchases, expenses, payments, sales] = await Promise.all([
     db.sale.aggregate({ where: { ...storeFilter, createdAt }, _sum: { totalAmount: true }, _count: true }),
     db.return.aggregate({ where: { ...storeFilter, createdAt }, _sum: { refundAmount: true } }),
+    db.purchaseItem.findMany({
+      where: { purchase: { purchasedAt: createdAt }, ...warehouseFilter },
+      select: { quantity: true, unitCost: true },
+    }),
+    db.expenditure.findMany({
+      where: { isActive: true, expenditureDate: createdAt },
+      select: { totalAmount: true },
+    }),
+    db.payment.findMany({
+      where: { isActive: true, paymentDate: createdAt },
+      select: { paymentAmount: true, transactionType: true },
+    }),
     db.sale.findMany({
       where: { ...storeFilter, createdAt },
       orderBy: { createdAt: "desc" },
@@ -286,6 +351,18 @@ export async function getDayReport(
     totalSales: toNum(salesAgg._sum.totalAmount ?? 0),
     totalRefunds: toNum(refundsAgg._sum.refundAmount ?? 0),
     salesCount: salesAgg._count,
+    totalPurchases: round2(purchases.reduce((sum, item) => sum + toNum(item.unitCost) * toNum(item.quantity), 0)),
+    totalExpenses: round2(expenses.reduce((sum, voucher) => sum + toNum(voucher.totalAmount), 0)),
+    paymentsReceived: round2(
+      payments
+        .filter((entry) => entry.transactionType === "receive")
+        .reduce((sum, entry) => sum + toNum(entry.paymentAmount), 0)
+    ),
+    paymentsPaid: round2(
+      payments
+        .filter((entry) => entry.transactionType === "payment")
+        .reduce((sum, entry) => sum + toNum(entry.paymentAmount), 0)
+    ),
     sales: page.map((sale) => ({
       id: sale.id,
       soldAt: sale.createdAt.toISOString(),

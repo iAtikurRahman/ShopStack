@@ -3,7 +3,26 @@
 import { useState } from "react";
 import { useI18n } from "@/components/LocaleProvider";
 import { apiFetch } from "@/services/api";
+import type { TranslationKey } from "@/lib/i18n/dictionaries";
 import type { DailySales, DayReport } from "@/lib/reports";
+
+/** The money measures plotted per day, in the order they are drawn. */
+type SeriesKey =
+  | "totalSales"
+  | "totalPurchases"
+  | "totalRefunds"
+  | "totalExpenses"
+  | "paymentsReceived"
+  | "paymentsPaid";
+
+const SERIES: { key: SeriesKey; label: TranslationKey; bar: string; active: string }[] = [
+  { key: "totalSales", label: "storeOps.reports.salesLegend", bar: "bg-slate-400", active: "bg-slate-950" },
+  { key: "totalPurchases", label: "storeOps.reports.purchasesLegend", bar: "bg-blue-300", active: "bg-blue-500" },
+  { key: "totalRefunds", label: "storeOps.reports.refundsLegend", bar: "bg-red-300", active: "bg-red-500" },
+  { key: "totalExpenses", label: "storeOps.reports.expensesLegend", bar: "bg-amber-300", active: "bg-amber-500" },
+  { key: "paymentsReceived", label: "storeOps.reports.paymentsReceivedLegend", bar: "bg-emerald-300", active: "bg-emerald-500" },
+  { key: "paymentsPaid", label: "storeOps.reports.paymentsPaidLegend", bar: "bg-violet-300", active: "bg-violet-500" },
+];
 
 /**
  * Daily sales as a bar chart, one clickable column per day.
@@ -21,9 +40,9 @@ export function SalesTrendChart({ days, today }: { days: DailySales[]; today: st
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // One scale for both series so their heights mean the same thing. Guarded
+  // One scale for every series so their heights mean the same thing. Guarded
   // against an all-zero window, where every bar would otherwise divide by zero.
-  const peak = Math.max(1, ...days.flatMap((d) => [d.totalSales, d.totalRefunds]));
+  const peak = Math.max(1, ...days.flatMap((d) => SERIES.map((series) => d[series.key])));
 
   // "2026-10-14" on its own is parsed as UTC midnight and can render as the 13th
   // west of Greenwich. The time suffix pins it to local midnight, so the label
@@ -62,24 +81,24 @@ export function SalesTrendChart({ days, today }: { days: DailySales[]; today: st
               type="button"
               onClick={() => selectDay(day.date)}
               aria-pressed={isSelected}
-              title={`${fmt.date(asLocalDate(day.date))} · ${fmt.money(day.totalSales)}`}
+              title={[
+                fmt.date(asLocalDate(day.date)),
+                ...SERIES.map((series) => `${t(series.label)}: ${fmt.money(day[series.key])}`),
+              ].join("\n")}
               className={`flex h-full flex-1 cursor-pointer items-end justify-center gap-px rounded-lg p-0.5 transition ${
                 isSelected ? "bg-slate-100" : "hover:bg-slate-50"
               }`}
             >
-              {/* Side by side, not stacked: sales and refunds are two separate
-                  measures of the same day, and stacking them would read as one
-                  total that they never add up to. */}
-              <span
-                className={`h-full w-1/2 rounded-sm ${isSelected ? "bg-red-400" : "bg-red-200"}`}
-                style={{ height: `${Math.round((day.totalRefunds / peak) * 100)}%` }}
-              />
-              <span
-                className={`h-full w-1/2 rounded-sm ${
-                  isSelected ? "bg-slate-950" : day.date === today ? "bg-slate-700" : "bg-slate-400"
-                }`}
-                style={{ height: `${Math.round((day.totalSales / peak) * 100)}%` }}
-              />
+              {/* Side by side, not stacked: these are separate measures of the
+                  same day, and stacking them would read as one total that they
+                  never add up to. */}
+              {SERIES.map((series) => (
+                <span
+                  key={series.key}
+                  className={`h-full flex-1 rounded-sm ${isSelected ? series.active : series.bar}`}
+                  style={{ height: `${Math.round((day[series.key] / peak) * 100)}%` }}
+                />
+              ))}
             </button>
           );
         })}
@@ -99,14 +118,12 @@ export function SalesTrendChart({ days, today }: { days: DailySales[]; today: st
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-600">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-slate-700" />
-          {t("storeOps.reports.salesLegend")}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-red-300" />
-          {t("storeOps.reports.refundsLegend")}
-        </span>
+        {SERIES.map((series) => (
+          <span key={series.key} className="flex items-center gap-1.5">
+            <span className={`h-2.5 w-2.5 rounded-sm ${series.active}`} />
+            {t(series.label)}
+          </span>
+        ))}
         <span className="text-slate-500">{t("storeOps.reports.clickBarHint")}</span>
       </div>
 
@@ -123,14 +140,21 @@ export function SalesTrendChart({ days, today }: { days: DailySales[]; today: st
           ) : detail ? (
             <>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs text-slate-600">{t("storeOps.reports.totalSales")}</p>
-                  <p className="text-lg font-semibold text-slate-950">{fmt.money(detail.totalSales)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-600">{t("storeOps.reports.totalRefunds")}</p>
-                  <p className="text-lg font-semibold text-slate-950">{fmt.money(detail.totalRefunds)}</p>
-                </div>
+                {(
+                  [
+                    ["storeOps.reports.salesLegend", detail.totalSales],
+                    ["storeOps.reports.purchasesLegend", detail.totalPurchases],
+                    ["storeOps.reports.refundsLegend", detail.totalRefunds],
+                    ["storeOps.reports.expensesLegend", detail.totalExpenses],
+                    ["storeOps.reports.paymentsReceivedLegend", detail.paymentsReceived],
+                    ["storeOps.reports.paymentsPaidLegend", detail.paymentsPaid],
+                  ] as [TranslationKey, number][]
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-xs text-slate-600">{t(label)}</p>
+                    <p className="text-lg font-semibold text-slate-950">{fmt.money(value)}</p>
+                  </div>
+                ))}
                 <div>
                   <p className="text-xs text-slate-600">{t("storeOps.reports.salesCount")}</p>
                   <p className="text-lg font-semibold text-slate-950">{fmt.number(detail.salesCount)}</p>
