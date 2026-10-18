@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { COOKIE_SECURE } from "@/lib/auth";
 import { LOCALE_COOKIE, DEFAULT_LOCALE, toLocale, type Locale } from "./locale";
 
 const LOCALE_TTL_MS = 365 * 24 * 60 * 60 * 1000;
@@ -13,7 +14,7 @@ export async function setLocaleCookie(locale: Locale) {
   const store = await cookies();
   store.set(LOCALE_COOKIE, locale, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax",
     path: "/",
     maxAge: LOCALE_TTL_MS / 1000,

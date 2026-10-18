@@ -37,6 +37,11 @@ services:
       - "30051:30051"
     environment:
       NODE_ENV: production
+      # The server is reached over plain http:// (bare IP), and browsers
+      # drop Secure cookies on http origins - login would succeed but the
+      # session cookie would vanish, bouncing the user back to the login
+      # page. Flip to "true" once a TLS reverse proxy fronts the app.
+      SESSION_COOKIE_SECURE: "false"
       SESSION_SECRET: dsafA3487hsdfqwer@347r8y8asfhiajro4r19874987hiasjfoiweru84yrhsadkf7t7yiuy&huuha77t7348
       JWT_SECRET: shopstack
 

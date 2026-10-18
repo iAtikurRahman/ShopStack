@@ -64,11 +64,23 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
   }
 }
 
+/**
+ * Whether session/locale cookies carry the Secure flag. Browsers refuse
+ * Secure cookies on plain http:// origins, which silently breaks login: the
+ * login API succeeds, the cookie is dropped, and the proxy bounces the user
+ * straight back to the login page. Production defaults to secure; set
+ * SESSION_COOKIE_SECURE=false when the app is served over http:// (e.g.
+ * Docker on a bare IP) until a TLS reverse proxy fronts it.
+ */
+export const COOKIE_SECURE = process.env.SESSION_COOKIE_SECURE
+  ? process.env.SESSION_COOKIE_SECURE === "true"
+  : process.env.NODE_ENV === "production";
+
 export async function setSessionCookie(token: string) {
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: COOKIE_SECURE,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_MS / 1000,
