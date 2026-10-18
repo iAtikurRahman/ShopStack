@@ -1,0 +1,64 @@
+# Full stack in Docker: MySQL + the Next.js app.
+#   docker compose up --build
+# App: http://localhost:30051  (port hardcoded in server.js)
+# The entrypoint waits for MySQL, runs `prisma migrate deploy` for both the
+# central and tenant schemas, seeds the central admin, then starts the app.
+#
+# Values mirror .env - keep the two in sync if you change them.
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sobuj911091
+      MYSQL_DATABASE: sornagro_central
+    # The app reaches MySQL over the compose network as `db:3306` - no host
+    # port needed. To poke at the DB from the host, temporarily publish it:
+    #   ports:
+    #     - "33060:3306"
+    # (3306 itself often clashes with a MySQL already running on the host.)
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -uroot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "30051:30051"
+    environment:
+      NODE_ENV: production
+      SESSION_SECRET: dsafA3487hsdfqwer@347r8y8asfhiajro4r19874987hiasjfoiweru84yrhsadkf7t7yiuy&huuha77t7348
+      JWT_SECRET: shopstack
+
+      # Central DB (Prisma schema prisma/central)
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: sobuj911091
+      MYSQL_DATABASE: sornagro_central
+      CENTRAL_DATABASE_URL: "mysql://root:sobuj911091@db:3306/sornagro_central?connection_limit=10"
+
+      # Tenant DB (Prisma schema prisma/tenant + provisioning at runtime).
+      # DATABASE_URL is the scratch/dev tenant database.
+      DATABASE_URL: "mysql://root:sobuj911091@db:3306/sornagro_central?connection_limit=10"
+      TENANT_DB_HOST: db
+      TENANT_DB_PORT: "3306"
+      TENANT_DB_USER: root
+      TENANT_DB_PASSWORD: sobuj911091
+    volumes:
+      # Keep company logo / payment-screenshot uploads across rebuilds.
+      - uploads:/app/public/uploads
+
+volumes:
+  mysql_data:
+  uploads:

@@ -35,6 +35,11 @@ INSERT INTO `bank_info` (`bankName`, `initialBalance`, `remainingBalance`, `isAc
     ('other', 0, 0, true, NOW(3), NOW(3));
 
 -- AlterTable
-ALTER TABLE `payment` MODIFY `paymentType` VARCHAR(191) NOT NULL;
-ALTER TABLE `purchase` MODIFY `paymentMethod` VARCHAR(191) NULL;
-ALTER TABLE `salepayment` MODIFY `method` VARCHAR(191) NOT NULL;
+-- NB: physical table names are PascalCase (Payment/Purchase/SalePayment -
+-- no @@map on those models). Keep the case exact: MySQL on Linux compares
+-- table names case-sensitively, so lowercase names only worked on
+-- case-insensitive local setups (macOS/Windows) and failed on fresh Docker
+-- or Linux server databases.
+ALTER TABLE `Payment` MODIFY `paymentType` VARCHAR(191) NOT NULL;
+ALTER TABLE `Purchase` MODIFY `paymentMethod` VARCHAR(191) NULL;
+ALTER TABLE `SalePayment` MODIFY `method` VARCHAR(191) NOT NULL;

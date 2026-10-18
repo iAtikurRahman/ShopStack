@@ -1,0 +1,14 @@
+# Build context hygiene - these are either rebuilt inside the image or
+# must never end up in it.
+node_modules
+.next
+.git
+src/generated
+.env
+.env.*
+dev.log
+*.log
+.report-smoke
+public/uploads
+docker-compose.yml
+Dockerfile
