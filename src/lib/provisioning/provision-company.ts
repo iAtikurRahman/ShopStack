@@ -118,6 +118,7 @@ async function seedTenantDatabase(
 
     await tenantDb.permission.createMany({
       data: PERMISSION_CATALOG.map(({ key, label, description }) => ({ key, label, description })),
+      skipDuplicates: true,
     });
 
     // The payment-method vocabulary the POS tender, the purchase form and the
@@ -127,6 +128,7 @@ async function seedTenantDatabase(
     // dropdown and every sale would be rejected as an unknown method.
     await tenantDb.bankInfo.createMany({
       data: DEFAULT_BANK_NAMES.map((bankName) => ({ bankName })),
+      skipDuplicates: true,
     });
 
     // The "what was this money spent on" vocabulary the Expenditure screen's line
@@ -136,6 +138,7 @@ async function seedTenantDatabase(
     // migration of the same name fills it in for tenants that already exist.
     await tenantDb.expenditureHead.createMany({
       data: DEFAULT_EXPENDITURE_HEADS.map((name) => ({ name })),
+      skipDuplicates: true,
     });
 
     const mainStore = await tenantDb.store.create({
